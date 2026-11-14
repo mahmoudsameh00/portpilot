@@ -120,7 +120,7 @@ actual = {"off": off, "is_on_after_off": off_is_on, "on": on, "ai_integrations":
           "release": client.options["release"], "environment": client.options["environment"]}
 expected = {"off": False, "is_on_after_off": False, "on": True, "ai_integrations": [], "defaults_present": True,
             "traces_sample_rate": None, "enable_logs": True, "send_default_pii": False,
-            "release": "nilegate-agents@0.1.0", "environment": os.environ.get("SENTRY_ENVIRONMENT", "") or "local"}
+            "release": "portpilot-agents@0.1.0", "environment": os.environ.get("SENTRY_ENVIRONMENT", "") or "local"}
 assert actual == expected, {k: (actual[k], expected[k]) for k in actual if actual[k] != expected[k]}
 print(f"Phase 1: integrations {sorted(names)}")
 print("✅ Phase 1 validation passed: off without a DSN; on with one, no AI / httpx / pymongo integration, no tracing")

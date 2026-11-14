@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from pipelines.agents.tools import context, trust
 from pipelines.agents.tools.schemas import Source, ToolResult
+from pipelines.lib import shared_files
 from pipelines.lib.common import load_env, project_root, redact
 
 CACHE_DIR = project_root() / "Data" / "processed" / "agents" / "tool_cache"
@@ -57,16 +58,24 @@ def settled(window_end: date | None) -> bool:
 
 
 class ExternalCache:
+    """Append-only JSONL per tool; several processes append under a file lock and read each other's new lines on a
+    miss (FastAPI plan C3). A later line for a key wins (a refreshed unsettled answer)."""
+
     def __init__(self, tool_name: str, folder: Path = CACHE_DIR):
         self.path = folder / f"{tool_name}.jsonl"
         self.entries: dict[str, dict] = {}
-        if self.path.exists():
-            for line in self.path.read_text(encoding="utf-8").splitlines():
-                if line.strip():
-                    e = json.loads(line)
-                    self.entries[e["key"]] = e
+        self._tail = shared_files.Tail(self.path)
+        self._refresh()
+
+    def _refresh(self) -> None:
+        for e in self._tail.read():                 # this process's own lines come back too: never let an older
+            old = self.entries.get(e["key"])        # line replace a newer entry
+            if old is None or e["stored_at"] > old["stored_at"]:
+                self.entries[e["key"]] = e
 
     def get(self, key: str) -> dict | None:
+        if key not in self.entries:                 # only a miss reads the others' new lines; an expired entry is
+            self._refresh()                         # fetched again (at worst once more than needed)
         e = self.entries.get(key)
         if e is None or (not e["settled"] and time.time() - e["stored_at"] > FRESH_TTL_S):
             return None
@@ -74,9 +83,7 @@ class ExternalCache:
 
     def put(self, key: str, args: dict, payload, is_settled: bool) -> dict:
         e = {"key": key, "args": args, "stored_at": time.time(), "settled": is_settled, "payload": payload}
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.path.open("a", encoding="utf-8", newline="\n") as f:
-            f.write(json.dumps(e, ensure_ascii=False, default=str) + "\n")
+        shared_files.append_line(self.path, json.dumps(e, ensure_ascii=False, default=str))
         self.entries[key] = e
         return e
 
@@ -190,7 +197,7 @@ def suez_transits(user, **args) -> ToolResult:
 @tool("suez_transits", args_schema=TransitArgs)
 def suez_transits_tool(runtime: ToolRuntime, **args) -> dict:
     """Daily Suez Canal transit calls by vessel type (IMF PortWatch, public AIS-based estimates) for a date window of
-    up to 120 days, with the mean per day. Context for revenue changes; never a NileGate number."""
+    up to 120 days, with the mean per day. Context for revenue changes; never a PortPilot number."""
     return suez_transits(context.user_of(runtime), **args).model_dump(mode="json")
 
 

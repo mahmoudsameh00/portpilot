@@ -49,7 +49,7 @@ def first(role, dept):
 
 FIN_EMP, OPS_EMP = context.load_user(first("employee", "Finance")), context.load_user(first("employee", "Operations"))
 KPI = ("finance_kpi", {"report_week": 23, "dataset": "weekly"})
-GOOD = "NileGate billed {insight.c1:billed_sdr|M} in week 23 of 2025."
+GOOD = "PortPilot billed {insight.c1:billed_sdr|M} in week 23 of 2025."
 
 
 def names(tools) -> list[str]:
@@ -93,11 +93,12 @@ ans = lambda text, status="answered", ids=("insight.c1",): {"status": status, "a
 s_a, a = run([("tool", KPI), ("text", "found it"), ("structured", ans(GOOD))])
 s_b, b = run([("tool", KPI), ("answer_call", ans(GOOD))])
 s_c, c = run([("tool", KPI), ("text", "found it"), ("structured", {"status": "maybe", "answer": 3})])
-actual = {"fallback": (a["status"], a["rendered"][:22], [x["schema"] for x in s_a.seen]),
-          "direct": (b["status"], b["rendered"][:22], [x["schema"] for x in s_b.seen]),
+# 23 characters = "PortPilot billed 8.39 M" (22 before the 2026-11-11 rename: the old name was one letter shorter)
+actual = {"fallback": (a["status"], a["rendered"][:23], [x["schema"] for x in s_a.seen]),
+          "direct": (b["status"], b["rendered"][:23], [x["schema"] for x in s_b.seen]),
           "invalid": (c["status"], c["stop_reason"][:10])}
-expected = {"fallback": ("answered", "NileGate billed 8.39 M", [None, None, "QaAnswer"]),
-            "direct": ("answered", "NileGate billed 8.39 M", [None, None]),
+expected = {"fallback": ("answered", "PortPilot billed 8.39 M", [None, None, "QaAnswer"]),
+            "direct": ("answered", "PortPilot billed 8.39 M", [None, None]),
             "invalid": ("output_invalid", "qa_answer:")}
 assert actual == expected, {k: (actual[k], expected[k]) for k in actual if actual[k] != expected[k]}
 print(f"Phase 1: {actual}")
@@ -123,7 +124,7 @@ print("✅ Phase 2 validation passed: the brief on every request (evidence ids o
 DONE.append(2)
 
 # %% Phase 3 — Check + one patch
-TYPED = "NileGate billed 8.99 M SDR in week 23 of 2025."
+TYPED = "PortPilot billed 8.99 M SDR in week 23 of 2025."
 s_e, e = run([("tool", KPI), ("answer_call", ans(TYPED)), ("answer_call", ans(GOOD))])
 s_f, f = run([("tool", KPI), ("answer_call", ans(TYPED))])
 actual = {"fixed": (e["status"], e.get("patches"), e["problems"]),
@@ -139,7 +140,7 @@ DONE.append(3)
 
 # %% Phase 4 — RBAC with the real tools
 q = "What were our receivables in week 23?"
-_, g_ = run([("tool", KPI), ("answer_call", ans("Your role has no access to NileGate's receivables (Finance data).",
+_, g_ = run([("tool", KPI), ("answer_call", ans("Your role has no access to PortPilot's receivables (Finance data).",
                                                 "not_permitted"))], user=OPS_EMP, question=q)
 _, h = run([("tool", KPI), ("answer_call", ans(GOOD))], user=OPS_EMP, question=q)
 actual = {"refused_tool": g_["evidence"]["insight.c1"]["status"], "status": g_["status"], "bound": g_["bound"],
@@ -154,7 +155,7 @@ DONE.append(4)
 
 # %% Phase 5 — Limits and records
 s_i, i = run([("answer_call", {"status": "answered"})])            # invalid arguments every time
-FIXABLE = "NileGate billed {insight.c1:billed_sdr|n} in week 23 of 2025."   # a count format on money → default M
+FIXABLE = "PortPilot billed {insight.c1:billed_sdr|n} in week 23 of 2025."   # a count format on money → default M
 _, j = run([("tool", KPI), ("answer_call", ans(FIXABLE))])
 actual = {"limit": (i["status"], len(i["llm_usage"]), s_i.n), "calls": j["calls"],
           "normalized": bool(j["normalized"]), "fixed_status": j["status"], "usage_nodes": {u["node"] for u in j["llm_usage"]}}

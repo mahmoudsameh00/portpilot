@@ -1,5 +1,5 @@
 # Engineering hygiene H1 (free GitHub Actions minutes): what runs without the owner's databases.
-# The full *_check.py runs stay on the owner's machine (they need the loaded PostgreSQL / MongoDB / Qdrant).
+# Full-data checks stay owner-run. api-integration below uses a fresh, disposable PostgreSQL service only.
 name: CI
 
 on:
@@ -28,3 +28,81 @@ jobs:
         run: uv run python tools/run.py pipelines/scripts/agents/Monitoring_check.py
       - name: LangSmith mirror, build phase (0 network)
         run: uv run python tools/run.py pipelines/scripts/agents/Langsmith_mirror.py
+      - name: API OpenAPI snapshot (the committed schema = the app; 0 network, no database)
+        run: uv run python tools/openapi_snapshot.py --check
+      - name: Run lifecycle regressions (0 network, no database)
+        run: uv run python tools/run.py pipelines/scripts/agents/Run_lifecycle_check.py
+      - name: Integration target guard (0 network, no database)
+        run: uv run python pipelines/scripts/api/Api_integration_check.py --guard-only
+      - name: Scheduled business outcomes (0 network, no database)
+        run: uv run python tools/run.py pipelines/scripts/agents/Scheduled_outcome_check.py
+      - name: Publication recovery (0 network, no database)
+        run: uv run python tools/run.py pipelines/scripts/agents/Publication_check.py
+      - name: Approval safety regressions (0 network, no database)
+        run: uv run python tools/run.py pipelines/scripts/agents/Approval_safety_check.py
+      - name: Shared EN/AR traffic claims (0 network, no database)
+        run: uv run python tools/run.py pipelines/scripts/agents/Traffic_claims_check.py
+      - name: PortPilot upload and Power BI compatibility (0 network, no database)
+        run: uv run python tools/run.py pipelines/scripts/retrieval/Brand_compatibility_check.py
+      - name: Approval rule cases for the web = the API's DecisionIn (Frontend plan F0; 0 network)
+        run: uv run python tools/export_approval_cases.py --check
+
+  api-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16.9
+        env:
+          POSTGRES_DB: portpilot_api_test
+          POSTGRES_USER: postgres
+          # Disposable CI service credential only; never an application secret.
+          POSTGRES_PASSWORD: ci-${{ github.run_id }}-${{ github.run_attempt }}
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portpilot_api_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PORTPILOT_API_TEST_DSN: host=127.0.0.1 port=55432 dbname=portpilot_api_test user=postgres password=ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+      - name: Install the locked environment
+        run: uv sync --frozen
+      - name: Real PostgreSQL auth, ownership, locks and publication transactions (no .env or models)
+        run: uv run python tools/run.py pipelines/scripts/api/Api_integration_check.py
+
+  # Frontend plan §11.1 (ADR-060): the web app, database-free (the BFF tests never reach the API).
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install the locked packages
+        run: npm ci
+      - name: Static checks (allow-list = OpenAPI, tsc, eslint, prettier, npm audit runtime high+)
+        run: npm run check -- --static
+      - name: Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Tests on the production build + the mock API (logic, E2E, auth, axe, BFF rules)
+        run: npx playwright test
+      - name: Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7

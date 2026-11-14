@@ -1,0 +1,58 @@
+{
+  "plan": "docs/plans/Traffic_billing_link_plan.md (Phase 1)",
+  "source": "https://services9.arcgis.com/weJ1QsnbMYJlCHdG/ArcGIS/rest/services/Daily_Chokepoints_Data/FeatureServer/0",
+  "portid": "chokepoint1",
+  "retrieved_at": "2026-11-08T13:13:29Z",
+  "window": [
+    "2024-12-23",
+    "2025-12-28"
+  ],
+  "days": 371,
+  "weeks": "0 (lag) + 1–52",
+  "n_total_type_residual_days": 0,
+  "tool_cache_days_checked": 371,
+  "weekly_swing": {
+    "weekly_mean": 269.6,
+    "weekly_sd": 21.5,
+    "weekly_cv_pct": 7.99,
+    "weekly_min": 217,
+    "weekly_min_week": 6,
+    "weekly_max": 315,
+    "weekly_max_week": 37,
+    "lag1_autocorr": 0.439
+  },
+  "scenario_expected_r": {
+    "invoices_weeks_1_52": 996,
+    "draws": 2000,
+    "seed": 42,
+    "n13": {
+      "threshold": 0.555,
+      "scenario_r_median": 0.288,
+      "scenario_r_p05": -0.197,
+      "scenario_link_rate": 0.113,
+      "uniform_r_median": -0.003,
+      "uniform_link_rate": 0.051
+    },
+    "n26": {
+      "threshold": 0.392,
+      "scenario_r_median": 0.234,
+      "scenario_r_p05": -0.097,
+      "scenario_link_rate": 0.189,
+      "uniform_r_median": -0.006,
+      "uniform_link_rate": 0.059
+    },
+    "n52": {
+      "threshold": 0.277,
+      "scenario_r_median": 0.332,
+      "scenario_r_p05": 0.124,
+      "scenario_link_rate": 0.663,
+      "uniform_r_median": 0.002,
+      "uniform_link_rate": 0.043
+    }
+  },
+  "files": {
+    "Data/processed/structured/portwatch_suez_raw.json": "bc8f0639bb07b6d2c39f3fd2d0a8c001097252e062a244e3694421b96c520bb2",
+    "Data/processed/structured/suez_transits_daily.csv": "df6a3ee9f64f5e1f513ae309d822f85eedafa8e0d68ebb0041bc81763b70e925",
+    "db/migrations/025_suez_transits.sql": "84355bc15446bb30ab6f7ae9c14f94f54db849b76ebcbb4d683282fad112bb10"
+  }
+}

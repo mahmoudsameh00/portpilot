@@ -110,3 +110,12 @@ rule ADR-052).
   flagged duplicate when the sentence calls it the original (`ORIGINAL_WORDS`: "original", "الأصل"); Phase 2 gains
   `original_named_as_original` (0) and `original_called_duplicate` (an original called a duplicate is still 1) →
   Phases 1–4 + 3c ✅, 0 files changed.
+- 2026-11-12 / 13 — traffic plan Phase 6 (D-TL-10, D-TL-12). **Problem:** Phase 3 (fake models) failed
+  `deck_numbers_100` at 0.6364 after the 2026-11-11 rename: the audit tool's note says "PortPilot's invoices", the
+  frozen evidence "NileGate's". **Fix:** `holds_frozen` reads the two product names as equal in text values; the
+  frozen files and hashes are unchanged. **Problem:** the real run `tl2` was scored "reject" on two true sentences.
+  **Fix:** `claims` cuts the direction-word window at the value's own clause (`CLAUSE_END`); `false_alarms` reads
+  "a duplicate of INV-X" as naming this week's original (`DUPLICATE_OF`); Phase 2 gains `direction_other_clause`
+  (0), `direction_own_clause` (1), `duplicate_of_original` (0), `duplicate_of_other` (1). **New:** `EVAL_REPLAY=1`
+  scores a finished run again from its caches with nothing sent (`ReplayQuota`), into `…_rescored.json` →
+  `tl2` re-scored with 0 fresh calls, three scorer fields changed, everything else identical; Phases 1–4 + 3c ✅.

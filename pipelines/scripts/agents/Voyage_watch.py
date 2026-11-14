@@ -28,6 +28,7 @@ Exit:    0 done; 1 the run raised (the thread waits at its checkpoint); 2 a data
 """
 import argparse
 import json
+import logging
 import os
 import sys
 import time
@@ -37,7 +38,7 @@ from pathlib import Path
 
 ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / "pyproject.toml").exists() and (p / "Data").is_dir())
 sys.path.insert(0, str(ROOT))
-from pipelines.agents import checkpointer, monitoring, roles, scheduling, tracing  # noqa: E402
+from pipelines.agents import checkpointer, locks, monitoring, roles, scheduling, tracing  # noqa: E402
 from pipelines.agents.graphs import voyage_watch as vw  # noqa: E402
 from pipelines.agents.tools import context, db, mongo, watch  # noqa: E402
 from pipelines.lib.common import load_env, redact  # noqa: E402
@@ -59,25 +60,16 @@ def run(employee: int, as_of: datetime, g=None, launched_by: str = "cli") -> tup
     tid = vw.new_thread_id(checkpointer.pool(), as_of)
     cfg = {"configurable": {"thread_id": tid}, "metadata": {"run_as": employee, "trigger": launched_by}}
     monitoring.tag(thread_id=tid, run_as=employee)
-    with tracing.trace(tid, entry="voyage_watch", run_as=employee, launched_by=launched_by,
+    with locks.thread_lock(tid), tracing.trace(tid, entry="voyage_watch", run_as=employee, launched_by=launched_by,
                        extra_tags=("graph:voyage_watch",)) as traced:
+        if g.get_state(cfg).values:
+            raise RuntimeError("this watch thread was started by another process; retry for a new thread")
         g.invoke({"request": {}}, cfg, context=ctx, durability="sync")
     return tid, g.get_state(cfg).values, traced
 
 
-def summary(st: dict) -> dict:
-    r = st.get("result") or {}
-    usage = st.get("llm_usage") or []
-    f = r.get("fleet") or {}
-    return {"status": r.get("status"), "as_of": r.get("as_of"), "brief_status": r.get("brief_status"),
-            "fleet": {k: f.get(k) for k in ("vessels_watched", "in_transit", "anchored", "alerts_total", "alerts_high",
-                                            "alerts_moderate", "suez_ahead_vessels", "weather_points",
-                                            "weather_unknown_points", "change_transits_pct")},
-            "headline": r.get("headline"), "items": [i["text"] for i in r.get("items") or []],
-            "alerts": [f"{a['alert_id']:<18} {a['severity']:<8} {a['vessel_name']} → {a['destination']} "
-                       f"ETA {a['eta_utc']}: {a['reason']}" for a in (r.get("alerts") or [])[:25]],
-            "assumptions": r.get("assumptions"), "problems": r.get("problems"), "run_file": r.get("run_file"),
-            "model_calls": len(usage), "cached": sum(bool(c.get("cached")) for c in usage)}
+# shared with the API since FastAPI plan P6 (one copy of what a caller sees)
+summary = vw.result_summary
 
 
 # the saved-run readers live in the tool module since Phase 12 S2 (a tool must not import a script); kept as names here
@@ -139,9 +131,14 @@ def scheduled(employee: int | None) -> int:
         rec["run_as"] = run_as
         rec.update(scheduling.fire_watch(graph(), checkpointer.saver(), checkpointer.pool(), user,
                                          LOG / "threads_archive.jsonl", context.DATA_AS_OF, tracer=scheduled_tracer))
+        rec["operational"] = scheduling.operational_outcome(rec, "voyage_watch")
+        code = rec["operational"]["exit"]
+        if code:
+            logging.getLogger(__name__).warning("Scheduled voyage watch needs attention: %s (%s)",
+                                                rec["operational"]["reason"], rec.get("result"))
         res = rec.get("result") or {}
         if res.get("high"):
-            rec["toast"] = scheduling.toast("NileGate Voyage Watch",
+            rec["toast"] = scheduling.toast("PortPilot Voyage Watch",
                                             f"{res['high']} high alert(s) of {res['alerts']} ({res['thread_id']})")
     except Exception as exc:  # noqa: BLE001 — logged for the owner; the thread (if any) waits at its checkpoint
         rec["error"], code = redact(f"{type(exc).__name__}: {exc}")[:600], 1

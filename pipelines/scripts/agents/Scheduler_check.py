@@ -248,7 +248,7 @@ clean()
 actual = {
     "firings": log,
     "edit": (edited.values["approval_log"][-1]["outcome"], edited.next),
-    "published": (published.values["status"], sorted(p.name for p in (REPORTS / "2025-W01").iterdir())),
+    "published": (published.values["status"], sorted(p.name for p in Path(published.values["published"]["folder"]).iterdir())),
     "run_as": run_as,
     "dry_run": (sorted(t.removeprefix(CP) for t in dry["would_delete"]), len(ids_after_dry) == len(ids)),
     "pruned": {k: sorted(t.removeprefix(CP) for t in v) if isinstance(v, list) else v for k, v in pruned.items()},
@@ -279,6 +279,9 @@ expected = {
                 ("03:1", "rejected", ["rejected"], fin_mgr.employee_id)],
     "report": {"packs_decided": 2, "published": 1, "rejected": 1, "packs_edited": 1, "edit_rate": 0.5,
                "decisions": {"approved": 1, "edited": 1, "rejected": 1}, "edited_slides": {bullet0["slide"]: 1},
+               # approver-additions plan D4: counts per kind of change (one text edit here)
+               "changes": {"text_edits": 1, "additions": 0, "chart_changes": 0, "analysis_edits": 0, "steers": 0,
+                           "revises": 0, "revises_restored": 0},
                "form_fixes": {"packs": 0, "fixes": 0}, "degraded": 0},   # the sample drafts' slots are well formed
     "report_threads": 5,
     "threads_after_cleanup": [],
@@ -308,7 +311,7 @@ actual = {"rule": rule, "exit": {c: r.returncode for c, r in cli.items()},
           "live_unchanged": sch.thread_ids(pool, P) == live_before}
 expected = {"rule": {"finance manager": True, "finance employee": False, "operations manager": False, "ceo": False},
             "exit": {"prune --dry-run": 0, "report": 0}, "dry_deleted": [],
-            "report_keys": ["decisions", "degraded", "edit_rate", "edited_slides", "form_fixes", "packs_decided",
+            "report_keys": ["changes", "decisions", "degraded", "edit_rate", "edited_slides", "form_fixes", "packs_decided",
                             "packs_edited",
                             "published", "rejected", "threads"],
             "live_unchanged": True}

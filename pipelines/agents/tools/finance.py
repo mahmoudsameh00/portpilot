@@ -12,6 +12,8 @@ from typing import cast, Literal
 from langchain.tools import ToolRuntime, tool
 from pydantic import BaseModel, Field
 
+from pipelines.agents import traffic_claims
+
 from pipelines.agents.tools import context, db
 from pipelines.agents.tools.schemas import Source, ToolResult
 
@@ -47,21 +49,30 @@ DATASETS = {
         "report_week", "trend_week", "week_offset", "is_report_week", "trend_week_label", "trend_week_end",
         "is_warmup", "invoices_billed", "billed_sdr", "collected_sdr", "ar_sdr", "overdue_sdr", "dso_days",
         "budget_sdr", "budget_variance_sdr", "budget_variance_pct", "top10_share_13w_pct"), "trend_week"),
+    # traffic-billing link plan Phase 4 (M17, migration 027): does the weekly invoice count move with Suez transits?
+    "traffic_link": ("finance.kpi_traffic_link", (
+        "report_week", "invoices_billed", "suez_transits_week", "suez_transits_prev_week", "n_weeks", "r_lag0",
+        "r_lag1", "r_threshold", "link", "link_lag"), "report_week"),
 }
+LINK_NOTE = ("M17: Pearson r of the weekly invoice count against weekly Suez transits over weeks 1..w, lag 0 and 1; "
+             "'link' = |r| >= r_threshold for either lag = moves with, never a cause; NULL before week 13")
 RANKED = {"customers", "overdue"}
 # the evaluation copy (run context dataset "test", set by the harness only; migration 017): billed and budget come
 # from finance_test; the other datasets stay on the live views (the copy has no payments or customers of its own)
-TEST_VIEWS = {"weekly": "finance_test.kpi_weekly", "category": "finance_test.kpi_weekly_category"}
+TEST_VIEWS = {"weekly": "finance_test.kpi_weekly", "category": "finance_test.kpi_weekly_category",
+              "traffic_link": "finance_test.kpi_traffic_link"}
 
 
 class KpiArgs(BaseModel):
     report_week: int = Field(ge=1, le=52, description="ISO week of 2025, 1 to 52 (as of its Sunday 23:59)")
-    dataset: Literal["weekly", "category", "customers", "overdue", "trend"] = Field(description=(
+    dataset: Literal["weekly", "category", "customers", "overdue", "trend", "traffic_link"] = Field(description=(
         "weekly = the week's KPIs (billed, collected, AR, aging, overdue, DSO, budget variance, top-10 share, WoW, "
         "the typical weekly swing, the 13-week budget position, the overdue roll-forward); "
         "category = billed vs budget and WoW change per vessel category, largest change first (the drivers); "
         "customers = customers ranked on the trailing 13 weeks; overdue = overdue invoices, largest first; "
-        "trend = the 13-week trend ending at the week"))
+        "trend = the 13-week trend ending at the week; "
+        "traffic_link = whether the weekly invoice count moves with Suez Canal transits so far this year "
+        "(r at lag 0 and 1, the threshold, link / no_link; a link is never a cause)"))
     limit: int = Field(default=10, ge=1, le=50, description="rows of the ranked lists (customers, overdue)")
 
 
@@ -93,6 +104,10 @@ def finance_kpi(user, source: str = "live", **args) -> ToolResult:
     if a.dataset == "weekly" and rows[0]["is_warmup"]:
         notes.append(f"warm-up week: receivables still building up since 2025-01-01, DSO on a "
                      f"{rows[0]['dso_window_days']}-day window instead of 91")
+    if a.dataset == "traffic_link":
+        notes.append(LINK_NOTE)
+        notes.append("Checked wording (cite this result): " + traffic_claims.wording(rows[0].get("link")))
+        notes.append(traffic_claims.wording(rows[0].get("link"), "ar"))
     if source == "test":
         notes.append("evaluation copy: billed and budget from finance_test; receivables, collections and the "
                      "previous week from the live views" if a.dataset in TEST_VIEWS
@@ -103,6 +118,6 @@ def finance_kpi(user, source: str = "live", **args) -> ToolResult:
 
 @tool("finance_kpi", args_schema=KpiArgs)
 def finance_kpi_tool(runtime: ToolRuntime, **args) -> dict:
-    """NileGate's weekly finance KPIs (SDR) for one report week of 2025, from the governed finance views — the same
+    """PortPilot's weekly finance KPIs (SDR) for one report week of 2025, from the governed finance views — the same
     numbers as the Power BI dashboard. Choose one dataset per call."""
     return finance_kpi(context.user_of(runtime), source=context.dataset_of(runtime), **args).model_dump(mode="json")

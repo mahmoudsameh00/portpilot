@@ -21,6 +21,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, cast
 
+from pipelines.agents import locks
+
 REPORT_YEAR = 2025
 LIVE_PREFIX = f"weekly_pack:live:{REPORT_YEAR}-W"
 WEEKS = 52
@@ -33,6 +35,33 @@ LOG_DIR = "_log"                 # under reports/ (git-ignored): scheduled.jsonl
 
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def operational_outcome(record: dict, product: str) -> dict:
+    """A completed Python call is not necessarily a successful scheduled product run (stabilization R8).
+
+    Exit 4 means a stopped/incomplete product; 5 means usable watch alerts without the requested brief.
+    Exceptions, unavailable databases and invalid identities retain the CLIs' existing exit codes 1/2/3.
+    """
+    if product not in ("weekly_pack", "voyage_watch"):
+        raise ValueError(f"unknown scheduled product: {product}")
+    result = record.get("result") or {}
+    status = result.get("status")
+    action = (record.get("decision") or {}).get("action")
+    if not result and (record.get("skipped") or action in ("wait", "done")):
+        return {"exit": 0, "outcome": "idle", "reason": "no new product run required"}
+    if product == "weekly_pack":
+        if result.get("state") == "pending" and status == "awaiting_approval":
+            return {"exit": 0, "outcome": "success", "reason": "validated pack awaits human approval"}
+        if result.get("state") == "ended" and status == "published":
+            if record.get("publication_sync") == "pending":
+                return {"exit": 5, "outcome": "degraded", "reason": "approved deck saved; database synchronization pending"}
+            return {"exit": 0, "outcome": "success", "reason": "pack published"}
+    elif status == "ok":
+        if result.get("brief") in ("ok", "no_alerts"):
+            return {"exit": 0, "outcome": "success", "reason": "watch completed"}
+        return {"exit": 5, "outcome": "degraded", "reason": "watch alerts saved but its brief is unavailable"}
+    return {"exit": 4, "outcome": "failed", "reason": f"{product} stopped or incomplete: {status or 'missing status'}"}
 
 
 def allowed_run_as(user) -> bool:
@@ -215,7 +244,9 @@ def fire_watch(g, saver, pool, user, archive: Path, data_as_of: datetime, prefix
         else:
             run_as = run_as_of(g, cfg) or user.employee_id
             inp, ctx = None, RunContext(load_user(run_as), as_of=cast(datetime, d.as_of))
-        with tracer(d.thread_id, run_as) if tracer else nullcontext() as traced:
+        with locks.thread_lock(cast(str, d.thread_id)), (tracer(d.thread_id, run_as) if tracer else nullcontext()) as traced:
+            if plan_watch(describe_voyage_watch(g, pool, prefix), data_as_of, prefix) != d:
+                return {"decision": as_log(d), "skipped": "schedule changed before the thread lock was acquired"}
             for _ in g.stream(inp, cfg, context=ctx, stream_mode="updates", durability="sync"):
                 pass
         rec["traced"] = bool(traced)
@@ -294,8 +325,18 @@ def prune(g, saver, infos: list[ThreadInfo], archive: Path, now: datetime | None
             if dry_run:
                 out["would_delete"].append(i.thread_id)
                 continue
-            append_jsonl(archive, archive_record(g, i, now))
-            saver.delete_thread(i.thread_id)
+            try:
+                with locks.thread_lock(i.thread_id):
+                    snap = g.get_state({"configurable": {"thread_id": i.thread_id}})
+                    if snap.next or snap.interrupts or (snap.created_at and
+                            now - datetime.fromisoformat(snap.created_at) <= timedelta(days=RETENTION_DAYS)):
+                        out["kept"] += 1
+                        continue
+                    append_jsonl(archive, archive_record(g, i, now))
+                    saver.delete_thread(i.thread_id)
+            except locks.ThreadBusy:
+                out["kept"] += 1
+                continue
             out["deleted"].append(i.thread_id)
             continue
         if i.state != "ended" and old(i, STALE_PENDING_DAYS):
@@ -312,7 +353,17 @@ def approval_report(entries: list[dict]) -> dict:
     the Writer's text (D-P7-14), so model form errors stay visible although they no longer stop a pack."""
     decided = [e for e in entries if e["status"] in ("published", "rejected")]
     fixes = [len(e.get("normalized") or []) for e in entries]
-    edited = [e for e in decided if any(x.get("outcome") == "edited" for x in e["approval_log"])]
+    # approver-additions plan D4: one rate — a pack with any approver change (an edit or a revise) — plus counts per
+    # kind of change, so the rate stays comparable with the packs before the plan
+    edited = [e for e in decided if any(x.get("outcome") in ("edited", "revised") for x in e["approval_log"])]
+    logs = [x for e in entries for x in e["approval_log"]]
+    changes = {"text_edits": sum(len(x.get("diff") or []) for x in logs if x.get("outcome") == "edited"),
+               "additions": sum(len(x.get("added") or []) for x in logs),
+               "chart_changes": sum(len(x.get("charts") or []) for x in logs),
+               "analysis_edits": sum(len(x.get("analysis_edits") or []) for x in logs),
+               "steers": sum(bool(x.get("steer")) for x in logs),
+               "revises": sum(x.get("outcome") == "revised" for x in logs),
+               "revises_restored": sum(x.get("outcome") == "revise_failed" for x in logs)}
     slides = Counter(d["slide"] for e in entries for x in e["approval_log"] if x.get("outcome") == "edited"
                      for d in x.get("diff") or [])
     outcomes = Counter(x.get("outcome") for e in entries for x in e["approval_log"])
@@ -320,6 +371,7 @@ def approval_report(entries: list[dict]) -> dict:
             "rejected": sum(e["status"] == "rejected" for e in decided), "packs_edited": len(edited),
             "edit_rate": round(len(edited) / len(decided), 3) if decided else None,
             "decisions": dict(sorted(outcomes.items())), "edited_slides": dict(sorted(slides.items())),
+            "changes": changes,
             "form_fixes": {"packs": sum(n > 0 for n in fixes), "fixes": sum(fixes)},
             "degraded": sum(bool(e.get("degraded")) for e in entries),     # c4: decks whose failing text code replaced
             "threads": sorted(e["thread_id"] for e in entries)}
@@ -338,9 +390,13 @@ def report_entries(g, infos: list[ThreadInfo], reports_dir: Path) -> list[dict]:
             r = json.loads(line)
             seen.setdefault(r["thread_id"], {"thread_id": r["thread_id"], "status": r["status"],
                                              "approval_log": r["approval_log"], "normalized": r.get("normalized") or []})
-    for run in sorted(reports_dir.glob(f"{REPORT_YEAR}-W*/run.json")):
-        r = json.loads(run.read_text(encoding="utf-8"))
-        log = json.loads((run.parent / "approval.json").read_text(encoding="utf-8"))
+    from pipelines.agents import publications
+    for week in sorted(reports_dir.glob(f"{REPORT_YEAR}-W*")):
+        _, folder = publications.current(week)
+        if not (folder / "run.json").is_file():
+            continue
+        r = json.loads((folder / "run.json").read_text(encoding="utf-8"))
+        log = json.loads((folder / "approval.json").read_text(encoding="utf-8"))
         seen.setdefault(r["thread_id"], {"thread_id": r["thread_id"], "status": "published", "approval_log": log,
                                          "normalized": r.get("normalized") or []})
     return list(seen.values())
@@ -397,16 +453,21 @@ def fire(g, saver, pool, user, reports_dir: Path, prefix: str = LIVE_PREFIX, not
         else:
             run_as = run_as_of(g, cfg) or user.employee_id
             inp, ctx = None, RunContext(load_user(run_as))
-        with tracer(d.thread_id, run_as) if tracer else nullcontext() as traced:
+        with locks.thread_lock(cast(str, d.thread_id)), (tracer(d.thread_id, run_as) if tracer else nullcontext()) as traced:
+            if plan(describe_all(g, pool, prefix), prefix) != d:
+                return {"decision": as_log(d), "skipped": "schedule changed before the thread lock was acquired"}
             for _ in g.stream(inp, cfg, context=ctx, stream_mode="updates", durability="sync"):
                 pass
         rec["traced"] = bool(traced)
         after = describe(g, cast(str, d.thread_id), prefix)
         assert after is not None                            # the thread was just run
         rec["result"] = {"thread_id": d.thread_id, "state": after.state, "status": after.status}
+        if after.status == "published":
+            from pipelines.agents import publications
+            rec["publication_sync"] = publications.sync_status(reports_dir / f"{REPORT_YEAR}-W{d.week:02d}", d.thread_id)
     pending = rec.get("result", {}).get("state") == "pending" or d.action == "wait"
     if pending and notify:
-        rec["toast"] = toast("NileGate Weekly Finance Pack",
+        rec["toast"] = toast("PortPilot Weekly Finance Pack",
                              f"{REPORT_YEAR}-W{d.week:02d} waits for your approval ({d.thread_id})")
     rec["retention"] = prune(g, saver, describe_all(g, pool, prefix), reports_dir / LOG_DIR / "threads_archive.jsonl",
                              now=now)

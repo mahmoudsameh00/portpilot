@@ -1,0 +1,46 @@
+table 'Category Measure'
+	lineageTag: aaebe3a0-5ec1-4a90-a50a-167023d5ee03
+
+	column 'Category Measure Order'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 2b947578-2110-4b2e-a81a-aa2811ac138e
+		summarizeBy: sum
+		sourceColumn: [Value3]
+
+	column 'Category Measure Fields'
+		dataType: string
+		isHidden
+		lineageTag: c55be8c5-8488-4f41-8ff2-36fcd6523d99
+		summarizeBy: none
+		sourceColumn: [Value2]
+		sortByColumn: 'Category Measure Order'
+
+		extendedProperty ParameterMetadata =
+				{
+				  "version": 3,
+				  "kind": 2
+				}
+
+	column 'Category Measure'
+		dataType: string
+		lineageTag: 0a6482c6-1054-40e3-bc9f-238f71bba53f
+		summarizeBy: none
+		sourceColumn: [Value1]
+		sortByColumn: 'Category Measure Order'
+
+		relatedColumnDetails
+			groupByColumn: 'Category Measure Fields'
+
+	partition 'Category Measure' = calculated
+		mode: import
+		source =
+				{
+				    ("Billed", NAMEOF('Weekly KPIs'[Category Billed SDR]), 0),
+				    ("Budget", NAMEOF('Weekly KPIs'[Category Budget SDR]), 1),
+				    ("Billed − budget", NAMEOF('Weekly KPIs'[Category Variance SDR]), 2),
+				    ("Billed vs budget %", NAMEOF('Weekly KPIs'[Category Variance %]), 3),
+				    ("Change on last week", NAMEOF('Weekly KPIs'[Category WoW Change SDR]), 4)
+				}
+

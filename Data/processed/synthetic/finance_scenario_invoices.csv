@@ -1,0 +1,1001 @@
+invoice_id,invoice_number,vessel_id,toll_rate_band_id,invoice_date,scnt_tons,rate_sdr_per_ton,amount,description,status,original_invoice_date
+1,INV-0000001,281,151,2025-01-22,32066.15,4.14,190853.86,Suez Canal transit dues - Other Vessels,Paid,2025-02-27
+2,INV-0000002,474,132,2025-01-01,81333.16,3.39,338419.41,Suez Canal transit dues - Cruise Ships,Paid,2025-05-21
+3,INV-0000003,258,100,2025-05-04,6352.15,7.14,57654.35,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-03-13
+4,INV-0000004,217,139,2025-05-24,74413.57,2.88,267861.08,Suez Canal transit dues - Cruise Ships,Issued,2025-12-13
+5,INV-0000005,420,169,2025-10-07,193843.47,2.5,622758.68,Suez Canal transit dues - Containerships,Paid,2025-10-07
+6,INV-0000006,371,132,2025-04-29,111402.73,3.39,440355.25,Suez Canal transit dues - Cruise Ships,Paid,2025-08-05
+7,INV-0000007,260,158,2025-08-03,37955.61,3.52,183003.75,Suez Canal transit dues - Other Vessels,Paid,2025-02-17
+8,INV-0000008,97,63,2025-10-22,142703.7,4.06,667727.02,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-09-16
+9,INV-0000009,327,132,2025-12-08,113724.74,3.39,448226.87,Suez Canal transit dues - Cruise Ships,Paid,2025-10-15
+10,INV-0000010,93,95,2025-08-11,20199.71,3.29,116907.05,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-11-29
+11,INV-0000011,190,4,2025-08-31,22943.5,2.55,140905.92,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-08-03
+12,INV-0000012,409,26,2025-04-21,56085.36,1.86,186818.77,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-10-29
+13,INV-0000013,157,87,2025-07-10,11044.32,5.16,90438.69,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-01-04
+14,INV-0000014,492,39,2025-12-19,38255.3,1.8,154859.54,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-08-05
+15,INV-0000015,71,115,2025-06-20,17092.34,4.93,115915.24,Suez Canal transit dues - Vehicles Carriers,Paid,2025-03-21
+16,INV-0000016,326,53,2025-02-09,21802.66,3.74,126691.95,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-06-22
+17,INV-0000017,39,108,2025-12-22,19458.54,4.73,115938.89,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-07-14
+18,INV-0000018,167,145,2025-09-17,64810.89,4.14,339417.08,Suez Canal transit dues - Special Floating Units,Issued,2025-06-26
+19,INV-0000019,19,96,2025-10-18,42152.22,3.2,188937.1,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-01-23
+20,INV-0000020,408,38,2025-09-05,15463.63,4.96,99499.6,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-10-02
+21,INV-0000021,82,159,2025-08-04,43144.0,3.42,200952.48,Suez Canal transit dues - Other Vessels,Paid,2025-07-13
+22,INV-0000022,370,89,2025-07-21,47483.36,3.75,242312.6,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-05-31
+23,INV-0000023,329,36,2025-05-29,4020.74,8.21,33010.28,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-07-05
+24,INV-0000024,77,145,2025-03-19,57779.25,4.14,310306.09,Suez Canal transit dues - Special Floating Units,Paid,2025-12-27
+25,INV-0000025,104,158,2025-03-21,29827.49,3.52,154392.76,Suez Canal transit dues - Other Vessels,Paid,2025-12-05
+26,INV-0000026,347,130,2025-06-07,25709.23,3.55,144267.77,Suez Canal transit dues - Cruise Ships,Paid,2025-05-29
+27,INV-0000027,407,42,2025-07-30,138007.25,1.43,306750.37,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-04-30
+28,INV-0000028,148,175,2025-01-30,85101.14,2.23,291975.54,Suez Canal transit dues - Containerships,Pending,2025-05-23
+29,INV-0000029,21,73,2025-08-07,10701.07,6.19,93339.62,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-07-06
+30,INV-0000030,181,61,2025-03-22,50369.37,4.37,281264.15,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-07-01
+31,INV-0000031,42,48,2025-05-04,96933.52,3.59,440741.34,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-05-17
+32,INV-0000032,2,27,2025-12-19,102474.82,1.61,264984.46,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-12-16
+33,INV-0000033,138,110,2025-07-29,51156.47,3.2,222600.7,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-11-08
+34,INV-0000034,150,138,2025-11-04,56479.26,2.97,214993.4,Suez Canal transit dues - Cruise Ships,Issued,2025-10-01
+35,INV-0000035,154,7,2025-10-08,187150.54,1.85,469128.5,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-03-25
+36,INV-0000036,239,63,2025-05-04,155108.54,4.06,718090.67,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-05-19
+37,INV-0000037,435,138,2025-01-11,64956.16,2.97,240169.8,Suez Canal transit dues - Cruise Ships,Paid,2025-10-13
+38,INV-0000038,152,62,2025-01-02,74169.8,4.17,384438.07,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-06-16
+39,INV-0000039,436,146,2025-04-25,70745.84,3.75,363696.9,Suez Canal transit dues - Special Floating Units,Pending,2025-01-17
+40,INV-0000040,474,132,2025-10-10,81333.16,3.39,338419.41,Suez Canal transit dues - Cruise Ships,Paid,2025-05-18
+41,INV-0000041,347,130,2025-11-07,25709.23,3.55,144267.77,Suez Canal transit dues - Cruise Ships,Issued,2025-10-18
+42,INV-0000042,114,46,2025-03-31,31032.15,4.39,189481.14,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-04-19
+43,INV-0000043,217,139,2025-09-03,74413.57,2.88,267861.08,Suez Canal transit dues - Cruise Ships,Issued,2025-07-22
+44,INV-0000044,73,139,2025-04-27,94932.62,2.88,326955.95,Suez Canal transit dues - Cruise Ships,Pending,2025-03-15
+45,INV-0000045,267,110,2025-03-16,56289.27,3.2,239025.66,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-05-07
+46,INV-0000046,131,55,2025-12-07,96267.29,3.05,372965.23,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-10-03
+47,INV-0000047,43,3,2025-01-24,19791.99,5.14,132330.83,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-10-27
+48,INV-0000048,32,46,2025-01-25,29290.77,4.39,181836.48,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-10-26
+49,INV-0000049,233,20,2025-11-24,85020.59,3.01,347211.98,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-04-23
+50,INV-0000050,426,149,2025-12-01,7512.92,6.76,67187.34,Suez Canal transit dues - Other Vessels,Paid,2025-09-10
+51,INV-0000051,247,173,2025-11-11,36260.91,3.05,161995.78,Suez Canal transit dues - Containerships,Paid,2025-01-25
+52,INV-0000052,151,41,2025-12-18,83765.79,1.5,226648.68,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-11-18
+53,INV-0000053,84,46,2025-02-07,28628.08,4.39,178927.27,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-12-15
+54,INV-0000054,480,86,2025-12-16,6687.52,7.41,60504.52,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-02-02
+55,INV-0000055,228,118,2025-12-04,95651.99,2.62,367458.21,Suez Canal transit dues - Vehicles Carriers,Pending,2025-11-02
+56,INV-0000056,315,139,2025-07-01,77262.83,2.88,276066.95,Suez Canal transit dues - Cruise Ships,Issued,2025-05-09
+57,INV-0000057,293,175,2025-07-14,116566.75,2.23,362143.85,Suez Canal transit dues - Containerships,Issued,2025-01-06
+58,INV-0000058,465,5,2025-09-03,67959.25,2.2,245910.35,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-02-28
+59,INV-0000059,281,151,2025-05-08,32066.15,4.14,190853.86,Suez Canal transit dues - Other Vessels,Pending,2025-10-02
+60,INV-0000060,147,82,2025-07-20,69828.93,3.43,307413.23,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-11-25
+61,INV-0000061,367,46,2025-03-26,31472.17,4.39,191412.83,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-05-31
+62,INV-0000062,237,88,2025-12-16,36085.71,3.88,199062.55,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-08-21
+63,INV-0000063,449,132,2025-12-09,98587.89,3.39,396912.95,Suez Canal transit dues - Cruise Ships,Issued,2025-05-15
+64,INV-0000064,168,149,2025-05-18,7004.88,6.76,63752.99,Suez Canal transit dues - Other Vessels,Issued,2025-04-02
+65,INV-0000065,419,139,2025-04-09,77092.86,2.88,275577.44,Suez Canal transit dues - Cruise Ships,Issued,2025-02-24
+66,INV-0000066,337,166,2025-04-11,62529.73,3.32,278748.7,Suez Canal transit dues - Containerships,Issued,2025-11-24
+67,INV-0000067,99,88,2025-03-14,28369.16,3.88,169122.34,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-04-12
+68,INV-0000068,466,106,2025-06-22,3715.09,8.17,30352.29,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-03-24
+69,INV-0000069,247,173,2025-05-05,36260.91,3.05,161995.78,Suez Canal transit dues - Containerships,Paid,2025-09-29
+70,INV-0000070,408,38,2025-08-17,15463.63,4.96,99499.6,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-06-15
+71,INV-0000071,91,141,2025-02-03,3196.65,10.42,33309.09,Suez Canal transit dues - Special Floating Units,Pending,2025-02-27
+72,INV-0000072,359,89,2025-06-21,43429.7,3.75,227111.38,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-06-07
+73,INV-0000073,352,20,2025-12-04,82551.04,3.01,339778.63,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-05-04
+74,INV-0000074,404,25,2025-08-19,30546.59,2.17,136386.1,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-02-10
+75,INV-0000075,167,145,2025-02-10,64810.89,4.14,339417.08,Suez Canal transit dues - Special Floating Units,Paid,2025-09-06
+76,INV-0000076,58,169,2025-07-24,194578.27,2.5,624595.67,Suez Canal transit dues - Containerships,Paid,2025-09-30
+77,INV-0000077,497,47,2025-09-12,47464.82,3.84,257514.91,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-12-04
+78,INV-0000078,349,124,2025-10-17,47320.86,2.83,191618.03,Suez Canal transit dues - Vehicles Carriers,Paid,2025-10-09
+79,INV-0000079,348,124,2025-03-11,46974.85,2.83,190638.83,Suez Canal transit dues - Vehicles Carriers,Issued,2025-09-28
+80,INV-0000080,126,145,2025-10-31,59184.06,4.14,316122.01,Suez Canal transit dues - Special Floating Units,Issued,2025-04-19
+81,INV-0000081,145,70,2025-10-26,136168.16,3.45,545180.15,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-12-20
+82,INV-0000082,403,22,2025-05-12,3763.7,8.17,30749.43,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-06-09
+83,INV-0000083,389,19,2025-03-06,57838.58,3.34,261380.86,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-11-29
+84,INV-0000084,122,149,2025-10-05,5412.06,6.76,52985.53,Suez Canal transit dues - Other Vessels,Pending,2025-09-22
+85,INV-0000085,65,89,2025-01-09,47886.75,3.75,243825.31,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-05-07
+86,INV-0000086,133,35,2025-06-07,199398.26,1.69,464583.06,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-06-23
+87,INV-0000087,467,100,2025-10-06,8453.78,7.14,72659.99,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-10-11
+88,INV-0000088,256,54,2025-07-21,57925.04,3.27,253364.88,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-04-23
+89,INV-0000089,65,89,2025-12-29,47886.75,3.75,243825.31,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-12-29
+90,INV-0000090,368,95,2025-08-10,39452.79,3.29,180249.68,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-04-28
+91,INV-0000091,113,158,2025-03-17,24467.83,3.52,135526.76,Suez Canal transit dues - Other Vessels,Pending,2025-01-17
+92,INV-0000092,449,132,2025-12-08,98587.89,3.39,396912.95,Suez Canal transit dues - Cruise Ships,Paid,2025-09-21
+93,INV-0000093,13,145,2025-04-10,68972.11,4.14,356644.54,Suez Canal transit dues - Special Floating Units,Pending,2025-12-09
+94,INV-0000094,307,26,2025-11-16,60903.85,1.86,195781.16,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-10-04
+95,INV-0000095,431,145,2025-06-11,43497.38,4.14,251179.15,Suez Canal transit dues - Special Floating Units,Issued,2025-10-20
+96,INV-0000096,339,18,2025-08-24,30162.84,3.42,168156.91,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-05-05
+97,INV-0000097,78,42,2025-03-26,132243.43,1.43,298508.1,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-07-28
+98,INV-0000098,41,152,2025-09-09,49773.42,4.01,262891.41,Suez Canal transit dues - Other Vessels,Issued,2025-02-19
+99,INV-0000099,326,53,2025-08-09,21802.66,3.74,126691.95,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-07-01
+100,INV-0000100,122,149,2025-06-09,5412.06,6.76,52985.53,Suez Canal transit dues - Other Vessels,Issued,2025-08-28
+101,INV-0000101,374,54,2025-10-16,56103.77,3.27,247409.33,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-12-11
+102,INV-0000102,213,151,2025-07-28,21817.42,4.14,148424.12,Suez Canal transit dues - Other Vessels,Paid,2025-02-20
+103,INV-0000103,476,129,2025-07-17,19941.68,5.02,123707.23,Suez Canal transit dues - Cruise Ships,Paid,2025-06-23
+104,INV-0000104,336,151,2025-05-23,23216.27,4.14,154215.36,Suez Canal transit dues - Other Vessels,Paid,2025-04-09
+105,INV-0000105,66,68,2025-05-29,48570.85,3.71,232397.85,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-08-18
+106,INV-0000106,445,70,2025-03-20,144018.08,3.45,572262.38,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-04-04
+107,INV-0000107,397,156,2025-06-22,7427.55,5.75,56608.41,Suez Canal transit dues - Other Vessels,Paid,2025-05-08
+108,INV-0000108,404,25,2025-12-22,30546.59,2.17,136386.1,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-10-09
+109,INV-0000109,276,55,2025-03-13,96130.97,3.05,372549.46,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-11-30
+110,INV-0000110,347,130,2025-03-12,25709.23,3.55,144267.77,Suez Canal transit dues - Cruise Ships,Paid,2025-01-08
+111,INV-0000111,38,118,2025-08-12,84422.62,2.62,338037.26,Suez Canal transit dues - Vehicles Carriers,Paid,2025-05-02
+112,INV-0000112,23,63,2025-02-27,154667.1,4.06,716298.43,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-09-06
+113,INV-0000113,4,158,2025-05-27,27474.6,3.52,146110.59,Suez Canal transit dues - Other Vessels,Paid,2025-07-25
+114,INV-0000114,449,132,2025-12-03,98587.89,3.39,396912.95,Suez Canal transit dues - Cruise Ships,Paid,2025-07-14
+115,INV-0000115,34,27,2025-12-13,99870.46,1.61,260791.44,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-05-16
+116,INV-0000116,220,27,2025-08-10,80998.91,1.61,230408.25,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-08-05
+117,INV-0000117,178,156,2025-10-24,8148.88,5.75,60756.06,Suez Canal transit dues - Other Vessels,Issued,2025-10-12
+118,INV-0000118,317,81,2025-05-27,34664.86,3.84,184613.06,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-09-07
+119,INV-0000119,473,139,2025-10-22,94001.1,2.88,324273.17,Suez Canal transit dues - Cruise Ships,Paid,2025-06-01
+120,INV-0000120,76,45,2025-10-14,16440.69,5.41,121794.13,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-10-24
+121,INV-0000121,290,20,2025-05-08,76878.25,3.01,322703.53,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-02-01
+122,INV-0000122,139,62,2025-03-23,90098.58,4.17,450861.08,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-01-30
+123,INV-0000123,311,159,2025-11-27,42208.8,3.42,197754.1,Suez Canal transit dues - Other Vessels,Issued,2025-09-02
+124,INV-0000124,412,146,2025-03-12,97435.42,3.75,463782.82,Suez Canal transit dues - Special Floating Units,Paid,2025-09-29
+125,INV-0000125,127,143,2025-01-31,15324.45,6.21,119664.83,Suez Canal transit dues - Special Floating Units,Paid,2025-09-18
+126,INV-0000126,448,27,2025-10-10,117017.85,1.61,288398.74,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-04-06
+127,INV-0000127,314,63,2025-07-13,174731.31,4.06,797759.12,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-02-04
+128,INV-0000128,419,139,2025-09-08,77092.86,2.88,275577.44,Suez Canal transit dues - Cruise Ships,Pending,2025-05-01
+129,INV-0000129,413,42,2025-02-01,193021.2,1.43,385420.32,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-10-19
+130,INV-0000130,117,73,2025-09-27,16380.37,6.19,128494.49,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-11-01
+131,INV-0000131,148,175,2025-05-02,85101.14,2.23,291975.54,Suez Canal transit dues - Containerships,Pending,2025-02-11
+132,INV-0000132,372,74,2025-02-20,25648.67,4.51,176375.5,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-10-26
+133,INV-0000133,372,74,2025-05-05,25648.67,4.51,176375.5,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-06-11
+134,INV-0000134,406,6,2025-11-09,91094.97,1.89,290269.49,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-12-09
+135,INV-0000135,211,96,2025-09-20,68926.75,3.2,274615.6,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-05-03
+136,INV-0000136,172,167,2025-05-16,113675.96,2.62,417981.02,Suez Canal transit dues - Containerships,Issued,2025-03-09
+137,INV-0000137,332,35,2025-04-03,186982.75,1.69,443600.85,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-06-03
+138,INV-0000138,251,110,2025-09-22,56597.54,3.2,240012.13,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-02-07
+139,INV-0000139,384,29,2025-07-15,4800.87,9.65,46328.4,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-11-15
+140,INV-0000140,461,34,2025-03-11,89933.33,1.76,277482.66,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-02-07
+141,INV-0000141,348,124,2025-10-01,46974.85,2.83,190638.83,Suez Canal transit dues - Vehicles Carriers,Pending,2025-09-17
+142,INV-0000142,199,146,2025-10-25,94142.42,3.75,451434.08,Suez Canal transit dues - Special Floating Units,Paid,2025-06-28
+143,INV-0000143,327,132,2025-06-21,113724.74,3.39,448226.87,Suez Canal transit dues - Cruise Ships,Pending,2025-05-06
+144,INV-0000144,355,73,2025-04-22,11253.39,6.19,96758.48,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-03-22
+145,INV-0000145,156,70,2025-05-29,164547.85,3.45,643090.08,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-10-06
+146,INV-0000146,413,42,2025-07-15,193021.2,1.43,385420.32,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-11-10
+147,INV-0000147,269,26,2025-12-18,51204.23,1.86,177739.87,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-01-05
+148,INV-0000148,354,88,2025-03-07,31949.06,3.88,183012.35,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-10-11
+149,INV-0000149,375,81,2025-09-19,26056.94,3.84,151558.65,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-12-06
+150,INV-0000150,222,130,2025-07-19,31401.77,3.55,164476.28,Suez Canal transit dues - Cruise Ships,Pending,2025-03-10
+151,INV-0000151,321,158,2025-07-13,34196.92,3.52,169773.16,Suez Canal transit dues - Other Vessels,Issued,2025-02-24
+152,INV-0000152,428,7,2025-08-07,244004.85,1.85,574308.97,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-03-21
+153,INV-0000153,23,63,2025-01-14,154667.1,4.06,716298.43,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-11-06
+154,INV-0000154,285,137,2025-08-28,20325.1,3.03,106435.05,Suez Canal transit dues - Cruise Ships,Paid,2025-06-25
+155,INV-0000155,26,133,2025-05-28,142572.92,3.27,543313.45,Suez Canal transit dues - Cruise Ships,Pending,2025-11-21
+156,INV-0000156,45,47,2025-06-16,41570.0,3.84,234878.8,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-09-08
+157,INV-0000157,352,20,2025-09-29,82551.04,3.01,339778.63,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-01-27
+158,INV-0000158,261,35,2025-02-20,166585.58,1.69,409129.63,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-08-05
+159,INV-0000159,123,18,2025-01-24,26087.39,3.42,154218.87,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-01-02
+160,INV-0000160,486,168,2025-03-27,165388.84,2.56,550745.43,Suez Canal transit dues - Containerships,Issued,2025-03-08
+161,INV-0000161,361,88,2025-09-21,31288.43,3.88,180449.11,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-03-24
+162,INV-0000162,443,168,2025-12-26,153406.04,2.56,520069.46,Suez Canal transit dues - Containerships,Issued,2025-10-10
+163,INV-0000163,216,88,2025-08-10,20976.55,3.88,140439.01,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-10-15
+164,INV-0000164,208,176,2025-03-16,125478.45,2.19,381797.81,Suez Canal transit dues - Containerships,Issued,2025-02-08
+165,INV-0000165,66,68,2025-06-06,48570.85,3.71,232397.85,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-03-18
+166,INV-0000166,54,4,2025-03-02,32228.05,2.55,164581.53,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-07-09
+167,INV-0000167,173,26,2025-09-15,69853.55,1.86,212427.6,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-03-17
+168,INV-0000168,303,145,2025-01-14,67415.8,4.14,350201.41,Suez Canal transit dues - Special Floating Units,Pending,2025-01-22
+169,INV-0000169,217,139,2025-12-24,74413.57,2.88,267861.08,Suez Canal transit dues - Cruise Ships,Pending,2025-01-21
+170,INV-0000170,90,111,2025-01-05,73804.7,3.07,294580.43,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-12-16
+171,INV-0000171,289,68,2025-08-19,51408.31,3.71,242924.83,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-02-22
+172,INV-0000172,172,167,2025-12-16,113675.96,2.62,417981.02,Suez Canal transit dues - Containerships,Pending,2025-10-14
+173,INV-0000173,497,47,2025-03-01,47464.82,3.84,257514.91,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-03-21
+174,INV-0000174,379,96,2025-09-18,40315.48,3.2,183059.54,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-03-25
+175,INV-0000175,452,168,2025-08-16,158209.75,2.56,532366.96,Suez Canal transit dues - Containerships,Paid,2025-07-31
+176,INV-0000176,174,80,2025-10-22,10451.0,5.27,77976.77,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-06-20
+177,INV-0000177,348,124,2025-11-13,46974.85,2.83,190638.83,Suez Canal transit dues - Vehicles Carriers,Issued,2025-12-09
+178,INV-0000178,192,69,2025-10-21,119890.8,3.55,489012.34,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-05-08
+179,INV-0000179,477,138,2025-05-04,68920.89,2.97,251945.04,Suez Canal transit dues - Cruise Ships,Paid,2025-12-26
+180,INV-0000180,378,132,2025-10-21,91080.01,3.39,371461.23,Suez Canal transit dues - Cruise Ships,Pending,2025-01-20
+181,INV-0000181,435,138,2025-03-10,64956.16,2.97,240169.8,Suez Canal transit dues - Cruise Ships,Pending,2025-04-13
+182,INV-0000182,235,159,2025-11-08,46931.11,3.42,213904.4,Suez Canal transit dues - Other Vessels,Paid,2025-06-06
+183,INV-0000183,395,78,2025-06-13,3221.33,8.53,27477.94,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-01-13
+184,INV-0000184,12,41,2025-06-09,108225.56,1.5,263338.34,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-07-24
+185,INV-0000185,179,67,2025-10-07,25234.61,4.01,141390.79,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-02-05
+186,INV-0000186,9,148,2025-04-13,3942.98,10.04,39587.52,Suez Canal transit dues - Other Vessels,Issued,2025-11-25
+187,INV-0000187,318,133,2025-12-16,138872.93,3.27,531214.48,Suez Canal transit dues - Cruise Ships,Issued,2025-12-14
+188,INV-0000188,241,151,2025-06-13,38669.34,4.14,218191.07,Suez Canal transit dues - Other Vessels,Paid,2025-01-15
+189,INV-0000189,268,158,2025-03-09,21512.73,3.52,125124.81,Suez Canal transit dues - Other Vessels,Paid,2025-05-14
+190,INV-0000190,162,61,2025-03-28,51874.72,4.37,287842.53,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-05-16
+191,INV-0000191,347,130,2025-12-04,25709.23,3.55,144267.77,Suez Canal transit dues - Cruise Ships,Pending,2025-11-02
+192,INV-0000192,230,27,2025-04-23,77168.7,1.61,224241.61,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-06-10
+193,INV-0000193,301,69,2025-04-28,99579.24,3.55,416906.3,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-09-19
+194,INV-0000194,429,35,2025-09-29,186194.72,1.69,442269.08,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-10-23
+195,INV-0000195,177,122,2025-07-09,17888.08,4.2,102029.94,Suez Canal transit dues - Vehicles Carriers,Issued,2025-01-23
+196,INV-0000196,42,48,2025-01-20,96933.52,3.59,440741.34,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-01-01
+197,INV-0000197,413,42,2025-10-20,193021.2,1.43,385420.32,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-10-03
+198,INV-0000198,310,122,2025-11-15,18279.19,4.2,103672.6,Suez Canal transit dues - Vehicles Carriers,Paid,2025-12-10
+199,INV-0000199,64,95,2025-01-05,23650.07,3.29,128258.73,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-08-09
+200,INV-0000200,71,115,2025-09-19,17092.34,4.93,115915.24,Suez Canal transit dues - Vehicles Carriers,Pending,2025-12-07
+201,INV-0000201,324,132,2025-06-20,104727.11,3.39,417724.9,Suez Canal transit dues - Cruise Ships,Issued,2025-06-10
+202,INV-0000202,362,68,2025-11-08,57465.84,3.71,265398.27,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-03-05
+203,INV-0000203,141,18,2025-08-25,36031.0,3.42,188226.02,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-06-03
+204,INV-0000204,179,67,2025-06-11,25234.61,4.01,141390.79,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-12-08
+205,INV-0000205,121,63,2025-12-18,157626.67,4.06,728314.28,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-07-26
+206,INV-0000206,59,75,2025-07-03,62849.07,4.03,333181.75,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-10-11
+207,INV-0000207,39,108,2025-02-27,19458.54,4.73,115938.89,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-08-04
+208,INV-0000208,38,118,2025-06-13,84422.62,2.62,338037.26,Suez Canal transit dues - Vehicles Carriers,Issued,2025-07-14
+209,INV-0000209,348,124,2025-11-07,46974.85,2.83,190638.83,Suez Canal transit dues - Vehicles Carriers,Issued,2025-03-31
+210,INV-0000210,212,165,2025-07-22,31760.79,3.59,174371.24,Suez Canal transit dues - Containerships,Pending,2025-06-04
+211,INV-0000211,450,164,2025-10-20,16574.78,5.12,114612.87,Suez Canal transit dues - Containerships,Pending,2025-01-01
+212,INV-0000212,254,132,2025-05-10,73995.91,3.39,313546.13,Suez Canal transit dues - Cruise Ships,Pending,2025-04-18
+213,INV-0000213,388,53,2025-03-01,20809.34,3.74,122976.93,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-10-24
+214,INV-0000214,185,35,2025-06-30,197542.88,1.69,461447.47,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-06-14
+215,INV-0000215,127,143,2025-06-15,15324.45,6.21,119664.83,Suez Canal transit dues - Special Floating Units,Issued,2025-08-15
+216,INV-0000216,34,27,2025-01-05,99870.46,1.61,260791.44,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-09-19
+217,INV-0000217,212,165,2025-07-01,31760.79,3.59,174371.24,Suez Canal transit dues - Containerships,Issued,2025-03-28
+218,INV-0000218,185,35,2025-07-09,197542.88,1.69,461447.47,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-05-26
+219,INV-0000219,457,149,2025-02-20,5110.51,6.76,50947.05,Suez Canal transit dues - Other Vessels,Issued,2025-11-21
+220,INV-0000220,75,145,2025-03-30,63477.62,4.14,333897.35,Suez Canal transit dues - Special Floating Units,Paid,2025-02-17
+221,INV-0000221,14,7,2025-10-16,242488.51,1.85,571503.74,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-06-08
+222,INV-0000222,245,89,2025-01-21,67672.5,3.75,318021.88,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-04-12
+223,INV-0000223,442,102,2025-03-28,35003.54,4.01,199364.2,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-01-24
+224,INV-0000224,155,96,2025-07-07,68505.3,3.2,273266.96,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-11-09
+225,INV-0000225,352,20,2025-10-18,82551.04,3.01,339778.63,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-08-01
+226,INV-0000226,141,18,2025-08-17,36031.0,3.42,188226.02,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-04-10
+227,INV-0000227,275,27,2025-02-16,87366.5,1.61,240660.06,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-07-16
+228,INV-0000228,34,27,2025-10-23,99870.46,1.61,260791.44,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-05-05
+229,INV-0000229,114,46,2025-03-20,31032.15,4.39,189481.14,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-12-19
+230,INV-0000230,115,33,2025-05-28,57039.33,1.88,218033.94,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-02-24
+231,INV-0000231,196,75,2025-10-01,53878.41,4.03,297029.99,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-04-01
+232,INV-0000232,426,149,2025-09-14,7512.92,6.76,67187.34,Suez Canal transit dues - Other Vessels,Paid,2025-08-26
+233,INV-0000233,495,28,2025-01-02,131917.71,1.58,312029.98,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-05-08
+234,INV-0000234,328,4,2025-03-15,34558.4,2.55,170523.92,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-03-10
+235,INV-0000235,340,94,2025-08-10,17250.97,4.39,104181.76,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-09-29
+236,INV-0000236,307,26,2025-02-01,60903.85,1.86,195781.16,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-06-12
+237,INV-0000237,306,103,2025-03-04,61859.12,3.75,301371.7,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-09-16
+238,INV-0000238,462,68,2025-10-13,45436.39,3.71,220769.01,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-10-08
+239,INV-0000239,272,176,2025-09-12,151230.11,2.19,438193.94,Suez Canal transit dues - Containerships,Issued,2025-03-23
+240,INV-0000240,63,102,2025-11-05,29923.7,4.01,178994.04,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-09-01
+241,INV-0000241,66,68,2025-05-19,48570.85,3.71,232397.85,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-05-07
+242,INV-0000242,213,151,2025-07-10,21817.42,4.14,148424.12,Suez Canal transit dues - Other Vessels,Pending,2025-09-24
+243,INV-0000243,475,169,2025-08-29,191160.94,2.5,616052.35,Suez Canal transit dues - Containerships,Pending,2025-05-03
+244,INV-0000244,327,132,2025-04-14,113724.74,3.39,448226.87,Suez Canal transit dues - Cruise Ships,Issued,2025-02-09
+245,INV-0000245,49,47,2025-09-22,51576.7,3.84,273304.53,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-05-01
+246,INV-0000246,290,20,2025-09-15,76878.25,3.01,322703.53,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-06-13
+247,INV-0000247,147,82,2025-09-08,69828.93,3.43,307413.23,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-03-12
+248,INV-0000248,299,96,2025-03-27,60627.31,3.2,248057.39,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-07-16
+249,INV-0000249,249,74,2025-12-13,20390.69,4.51,152662.01,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-12-28
+250,INV-0000250,119,140,2025-02-22,142877.59,2.77,462520.92,Suez Canal transit dues - Cruise Ships,Pending,2025-08-01
+251,INV-0000251,264,117,2025-05-30,49972.98,3.32,233760.29,Suez Canal transit dues - Vehicles Carriers,Pending,2025-10-05
+252,INV-0000252,431,145,2025-12-15,43497.38,4.14,251179.15,Suez Canal transit dues - Special Floating Units,Paid,2025-02-01
+253,INV-0000253,274,14,2025-12-10,183502.97,1.58,393534.69,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-08-04
+254,INV-0000254,238,76,2025-11-02,75918.12,3.78,384370.49,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-10-27
+255,INV-0000255,500,47,2025-04-01,43141.95,3.84,240915.09,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-10-22
+256,INV-0000256,66,68,2025-01-15,48570.85,3.71,232397.85,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-01-04
+257,INV-0000257,280,148,2025-12-19,3714.48,10.04,37293.38,Suez Canal transit dues - Other Vessels,Pending,2025-07-19
+258,INV-0000258,273,25,2025-11-23,37691.32,2.17,151890.16,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-10-07
+259,INV-0000259,452,168,2025-04-04,158209.75,2.56,532366.96,Suez Canal transit dues - Containerships,Pending,2025-04-23
+260,INV-0000260,422,145,2025-11-03,67908.45,4.14,352240.98,Suez Canal transit dues - Special Floating Units,Pending,2025-05-20
+261,INV-0000261,441,108,2025-11-30,13513.17,4.73,87817.29,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-01-15
+262,INV-0000262,187,60,2025-05-13,28383.84,4.72,181121.72,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-12-09
+263,INV-0000263,147,82,2025-02-19,69828.93,3.43,307413.23,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-07-27
+264,INV-0000264,440,39,2025-10-05,39858.42,1.8,157745.16,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-08-28
+265,INV-0000265,78,42,2025-07-27,132243.43,1.43,298508.1,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-10-01
+266,INV-0000266,277,115,2025-12-10,16187.29,4.93,111453.34,Suez Canal transit dues - Vehicles Carriers,Issued,2025-07-21
+267,INV-0000267,4,158,2025-06-21,27474.6,3.52,146110.59,Suez Canal transit dues - Other Vessels,Paid,2025-12-06
+268,INV-0000268,308,47,2025-03-18,61041.37,3.84,309648.86,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-11-26
+269,INV-0000269,100,166,2025-02-02,63808.62,3.32,282994.62,Suez Canal transit dues - Containerships,Paid,2025-08-25
+270,INV-0000270,54,4,2025-04-13,32228.05,2.55,164581.53,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-05-14
+271,INV-0000271,498,85,2025-06-13,2649.81,9.6,25438.18,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-04-19
+272,INV-0000272,239,63,2025-05-28,155108.54,4.06,718090.67,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-06-22
+273,INV-0000273,491,10,2025-06-18,17991.18,4.38,104701.37,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-08-04
+274,INV-0000274,379,96,2025-07-10,40315.48,3.2,183059.54,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-02-11
+275,INV-0000275,297,42,2025-01-08,152851.0,1.43,327976.93,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-10-04
+276,INV-0000276,285,137,2025-11-04,20325.1,3.03,106435.05,Suez Canal transit dues - Cruise Ships,Paid,2025-06-29
+277,INV-0000277,436,146,2025-07-30,70745.84,3.75,363696.9,Suez Canal transit dues - Special Floating Units,Issued,2025-02-05
+278,INV-0000278,51,123,2025-12-27,33440.98,3.0,151222.94,Suez Canal transit dues - Vehicles Carriers,Paid,2025-01-16
+279,INV-0000279,6,55,2025-12-22,95806.88,3.05,371560.98,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-01-11
+280,INV-0000280,393,13,2025-08-20,72781.12,1.61,217177.6,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-05-03
+281,INV-0000281,325,70,2025-06-17,172850.19,3.45,671733.16,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-12-09
+282,INV-0000282,213,151,2025-09-20,21817.42,4.14,148424.12,Suez Canal transit dues - Other Vessels,Pending,2025-04-22
+283,INV-0000283,214,146,2025-05-08,80716.92,3.75,401088.45,Suez Canal transit dues - Special Floating Units,Pending,2025-05-12
+284,INV-0000284,212,165,2025-09-07,31760.79,3.59,174371.24,Suez Canal transit dues - Containerships,Issued,2025-11-07
+285,INV-0000285,420,169,2025-09-28,193843.47,2.5,622758.68,Suez Canal transit dues - Containerships,Paid,2025-02-28
+286,INV-0000286,424,88,2025-07-13,32951.36,3.88,186901.28,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-02-25
+287,INV-0000287,342,109,2025-12-07,26624.09,3.42,141154.39,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-06-09
+288,INV-0000288,384,29,2025-09-15,4800.87,9.65,46328.4,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-07-12
+289,INV-0000289,124,103,2025-11-19,56081.58,3.75,279705.92,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-04-12
+290,INV-0000290,232,175,2025-09-02,70981.59,2.23,260488.95,Suez Canal transit dues - Containerships,Issued,2025-12-20
+291,INV-0000291,397,156,2025-07-25,7427.55,5.75,56608.41,Suez Canal transit dues - Other Vessels,Issued,2025-02-22
+292,INV-0000292,14,7,2025-12-04,242488.51,1.85,571503.74,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-06-04
+293,INV-0000293,341,129,2025-01-05,11601.0,5.02,81837.02,Suez Canal transit dues - Cruise Ships,Issued,2025-03-03
+294,INV-0000294,127,143,2025-04-29,15324.45,6.21,119664.83,Suez Canal transit dues - Special Floating Units,Pending,2025-01-22
+295,INV-0000295,195,47,2025-08-18,42553.73,3.84,238656.32,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-08-08
+296,INV-0000296,304,63,2025-11-08,136401.29,4.06,642139.24,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-02-05
+297,INV-0000297,68,46,2025-06-13,26962.81,4.39,171616.74,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-06-24
+298,INV-0000298,466,106,2025-03-20,3715.09,8.17,30352.29,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-08-04
+299,INV-0000299,426,149,2025-01-19,7512.92,6.76,67187.34,Suez Canal transit dues - Other Vessels,Pending,2025-08-10
+300,INV-0000300,83,117,2025-02-11,51036.72,3.32,237291.91,Suez Canal transit dues - Vehicles Carriers,Issued,2025-08-24
+301,INV-0000301,426,149,2025-01-04,7512.92,6.76,67187.34,Suez Canal transit dues - Other Vessels,Paid,2025-08-11
+302,INV-0000302,75,145,2025-06-13,63477.62,4.14,333897.35,Suez Canal transit dues - Special Floating Units,Issued,2025-09-25
+303,INV-0000303,37,33,2025-06-16,57873.39,1.88,219601.97,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-11-12
+304,INV-0000304,377,140,2025-08-25,130971.88,2.77,429542.11,Suez Canal transit dues - Cruise Ships,Pending,2025-09-05
+305,INV-0000305,336,151,2025-07-02,23216.27,4.14,154215.36,Suez Canal transit dues - Other Vessels,Pending,2025-10-31
+306,INV-0000306,133,35,2025-03-06,199398.26,1.69,464583.06,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-05-06
+307,INV-0000307,287,34,2025-01-09,88225.8,1.76,274477.41,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-08-19
+308,INV-0000308,470,146,2025-02-12,74952.75,3.75,379472.81,Suez Canal transit dues - Special Floating Units,Issued,2025-08-26
+309,INV-0000309,228,118,2025-08-19,95651.99,2.62,367458.21,Suez Canal transit dues - Vehicles Carriers,Pending,2025-12-09
+310,INV-0000310,271,177,2025-10-11,189841.35,2.12,522063.66,Suez Canal transit dues - Containerships,Pending,2025-01-15
+311,INV-0000311,245,89,2025-08-24,67672.5,3.75,318021.88,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-06-16
+312,INV-0000312,201,26,2025-11-16,54466.76,1.86,183808.17,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-04-19
+313,INV-0000313,12,41,2025-01-23,108225.56,1.5,263338.34,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-05-13
+314,INV-0000314,17,89,2025-11-25,62949.78,3.75,300311.68,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-11-02
+315,INV-0000315,334,81,2025-09-28,24195.81,3.84,144411.91,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-05-22
+316,INV-0000316,69,21,2025-02-07,142484.55,2.9,517705.19,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-09-22
+317,INV-0000317,83,117,2025-06-21,51036.72,3.32,237291.91,Suez Canal transit dues - Vehicles Carriers,Issued,2025-05-04
+318,INV-0000318,450,164,2025-01-03,16574.78,5.12,114612.87,Suez Canal transit dues - Containerships,Issued,2025-09-08
+319,INV-0000319,429,35,2025-06-15,186194.72,1.69,442269.08,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-05-04
+320,INV-0000320,297,42,2025-12-13,152851.0,1.43,327976.93,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-11-27
+321,INV-0000321,459,69,2025-06-07,74040.82,3.55,326244.91,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-08-18
+322,INV-0000322,182,133,2025-04-29,145953.06,3.27,554366.51,Suez Canal transit dues - Cruise Ships,Paid,2025-05-31
+323,INV-0000323,127,143,2025-05-15,15324.45,6.21,119664.83,Suez Canal transit dues - Special Floating Units,Paid,2025-12-21
+324,INV-0000324,180,79,2025-01-05,9749.66,6.59,73950.26,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-12-06
+325,INV-0000325,45,47,2025-11-28,41570.0,3.84,234878.8,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-08-31
+326,INV-0000326,469,136,2025-06-07,11186.46,4.27,67816.18,Suez Canal transit dues - Cruise Ships,Pending,2025-06-26
+327,INV-0000327,467,100,2025-05-05,8453.78,7.14,72659.99,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-10-09
+328,INV-0000328,379,96,2025-05-16,40315.48,3.2,183059.54,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-12-26
+329,INV-0000329,78,42,2025-02-25,132243.43,1.43,298508.1,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-06-06
+330,INV-0000330,471,25,2025-10-01,23581.93,2.17,121272.79,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-03-03
+331,INV-0000331,242,146,2025-09-18,72098.77,3.75,368770.39,Suez Canal transit dues - Special Floating Units,Paid,2025-06-11
+332,INV-0000332,298,19,2025-08-29,42318.34,3.34,209543.26,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-10-02
+333,INV-0000333,145,70,2025-08-29,136168.16,3.45,545180.15,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-04-09
+334,INV-0000334,168,149,2025-04-09,7004.88,6.76,63752.99,Suez Canal transit dues - Other Vessels,Pending,2025-09-05
+335,INV-0000335,105,55,2025-06-19,75546.68,3.05,309767.37,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-10-29
+336,INV-0000336,194,21,2025-05-29,128360.53,2.9,476745.54,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-05-25
+337,INV-0000337,187,60,2025-04-06,28383.84,4.72,181121.72,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-04-10
+338,INV-0000338,323,158,2025-01-24,35396.92,3.52,173997.16,Suez Canal transit dues - Other Vessels,Paid,2025-07-04
+339,INV-0000339,181,61,2025-11-09,50369.37,4.37,281264.15,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-01-08
+340,INV-0000340,69,21,2025-11-24,142484.55,2.9,517705.19,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-03-06
+341,INV-0000341,342,109,2025-06-15,26624.09,3.42,141154.39,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-01-28
+342,INV-0000342,422,145,2025-02-25,67908.45,4.14,352240.98,Suez Canal transit dues - Special Floating Units,Paid,2025-12-24
+343,INV-0000343,271,177,2025-01-10,189841.35,2.12,522063.66,Suez Canal transit dues - Containerships,Paid,2025-09-09
+344,INV-0000344,15,140,2025-07-12,132691.47,2.77,434305.37,Suez Canal transit dues - Cruise Ships,Issued,2025-01-07
+345,INV-0000345,216,88,2025-09-20,20976.55,3.88,140439.01,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-08-29
+346,INV-0000346,130,136,2025-10-30,15580.51,4.27,86578.78,Suez Canal transit dues - Cruise Ships,Paid,2025-06-24
+347,INV-0000347,193,116,2025-08-24,33015.29,3.52,176063.82,Suez Canal transit dues - Vehicles Carriers,Pending,2025-05-10
+348,INV-0000348,158,27,2025-08-07,92595.29,1.61,249078.42,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-02-03
+349,INV-0000349,438,124,2025-11-06,41904.01,2.83,176288.35,Suez Canal transit dues - Vehicles Carriers,Issued,2025-02-07
+350,INV-0000350,27,118,2025-04-02,77754.27,2.62,320566.19,Suez Canal transit dues - Vehicles Carriers,Paid,2025-12-18
+351,INV-0000351,449,132,2025-06-18,98587.89,3.39,396912.95,Suez Canal transit dues - Cruise Ships,Issued,2025-03-18
+352,INV-0000352,283,131,2025-10-31,61647.56,3.5,270766.46,Suez Canal transit dues - Cruise Ships,Paid,2025-06-05
+353,INV-0000353,312,62,2025-10-13,95982.82,4.17,475398.36,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-03-02
+354,INV-0000354,375,81,2025-01-08,26056.94,3.84,151558.65,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-08-02
+355,INV-0000355,406,6,2025-02-20,91094.97,1.89,290269.49,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-11-13
+356,INV-0000356,255,131,2025-02-16,43871.34,3.5,208549.69,Suez Canal transit dues - Cruise Ships,Pending,2025-09-25
+357,INV-0000357,112,45,2025-02-20,13824.28,5.41,107639.35,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-08-15
+358,INV-0000358,482,146,2025-11-02,76440.8,3.75,385053.0,Suez Canal transit dues - Special Floating Units,Pending,2025-10-29
+359,INV-0000359,323,158,2025-09-29,35396.92,3.52,173997.16,Suez Canal transit dues - Other Vessels,Issued,2025-10-19
+360,INV-0000360,173,26,2025-10-20,69853.55,1.86,212427.6,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-11-09
+361,INV-0000361,194,21,2025-05-11,128360.53,2.9,476745.54,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-04-17
+362,INV-0000362,26,133,2025-11-07,142572.92,3.27,543313.45,Suez Canal transit dues - Cruise Ships,Issued,2025-05-16
+363,INV-0000363,487,70,2025-11-12,137269.73,3.45,548980.57,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-03-22
+364,INV-0000364,332,35,2025-06-09,186982.75,1.69,443600.85,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-10-10
+365,INV-0000365,453,40,2025-11-17,52186.42,1.6,177498.27,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-01-02
+366,INV-0000366,196,75,2025-04-13,53878.41,4.03,297029.99,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-12-19
+367,INV-0000367,420,169,2025-11-27,193843.47,2.5,622758.68,Suez Canal transit dues - Containerships,Paid,2025-05-30
+368,INV-0000368,348,124,2025-10-26,46974.85,2.83,190638.83,Suez Canal transit dues - Vehicles Carriers,Issued,2025-05-28
+369,INV-0000369,321,158,2025-06-28,34196.92,3.52,169773.16,Suez Canal transit dues - Other Vessels,Pending,2025-12-26
+370,INV-0000370,305,132,2025-10-16,88654.36,3.39,363238.28,Suez Canal transit dues - Cruise Ships,Paid,2025-12-18
+371,INV-0000371,244,140,2025-07-24,147821.57,2.77,476215.75,Suez Canal transit dues - Cruise Ships,Issued,2025-05-16
+372,INV-0000372,436,146,2025-11-23,70745.84,3.75,363696.9,Suez Canal transit dues - Special Floating Units,Paid,2025-12-05
+373,INV-0000373,382,118,2025-11-28,99080.74,2.62,376441.54,Suez Canal transit dues - Vehicles Carriers,Issued,2025-02-28
+374,INV-0000374,235,159,2025-02-02,46931.11,3.42,213904.4,Suez Canal transit dues - Other Vessels,Paid,2025-11-28
+375,INV-0000375,417,176,2025-10-21,160033.9,2.19,457474.24,Suez Canal transit dues - Containerships,Paid,2025-05-17
+376,INV-0000376,301,69,2025-09-14,99579.24,3.55,416906.3,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-01-31
+377,INV-0000377,35,14,2025-04-11,203642.54,1.58,425355.21,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-06-07
+378,INV-0000378,198,140,2025-10-24,143927.45,2.77,465429.04,Suez Canal transit dues - Cruise Ships,Pending,2025-10-19
+379,INV-0000379,378,132,2025-06-04,91080.01,3.39,371461.23,Suez Canal transit dues - Cruise Ships,Pending,2025-03-05
+380,INV-0000380,257,117,2025-01-24,56687.79,3.32,256053.46,Suez Canal transit dues - Vehicles Carriers,Issued,2025-06-05
+381,INV-0000381,141,18,2025-06-12,36031.0,3.42,188226.02,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-05-20
+382,INV-0000382,466,106,2025-11-17,3715.09,8.17,30352.29,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-09-10
+383,INV-0000383,490,165,2025-01-27,25066.46,3.59,150338.59,Suez Canal transit dues - Containerships,Paid,2025-11-03
+384,INV-0000384,179,67,2025-05-17,25234.61,4.01,141390.79,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-08-10
+385,INV-0000385,173,26,2025-02-20,69853.55,1.86,212427.6,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-11-06
+386,INV-0000386,343,146,2025-09-16,91654.97,3.75,442106.14,Suez Canal transit dues - Special Floating Units,Paid,2025-02-16
+387,INV-0000387,483,89,2025-05-12,51367.13,3.75,256876.74,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-10-22
+388,INV-0000388,332,35,2025-09-02,186982.75,1.69,443600.85,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-01-11
+389,INV-0000389,131,55,2025-05-12,96267.29,3.05,372965.23,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-05-18
+390,INV-0000390,377,140,2025-08-19,130971.88,2.77,429542.11,Suez Canal transit dues - Cruise Ships,Pending,2025-03-31
+391,INV-0000391,230,27,2025-07-01,77168.7,1.61,224241.61,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-11-30
+392,INV-0000392,383,142,2025-12-11,5327.18,6.9,54357.54,Suez Canal transit dues - Special Floating Units,Paid,2025-05-23
+393,INV-0000393,122,149,2025-01-20,5412.06,6.76,52985.53,Suez Canal transit dues - Other Vessels,Issued,2025-08-12
+394,INV-0000394,154,7,2025-12-15,187150.54,1.85,469128.5,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-09-09
+395,INV-0000395,53,54,2025-11-15,69374.72,3.27,290805.33,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-06-28
+396,INV-0000396,276,55,2025-11-19,96130.97,3.05,372549.46,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-06-14
+397,INV-0000397,2,27,2025-10-20,102474.82,1.61,264984.46,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-03-24
+398,INV-0000398,61,96,2025-11-09,56354.22,3.2,234383.5,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-12-22
+399,INV-0000399,337,166,2025-09-12,62529.73,3.32,278748.7,Suez Canal transit dues - Containerships,Pending,2025-12-06
+400,INV-0000400,364,125,2025-04-04,95109.42,2.23,311794.01,Suez Canal transit dues - Vehicles Carriers,Paid,2025-10-09
+401,INV-0000401,434,54,2025-03-04,46839.94,3.27,217116.6,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-02-15
+402,INV-0000402,22,150,2025-06-16,13537.76,5.69,104129.85,Suez Canal transit dues - Other Vessels,Paid,2025-06-15
+403,INV-0000403,192,69,2025-03-16,119890.8,3.55,489012.34,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-07-26
+404,INV-0000404,382,118,2025-05-15,99080.74,2.62,376441.54,Suez Canal transit dues - Vehicles Carriers,Issued,2025-01-01
+405,INV-0000405,397,156,2025-01-25,7427.55,5.75,56608.41,Suez Canal transit dues - Other Vessels,Pending,2025-10-05
+406,INV-0000406,81,110,2025-04-07,50174.23,3.2,219457.54,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-01-28
+407,INV-0000407,1,143,2025-11-03,11577.44,6.21,96395.9,Suez Canal transit dues - Special Floating Units,Issued,2025-07-05
+408,INV-0000408,253,68,2025-10-02,58022.44,3.71,267463.25,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-09-13
+409,INV-0000409,26,133,2025-11-07,142572.92,3.27,543313.45,Suez Canal transit dues - Cruise Ships,Paid,2025-01-27
+410,INV-0000410,172,167,2025-12-05,113675.96,2.62,417981.02,Suez Canal transit dues - Containerships,Paid,2025-10-09
+411,INV-0000411,184,46,2025-09-23,34198.84,4.39,203382.91,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-05-28
+412,INV-0000412,433,168,2025-09-28,160221.57,2.56,537517.22,Suez Canal transit dues - Containerships,Pending,2025-12-24
+413,INV-0000413,4,158,2025-06-26,27474.6,3.52,146110.59,Suez Canal transit dues - Other Vessels,Issued,2025-01-15
+414,INV-0000414,326,53,2025-03-12,21802.66,3.74,126691.95,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-05-03
+415,INV-0000415,489,123,2025-05-30,39211.77,3.0,168535.31,Suez Canal transit dues - Vehicles Carriers,Issued,2025-06-09
+416,INV-0000416,210,26,2025-08-01,44637.23,1.86,165525.25,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-10-10
+417,INV-0000417,264,117,2025-11-17,49972.98,3.32,233760.29,Suez Canal transit dues - Vehicles Carriers,Paid,2025-04-26
+418,INV-0000418,395,78,2025-01-23,3221.33,8.53,27477.94,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-03-02
+419,INV-0000419,64,95,2025-06-11,23650.07,3.29,128258.73,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-03-20
+420,INV-0000420,315,139,2025-09-27,77262.83,2.88,276066.95,Suez Canal transit dues - Cruise Ships,Issued,2025-05-30
+421,INV-0000421,295,27,2025-08-30,104226.2,1.61,267804.18,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-05-20
+422,INV-0000422,70,69,2025-11-19,101139.6,3.55,422445.58,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-09-05
+423,INV-0000423,209,103,2025-03-24,49744.85,3.75,255943.19,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-08-22
+424,INV-0000424,17,89,2025-06-09,62949.78,3.75,300311.68,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-07-16
+425,INV-0000425,12,41,2025-12-11,108225.56,1.5,263338.34,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-11-03
+426,INV-0000426,241,151,2025-05-17,38669.34,4.14,218191.07,Suez Canal transit dues - Other Vessels,Paid,2025-03-11
+427,INV-0000427,350,7,2025-09-11,169845.17,1.85,437113.56,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-08-01
+428,INV-0000428,485,156,2025-11-22,7291.98,5.75,55828.88,Suez Canal transit dues - Other Vessels,Pending,2025-09-17
+429,INV-0000429,188,102,2025-11-16,37517.19,4.01,209443.93,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-01-02
+430,INV-0000430,412,146,2025-03-25,97435.42,3.75,463782.82,Suez Canal transit dues - Special Floating Units,Issued,2025-06-02
+431,INV-0000431,164,140,2025-05-19,131109.44,2.77,429923.15,Suez Canal transit dues - Cruise Ships,Pending,2025-12-04
+432,INV-0000432,280,148,2025-04-02,3714.48,10.04,37293.38,Suez Canal transit dues - Other Vessels,Pending,2025-03-18
+433,INV-0000433,150,138,2025-09-30,56479.26,2.97,214993.4,Suez Canal transit dues - Cruise Ships,Pending,2025-09-05
+434,INV-0000434,274,14,2025-04-13,183502.97,1.58,393534.69,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-10-10
+435,INV-0000435,412,146,2025-09-16,97435.42,3.75,463782.82,Suez Canal transit dues - Special Floating Units,Pending,2025-08-22
+436,INV-0000436,70,69,2025-11-19,101139.6,3.55,422445.58,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-04-07
+437,INV-0000437,234,139,2025-03-09,102905.69,2.88,349918.39,Suez Canal transit dues - Cruise Ships,Pending,2025-10-20
+438,INV-0000438,477,138,2025-02-10,68920.89,2.97,251945.04,Suez Canal transit dues - Cruise Ships,Paid,2025-07-30
+439,INV-0000439,473,139,2025-02-26,94001.1,2.88,324273.17,Suez Canal transit dues - Cruise Ships,Issued,2025-08-31
+440,INV-0000440,412,146,2025-03-25,97435.42,3.75,463782.82,Suez Canal transit dues - Special Floating Units,Pending,2025-07-15
+441,INV-0000441,51,123,2025-03-09,33440.98,3.0,151222.94,Suez Canal transit dues - Vehicles Carriers,Paid,2025-11-30
+442,INV-0000442,209,103,2025-02-12,49744.85,3.75,255943.19,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-01-19
+443,INV-0000443,423,19,2025-02-01,41034.54,3.34,205255.36,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-10-30
+444,INV-0000444,262,20,2025-04-21,108258.62,3.01,417158.45,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-02-21
+445,INV-0000445,394,20,2025-07-07,103611.03,3.01,403169.2,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-09-27
+446,INV-0000446,238,76,2025-04-01,75918.12,3.78,384370.49,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-03-15
+447,INV-0000447,467,100,2025-07-22,8453.78,7.14,72659.99,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-12-02
+448,INV-0000448,52,20,2025-08-20,112135.25,3.01,428827.1,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-08-29
+449,INV-0000449,158,27,2025-11-23,92595.29,1.61,249078.42,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-11-16
+450,INV-0000450,101,96,2025-10-20,46644.97,3.2,203313.9,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-11-29
+451,INV-0000451,317,81,2025-04-12,34664.86,3.84,184613.06,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-06-18
+452,INV-0000452,174,80,2025-08-07,10451.0,5.27,77976.77,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-10-01
+453,INV-0000453,472,75,2025-02-05,63703.98,4.03,336627.04,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-11-17
+454,INV-0000454,323,158,2025-05-05,35396.92,3.52,173997.16,Suez Canal transit dues - Other Vessels,Issued,2025-09-07
+455,INV-0000455,393,13,2025-12-15,72781.12,1.61,217177.6,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-11-13
+456,INV-0000456,415,130,2025-10-16,37972.01,3.55,187800.64,Suez Canal transit dues - Cruise Ships,Issued,2025-11-20
+457,INV-0000457,4,158,2025-06-27,27474.6,3.52,146110.59,Suez Canal transit dues - Other Vessels,Paid,2025-05-28
+458,INV-0000458,196,75,2025-11-10,53878.41,4.03,297029.99,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-02-16
+459,INV-0000459,413,42,2025-08-08,193021.2,1.43,385420.32,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-11-21
+460,INV-0000460,415,130,2025-05-03,37972.01,3.55,187800.64,Suez Canal transit dues - Cruise Ships,Pending,2025-02-21
+461,INV-0000461,383,142,2025-11-14,5327.18,6.9,54357.54,Suez Canal transit dues - Special Floating Units,Pending,2025-12-22
+462,INV-0000462,145,70,2025-05-05,136168.16,3.45,545180.15,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-01-15
+463,INV-0000463,117,73,2025-09-19,16380.37,6.19,128494.49,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-01-29
+464,INV-0000464,210,26,2025-11-23,44637.23,1.86,165525.25,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-07-11
+465,INV-0000465,498,85,2025-11-04,2649.81,9.6,25438.18,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-05-06
+466,INV-0000466,154,7,2025-03-21,187150.54,1.85,469128.5,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-10-17
+467,INV-0000467,367,46,2025-06-20,31472.17,4.39,191412.83,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-04-03
+468,INV-0000468,440,39,2025-02-12,39858.42,1.8,157745.16,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-02-10
+469,INV-0000469,83,117,2025-11-29,51036.72,3.32,237291.91,Suez Canal transit dues - Vehicles Carriers,Issued,2025-07-15
+470,INV-0000470,365,14,2025-02-12,291825.62,1.58,564684.48,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-05-04
+471,INV-0000471,267,110,2025-06-11,56289.27,3.2,239025.66,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-10-26
+472,INV-0000472,412,146,2025-07-08,97435.42,3.75,463782.82,Suez Canal transit dues - Special Floating Units,Issued,2025-08-25
+473,INV-0000473,274,14,2025-05-22,183502.97,1.58,393534.69,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-08-24
+474,INV-0000474,425,7,2025-05-21,147417.47,1.85,395622.32,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-01-05
+475,INV-0000475,179,67,2025-03-17,25234.61,4.01,141390.79,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-05-28
+476,INV-0000476,50,34,2025-03-15,89322.36,1.76,276407.35,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-03-22
+477,INV-0000477,491,10,2025-04-19,17991.18,4.38,104701.37,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-06-26
+478,INV-0000478,314,63,2025-03-13,174731.31,4.06,797759.12,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-11-24
+479,INV-0000479,290,20,2025-02-24,76878.25,3.01,322703.53,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-05-09
+480,INV-0000480,499,7,2025-02-19,228884.1,1.85,546335.58,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-06-04
+481,INV-0000481,202,167,2025-02-24,88676.92,2.62,352483.53,Suez Canal transit dues - Containerships,Paid,2025-09-05
+482,INV-0000482,401,131,2025-07-12,51353.13,3.5,234735.96,Suez Canal transit dues - Cruise Ships,Issued,2025-07-15
+483,INV-0000483,53,54,2025-01-09,69374.72,3.27,290805.33,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-10-22
+484,INV-0000484,368,95,2025-12-19,39452.79,3.29,180249.68,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-06-01
+485,INV-0000485,352,20,2025-03-18,82551.04,3.01,339778.63,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-12-04
+486,INV-0000486,203,146,2025-12-07,83031.35,3.75,409767.56,Suez Canal transit dues - Special Floating Units,Issued,2025-01-05
+487,INV-0000487,418,143,2025-06-05,15837.25,6.21,122849.32,Suez Canal transit dues - Special Floating Units,Issued,2025-12-18
+488,INV-0000488,167,145,2025-07-26,64810.89,4.14,339417.08,Suez Canal transit dues - Special Floating Units,Issued,2025-11-07
+489,INV-0000489,229,110,2025-05-05,41605.28,3.2,192036.9,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-05-27
+490,INV-0000490,73,139,2025-03-17,94932.62,2.88,326955.95,Suez Canal transit dues - Cruise Ships,Paid,2025-06-30
+491,INV-0000491,180,79,2025-01-10,9749.66,6.59,73950.26,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-04-08
+492,INV-0000492,324,132,2025-01-27,104727.11,3.39,417724.9,Suez Canal transit dues - Cruise Ships,Issued,2025-12-14
+493,INV-0000493,500,47,2025-04-06,43141.95,3.84,240915.09,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-12-04
+494,INV-0000494,198,140,2025-12-07,143927.45,2.77,465429.04,Suez Canal transit dues - Cruise Ships,Issued,2025-03-12
+495,INV-0000495,93,95,2025-01-14,20199.71,3.29,116907.05,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-11-18
+496,INV-0000496,280,148,2025-03-18,3714.48,10.04,37293.38,Suez Canal transit dues - Other Vessels,Pending,2025-06-08
+497,INV-0000497,450,164,2025-11-18,16574.78,5.12,114612.87,Suez Canal transit dues - Containerships,Pending,2025-10-24
+498,INV-0000498,144,70,2025-08-21,143628.02,3.45,570916.67,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-03-09
+499,INV-0000499,364,125,2025-12-05,95109.42,2.23,311794.01,Suez Canal transit dues - Vehicles Carriers,Pending,2025-06-01
+500,INV-0000500,386,124,2025-10-12,44077.16,2.83,182438.36,Suez Canal transit dues - Vehicles Carriers,Paid,2025-08-01
+501,INV-0000501,243,46,2025-11-28,32327.85,4.39,195169.26,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-03-09
+502,INV-0000502,210,26,2025-11-20,44637.23,1.86,165525.25,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-07-07
+503,INV-0000503,384,29,2025-02-28,4800.87,9.65,46328.4,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-05-20
+504,INV-0000504,309,150,2025-07-21,16985.51,5.69,123747.55,Suez Canal transit dues - Other Vessels,Pending,2025-09-04
+505,INV-0000505,320,41,2025-05-22,93553.72,1.5,241330.58,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-06-23
+506,INV-0000506,301,69,2025-10-31,99579.24,3.55,416906.3,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-02-08
+507,INV-0000507,14,7,2025-05-21,242488.51,1.85,571503.74,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-04-26
+508,INV-0000508,58,169,2025-06-24,194578.27,2.5,624595.67,Suez Canal transit dues - Containerships,Pending,2025-12-12
+509,INV-0000509,427,81,2025-05-23,39140.68,3.84,201800.21,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-10-13
+510,INV-0000510,436,146,2025-06-07,70745.84,3.75,363696.9,Suez Canal transit dues - Special Floating Units,Paid,2025-07-22
+511,INV-0000511,112,45,2025-12-24,13824.28,5.41,107639.35,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-10-02
+512,INV-0000512,372,74,2025-10-12,25648.67,4.51,176375.5,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-07-08
+513,INV-0000513,146,110,2025-12-09,44470.7,3.2,201206.24,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-12-11
+514,INV-0000514,174,80,2025-04-06,10451.0,5.27,77976.77,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-07-15
+515,INV-0000515,372,74,2025-12-14,25648.67,4.51,176375.5,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-07-10
+516,INV-0000516,313,131,2025-08-29,53074.9,3.5,240762.15,Suez Canal transit dues - Cruise Ships,Pending,2025-04-30
+517,INV-0000517,214,146,2025-02-02,80716.92,3.75,401088.45,Suez Canal transit dues - Special Floating Units,Issued,2025-11-14
+518,INV-0000518,31,158,2025-02-21,31739.6,3.52,161123.39,Suez Canal transit dues - Other Vessels,Paid,2025-11-09
+519,INV-0000519,238,76,2025-08-28,75918.12,3.78,384370.49,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-02-02
+520,INV-0000520,26,133,2025-05-19,142572.92,3.27,543313.45,Suez Canal transit dues - Cruise Ships,Issued,2025-08-26
+521,INV-0000521,313,131,2025-02-16,53074.9,3.5,240762.15,Suez Canal transit dues - Cruise Ships,Pending,2025-11-29
+522,INV-0000522,366,94,2025-05-10,11296.01,4.39,78039.48,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-03-13
+523,INV-0000523,277,115,2025-10-27,16187.29,4.93,111453.34,Suez Canal transit dues - Vehicles Carriers,Pending,2025-01-20
+524,INV-0000524,281,151,2025-05-08,32066.15,4.14,190853.86,Suez Canal transit dues - Other Vessels,Paid,2025-03-01
+525,INV-0000525,51,123,2025-08-01,33440.98,3.0,151222.94,Suez Canal transit dues - Vehicles Carriers,Paid,2025-10-03
+526,INV-0000526,450,164,2025-12-28,16574.78,5.12,114612.87,Suez Canal transit dues - Containerships,Pending,2025-08-21
+527,INV-0000527,190,4,2025-05-30,22943.5,2.55,140905.92,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-12-23
+528,INV-0000528,179,67,2025-02-26,25234.61,4.01,141390.79,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-10-28
+529,INV-0000529,256,54,2025-06-10,57925.04,3.27,253364.88,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-03-21
+530,INV-0000530,189,55,2025-05-26,94650.73,3.05,368034.73,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-02-20
+531,INV-0000531,144,70,2025-01-26,143628.02,3.45,570916.67,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-07-28
+532,INV-0000532,38,118,2025-06-16,84422.62,2.62,338037.26,Suez Canal transit dues - Vehicles Carriers,Pending,2025-12-20
+533,INV-0000533,118,88,2025-09-09,34930.51,3.88,194580.38,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-08-16
+534,INV-0000534,159,40,2025-12-27,48741.12,1.6,171985.79,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-05-01
+535,INV-0000535,440,39,2025-12-28,39858.42,1.8,157745.16,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-12-18
+536,INV-0000536,82,159,2025-10-01,43144.0,3.42,200952.48,Suez Canal transit dues - Other Vessels,Pending,2025-11-27
+537,INV-0000537,244,140,2025-07-31,147821.57,2.77,476215.75,Suez Canal transit dues - Cruise Ships,Pending,2025-07-23
+538,INV-0000538,187,60,2025-09-01,28383.84,4.72,181121.72,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-03-04
+539,INV-0000539,143,47,2025-09-24,46765.07,3.84,254827.87,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-12-06
+540,INV-0000540,152,62,2025-05-09,74169.8,4.17,384438.07,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-11-24
+541,INV-0000541,32,46,2025-11-10,29290.77,4.39,181836.48,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-01-26
+542,INV-0000542,225,20,2025-04-01,71931.4,3.01,307813.51,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-03-06
+543,INV-0000543,259,19,2025-08-29,53685.97,3.34,247511.14,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-02-05
+544,INV-0000544,220,27,2025-03-10,80998.91,1.61,230408.25,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-10-28
+545,INV-0000545,160,167,2025-10-05,95724.38,2.62,370947.88,Suez Canal transit dues - Containerships,Pending,2025-04-30
+546,INV-0000546,142,157,2025-01-27,14947.15,4.84,95344.21,Suez Canal transit dues - Other Vessels,Issued,2025-03-17
+547,INV-0000547,309,150,2025-05-09,16985.51,5.69,123747.55,Suez Canal transit dues - Other Vessels,Paid,2025-05-22
+548,INV-0000548,476,129,2025-09-03,19941.68,5.02,123707.23,Suez Canal transit dues - Cruise Ships,Pending,2025-10-04
+549,INV-0000549,465,5,2025-06-27,67959.25,2.2,245910.35,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-03-31
+550,INV-0000550,367,46,2025-04-18,31472.17,4.39,191412.83,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-01-14
+551,INV-0000551,315,139,2025-05-21,77262.83,2.88,276066.95,Suez Canal transit dues - Cruise Ships,Paid,2025-07-03
+552,INV-0000552,33,139,2025-08-19,90669.63,2.88,314678.53,Suez Canal transit dues - Cruise Ships,Paid,2025-06-15
+553,INV-0000553,404,25,2025-03-27,30546.59,2.17,136386.1,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-05-16
+554,INV-0000554,427,81,2025-03-22,39140.68,3.84,201800.21,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-08-04
+555,INV-0000555,460,146,2025-09-09,76344.28,3.75,384691.05,Suez Canal transit dues - Special Floating Units,Pending,2025-02-02
+556,INV-0000556,123,18,2025-05-03,26087.39,3.42,154218.87,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-07-05
+557,INV-0000557,270,109,2025-03-08,30069.12,3.42,152936.39,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-02-25
+558,INV-0000558,255,131,2025-07-17,43871.34,3.5,208549.69,Suez Canal transit dues - Cruise Ships,Issued,2025-04-24
+559,INV-0000559,213,151,2025-04-23,21817.42,4.14,148424.12,Suez Canal transit dues - Other Vessels,Issued,2025-12-04
+560,INV-0000560,379,96,2025-01-15,40315.48,3.2,183059.54,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-08-23
+561,INV-0000561,204,63,2025-03-19,167446.0,4.06,768180.76,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-02-01
+562,INV-0000562,265,164,2025-07-07,14321.79,5.12,103077.56,Suez Canal transit dues - Containerships,Pending,2025-07-25
+563,INV-0000563,355,73,2025-06-09,11253.39,6.19,96758.48,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-02-25
+564,INV-0000564,351,14,2025-06-01,225012.32,1.58,459119.47,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-08-16
+565,INV-0000565,177,122,2025-10-15,17888.08,4.2,102029.94,Suez Canal transit dues - Vehicles Carriers,Pending,2025-02-11
+566,INV-0000566,460,146,2025-09-02,76344.28,3.75,384691.05,Suez Canal transit dues - Special Floating Units,Paid,2025-03-17
+567,INV-0000567,55,42,2025-10-23,128511.34,1.43,293171.22,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-05-21
+568,INV-0000568,77,145,2025-12-20,57779.25,4.14,310306.09,Suez Canal transit dues - Special Floating Units,Issued,2025-10-27
+569,INV-0000569,281,151,2025-02-15,32066.15,4.14,190853.86,Suez Canal transit dues - Other Vessels,Pending,2025-06-16
+570,INV-0000570,182,133,2025-09-15,145953.06,3.27,554366.51,Suez Canal transit dues - Cruise Ships,Pending,2025-09-29
+571,INV-0000571,186,12,2025-11-26,43881.95,1.86,164120.43,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-09-16
+572,INV-0000572,236,146,2025-07-06,70431.67,3.75,362518.76,Suez Canal transit dues - Special Floating Units,Issued,2025-02-20
+573,INV-0000573,74,117,2025-10-29,49952.69,3.32,233692.93,Suez Canal transit dues - Vehicles Carriers,Issued,2025-12-02
+574,INV-0000574,299,96,2025-01-03,60627.31,3.2,248057.39,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-10-10
+575,INV-0000575,194,21,2025-05-26,128360.53,2.9,476745.54,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-04-21
+576,INV-0000576,5,14,2025-10-12,228848.17,1.58,465180.11,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-04-27
+577,INV-0000577,213,151,2025-12-24,21817.42,4.14,148424.12,Suez Canal transit dues - Other Vessels,Pending,2025-08-21
+578,INV-0000578,72,62,2025-03-04,84972.03,4.17,429483.37,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-02-18
+579,INV-0000579,499,7,2025-06-22,228884.1,1.85,546335.58,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-06-10
+580,INV-0000580,177,122,2025-09-30,17888.08,4.2,102029.94,Suez Canal transit dues - Vehicles Carriers,Paid,2025-07-11
+581,INV-0000581,113,158,2025-09-27,24467.83,3.52,135526.76,Suez Canal transit dues - Other Vessels,Paid,2025-08-31
+582,INV-0000582,260,158,2025-07-10,37955.61,3.52,183003.75,Suez Canal transit dues - Other Vessels,Paid,2025-02-13
+583,INV-0000583,13,145,2025-03-10,68972.11,4.14,356644.54,Suez Canal transit dues - Special Floating Units,Issued,2025-02-19
+584,INV-0000584,161,83,2025-06-22,79036.83,3.22,337098.59,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-07-10
+585,INV-0000585,145,70,2025-08-11,136168.16,3.45,545180.15,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-01-31
+586,INV-0000586,433,168,2025-07-05,160221.57,2.56,537517.22,Suez Canal transit dues - Containerships,Pending,2025-10-15
+587,INV-0000587,240,168,2025-12-16,125516.14,2.56,448671.32,Suez Canal transit dues - Containerships,Pending,2025-03-04
+588,INV-0000588,285,137,2025-01-06,20325.1,3.03,106435.05,Suez Canal transit dues - Cruise Ships,Pending,2025-12-07
+589,INV-0000589,24,41,2025-01-22,109257.67,1.5,264886.5,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-01-27
+590,INV-0000590,150,138,2025-03-16,56479.26,2.97,214993.4,Suez Canal transit dues - Cruise Ships,Pending,2025-06-09
+591,INV-0000591,337,166,2025-06-22,62529.73,3.32,278748.7,Suez Canal transit dues - Containerships,Issued,2025-10-23
+592,INV-0000592,263,55,2025-05-16,88807.46,3.05,350212.75,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-03-21
+593,INV-0000593,181,61,2025-02-13,50369.37,4.37,281264.15,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-04-25
+594,INV-0000594,103,94,2025-02-23,13153.45,4.39,86193.65,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-10-12
+595,INV-0000595,464,151,2025-06-01,35122.35,4.14,203506.53,Suez Canal transit dues - Other Vessels,Issued,2025-05-23
+596,INV-0000596,166,131,2025-03-12,45087.75,3.5,212807.12,Suez Canal transit dues - Cruise Ships,Issued,2025-08-08
+597,INV-0000597,341,129,2025-06-09,11601.0,5.02,81837.02,Suez Canal transit dues - Cruise Ships,Issued,2025-11-15
+598,INV-0000598,184,46,2025-08-15,34198.84,4.39,203382.91,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-11-26
+599,INV-0000599,279,108,2025-06-20,16294.54,4.73,100973.17,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-11-08
+600,INV-0000600,142,157,2025-04-30,14947.15,4.84,95344.21,Suez Canal transit dues - Other Vessels,Pending,2025-12-22
+601,INV-0000601,39,108,2025-09-05,19458.54,4.73,115938.89,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-04-03
+602,INV-0000602,346,140,2025-12-13,132238.91,2.77,433051.78,Suez Canal transit dues - Cruise Ships,Pending,2025-06-08
+603,INV-0000603,75,145,2025-04-26,63477.62,4.14,333897.35,Suez Canal transit dues - Special Floating Units,Paid,2025-01-04
+604,INV-0000604,225,20,2025-09-03,71931.4,3.01,307813.51,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-03-15
+605,INV-0000605,406,6,2025-06-02,91094.97,1.89,290269.49,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-07-25
+606,INV-0000606,434,54,2025-05-24,46839.94,3.27,217116.6,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-11-21
+607,INV-0000607,89,69,2025-04-19,89733.76,3.55,381954.85,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-09-29
+608,INV-0000608,487,70,2025-01-20,137269.73,3.45,548980.57,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-08-03
+609,INV-0000609,124,103,2025-11-30,56081.58,3.75,279705.92,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-03-22
+610,INV-0000610,170,70,2025-11-24,166247.83,3.45,648955.01,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-06-16
+611,INV-0000611,496,106,2025-10-13,3613.63,8.17,29523.36,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-02-13
+612,INV-0000612,186,12,2025-10-28,43881.95,1.86,164120.43,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-03-22
+613,INV-0000613,391,88,2025-10-31,27024.7,3.88,163905.84,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-12-12
+614,INV-0000614,374,54,2025-09-10,56103.77,3.27,247409.33,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-08-15
+615,INV-0000615,263,55,2025-11-21,88807.46,3.05,350212.75,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-09-06
+616,INV-0000616,310,122,2025-07-27,18279.19,4.2,103672.6,Suez Canal transit dues - Vehicles Carriers,Pending,2025-08-01
+617,INV-0000617,63,102,2025-04-09,29923.7,4.01,178994.04,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-09-20
+618,INV-0000618,399,78,2025-10-25,4310.8,8.53,36771.12,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-08-09
+619,INV-0000619,91,141,2025-10-04,3196.65,10.42,33309.09,Suez Canal transit dues - Special Floating Units,Issued,2025-12-14
+620,INV-0000620,367,46,2025-07-05,31472.17,4.39,191412.83,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-09-07
+621,INV-0000621,205,86,2025-09-11,5801.39,7.41,53938.3,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-06-07
+622,INV-0000622,99,88,2025-09-14,28369.16,3.88,169122.34,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-07-22
+623,INV-0000623,331,20,2025-07-31,98887.91,3.01,388952.61,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-01-04
+624,INV-0000624,39,108,2025-12-24,19458.54,4.73,115938.89,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-04-19
+625,INV-0000625,483,89,2025-06-20,51367.13,3.75,256876.74,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-05-11
+626,INV-0000626,341,129,2025-11-06,11601.0,5.02,81837.02,Suez Canal transit dues - Cruise Ships,Paid,2025-03-03
+627,INV-0000627,425,7,2025-09-23,147417.47,1.85,395622.32,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-08-09
+628,INV-0000628,94,114,2025-05-04,9948.13,6.59,80608.18,Suez Canal transit dues - Vehicles Carriers,Issued,2025-07-14
+629,INV-0000629,57,139,2025-11-24,87353.51,2.88,305128.11,Suez Canal transit dues - Cruise Ships,Issued,2025-04-28
+630,INV-0000630,187,60,2025-03-18,28383.84,4.72,181121.72,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-12-09
+631,INV-0000631,266,96,2025-02-08,62374.57,3.2,253648.62,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-07-23
+632,INV-0000632,313,131,2025-04-29,53074.9,3.5,240762.15,Suez Canal transit dues - Cruise Ships,Paid,2025-08-12
+633,INV-0000633,94,114,2025-11-17,9948.13,6.59,80608.18,Suez Canal transit dues - Vehicles Carriers,Pending,2025-02-09
+634,INV-0000634,232,175,2025-06-26,70981.59,2.23,260488.95,Suez Canal transit dues - Containerships,Issued,2025-08-08
+635,INV-0000635,253,68,2025-12-30,58022.44,3.71,267463.25,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-12-30
+636,INV-0000636,309,150,2025-05-30,16985.51,5.69,123747.55,Suez Canal transit dues - Other Vessels,Paid,2025-05-29
+637,INV-0000637,351,14,2025-11-22,225012.32,1.58,459119.47,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-01-11
+638,INV-0000638,197,17,2025-10-10,16704.82,5.14,116462.77,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-11-13
+639,INV-0000639,285,137,2025-12-23,20325.1,3.03,106435.05,Suez Canal transit dues - Cruise Ships,Pending,2025-12-20
+640,INV-0000640,119,140,2025-11-08,142877.59,2.77,462520.92,Suez Canal transit dues - Cruise Ships,Paid,2025-08-12
+641,INV-0000641,98,42,2025-06-19,193049.99,1.43,385461.49,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-08-12
+642,INV-0000642,97,63,2025-11-24,142703.7,4.06,667727.02,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-09-26
+643,INV-0000643,336,151,2025-06-08,23216.27,4.14,154215.36,Suez Canal transit dues - Other Vessels,Issued,2025-06-08
+644,INV-0000644,303,145,2025-03-18,67415.8,4.14,350201.41,Suez Canal transit dues - Special Floating Units,Pending,2025-04-24
+645,INV-0000645,140,133,2025-06-20,121903.92,3.27,475725.82,Suez Canal transit dues - Cruise Ships,Paid,2025-03-28
+646,INV-0000646,47,157,2025-07-09,16052.1,4.84,100692.16,Suez Canal transit dues - Other Vessels,Paid,2025-11-21
+647,INV-0000647,433,168,2025-11-27,160221.57,2.56,537517.22,Suez Canal transit dues - Containerships,Paid,2025-09-19
+648,INV-0000648,284,96,2025-03-20,69972.06,3.2,277960.59,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-06-28
+649,INV-0000649,269,26,2025-06-12,51204.23,1.86,177739.87,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-11-27
+650,INV-0000650,92,69,2025-12-24,80656.62,3.55,349731.0,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-02-22
+651,INV-0000651,130,136,2025-01-29,15580.51,4.27,86578.78,Suez Canal transit dues - Cruise Ships,Paid,2025-04-12
+652,INV-0000652,37,33,2025-02-15,57873.39,1.88,219601.97,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-03-20
+653,INV-0000653,228,118,2025-07-06,95651.99,2.62,367458.21,Suez Canal transit dues - Vehicles Carriers,Issued,2025-04-01
+654,INV-0000654,350,7,2025-08-22,169845.17,1.85,437113.56,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-08-26
+655,INV-0000655,165,63,2025-12-23,144118.56,4.06,673471.35,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-10-24
+656,INV-0000656,99,88,2025-12-06,28369.16,3.88,169122.34,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-10-17
+657,INV-0000657,438,124,2025-11-03,41904.01,2.83,176288.35,Suez Canal transit dues - Vehicles Carriers,Pending,2025-11-16
+658,INV-0000658,375,81,2025-05-07,26056.94,3.84,151558.65,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-11-18
+659,INV-0000659,190,4,2025-02-16,22943.5,2.55,140905.92,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-08-14
+660,INV-0000660,496,106,2025-11-16,3613.63,8.17,29523.36,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-08-15
+661,INV-0000661,206,53,2025-05-15,38867.05,3.74,190512.77,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-05-21
+662,INV-0000662,145,70,2025-11-01,136168.16,3.45,545180.15,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-06-30
+663,INV-0000663,287,34,2025-06-10,88225.8,1.76,274477.41,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-06-08
+664,INV-0000664,133,35,2025-12-11,199398.26,1.69,464583.06,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-01-20
+665,INV-0000665,364,125,2025-08-27,95109.42,2.23,311794.01,Suez Canal transit dues - Vehicles Carriers,Paid,2025-05-27
+666,INV-0000666,470,146,2025-03-27,74952.75,3.75,379472.81,Suez Canal transit dues - Special Floating Units,Issued,2025-02-16
+667,INV-0000667,259,19,2025-08-18,53685.97,3.34,247511.14,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-09-17
+668,INV-0000668,271,177,2025-11-27,189841.35,2.12,522063.66,Suez Canal transit dues - Containerships,Issued,2025-10-25
+669,INV-0000669,332,35,2025-09-03,186982.75,1.69,443600.85,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-01-22
+670,INV-0000670,71,115,2025-12-07,17092.34,4.93,115915.24,Suez Canal transit dues - Vehicles Carriers,Issued,2025-10-20
+671,INV-0000671,406,6,2025-12-26,91094.97,1.89,290269.49,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-06-14
+672,INV-0000672,405,26,2025-11-15,55025.4,1.86,184847.24,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-09-14
+673,INV-0000673,239,63,2025-07-27,155108.54,4.06,718090.67,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-08-19
+674,INV-0000674,267,110,2025-12-20,56289.27,3.2,239025.66,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-06-25
+675,INV-0000675,139,62,2025-08-22,90098.58,4.17,450861.08,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-09-16
+676,INV-0000676,165,63,2025-09-07,144118.56,4.06,673471.35,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-01-21
+677,INV-0000677,117,73,2025-03-10,16380.37,6.19,128494.49,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-08-13
+678,INV-0000678,336,151,2025-05-22,23216.27,4.14,154215.36,Suez Canal transit dues - Other Vessels,Issued,2025-09-25
+679,INV-0000679,365,14,2025-10-01,291825.62,1.58,564684.48,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-07-06
+680,INV-0000680,141,18,2025-05-02,36031.0,3.42,188226.02,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-05-25
+681,INV-0000681,429,35,2025-02-01,186194.72,1.69,442269.08,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-06-23
+682,INV-0000682,54,4,2025-05-03,32228.05,2.55,164581.53,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-01-27
+683,INV-0000683,402,96,2025-04-27,50105.72,3.2,214388.3,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-06-21
+684,INV-0000684,474,132,2025-12-28,81333.16,3.39,338419.41,Suez Canal transit dues - Cruise Ships,Issued,2025-02-18
+685,INV-0000685,216,88,2025-06-22,20976.55,3.88,140439.01,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-07-17
+686,INV-0000686,101,96,2025-10-27,46644.97,3.2,203313.9,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-12-03
+687,INV-0000687,490,165,2025-05-22,25066.46,3.59,150338.59,Suez Canal transit dues - Containerships,Pending,2025-03-18
+688,INV-0000688,103,94,2025-07-27,13153.45,4.39,86193.65,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-10-26
+689,INV-0000689,91,141,2025-06-08,3196.65,10.42,33309.09,Suez Canal transit dues - Special Floating Units,Pending,2025-06-29
+690,INV-0000690,138,110,2025-04-27,51156.47,3.2,222600.7,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-12-24
+691,INV-0000691,428,7,2025-11-03,244004.85,1.85,574308.97,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-03-08
+692,INV-0000692,361,88,2025-05-10,31288.43,3.88,180449.11,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-02-13
+693,INV-0000693,228,118,2025-12-15,95651.99,2.62,367458.21,Suez Canal transit dues - Vehicles Carriers,Issued,2025-07-12
+694,INV-0000694,336,151,2025-10-21,23216.27,4.14,154215.36,Suez Canal transit dues - Other Vessels,Paid,2025-06-18
+695,INV-0000695,269,26,2025-02-07,51204.23,1.86,177739.87,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-12-26
+696,INV-0000696,60,176,2025-11-11,163100.49,2.19,464190.07,Suez Canal transit dues - Containerships,Paid,2025-09-27
+697,INV-0000697,336,151,2025-11-30,23216.27,4.14,154215.36,Suez Canal transit dues - Other Vessels,Pending,2025-12-10
+698,INV-0000698,137,124,2025-09-25,48887.75,2.83,196052.33,Suez Canal transit dues - Vehicles Carriers,Paid,2025-07-05
+699,INV-0000699,118,88,2025-05-05,34930.51,3.88,194580.38,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-06-08
+700,INV-0000700,209,103,2025-05-15,49744.85,3.75,255943.19,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-04-20
+701,INV-0000701,310,122,2025-09-11,18279.19,4.2,103672.6,Suez Canal transit dues - Vehicles Carriers,Paid,2025-09-06
+702,INV-0000702,81,110,2025-09-04,50174.23,3.2,219457.54,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-03-12
+703,INV-0000703,298,19,2025-05-05,42318.34,3.34,209543.26,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-06-01
+704,INV-0000704,415,130,2025-10-03,37972.01,3.55,187800.64,Suez Canal transit dues - Cruise Ships,Issued,2025-10-04
+705,INV-0000705,328,4,2025-12-17,34558.4,2.55,170523.92,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-09-27
+706,INV-0000706,44,115,2025-09-08,12610.59,4.93,93820.21,Suez Canal transit dues - Vehicles Carriers,Issued,2025-06-22
+707,INV-0000707,3,18,2025-08-09,35139.78,3.42,185178.05,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-11-02
+708,INV-0000708,149,146,2025-02-12,79343.17,3.75,395936.89,Suez Canal transit dues - Special Floating Units,Paid,2025-03-25
+709,INV-0000709,8,93,2025-05-04,6437.21,6.3,49904.42,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-12-21
+710,INV-0000710,38,118,2025-02-10,84422.62,2.62,338037.26,Suez Canal transit dues - Vehicles Carriers,Issued,2025-03-26
+711,INV-0000711,134,95,2025-10-17,23998.28,3.29,129404.34,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-01-23
+712,INV-0000712,243,46,2025-10-14,32327.85,4.39,195169.26,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-12-13
+713,INV-0000713,251,110,2025-04-28,56597.54,3.2,240012.13,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-08-16
+714,INV-0000714,322,53,2025-09-24,29342.63,3.74,154891.44,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-08-18
+715,INV-0000715,9,148,2025-10-07,3942.98,10.04,39587.52,Suez Canal transit dues - Other Vessels,Pending,2025-05-03
+716,INV-0000716,247,173,2025-09-09,36260.91,3.05,161995.78,Suez Canal transit dues - Containerships,Paid,2025-08-29
+717,INV-0000717,103,94,2025-05-17,13153.45,4.39,86193.65,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-12-14
+718,INV-0000718,41,152,2025-10-09,49773.42,4.01,262891.41,Suez Canal transit dues - Other Vessels,Pending,2025-08-25
+719,INV-0000719,208,176,2025-05-03,125478.45,2.19,381797.81,Suez Canal transit dues - Containerships,Issued,2025-07-15
+720,INV-0000720,336,151,2025-12-15,23216.27,4.14,154215.36,Suez Canal transit dues - Other Vessels,Paid,2025-08-03
+721,INV-0000721,56,17,2025-01-12,14060.85,5.14,102872.77,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-04-13
+722,INV-0000722,461,34,2025-04-07,89933.33,1.76,277482.66,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-05-09
+723,INV-0000723,165,63,2025-01-25,144118.56,4.06,673471.35,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-09-04
+724,INV-0000724,229,110,2025-01-30,41605.28,3.2,192036.9,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-02-22
+725,INV-0000725,40,94,2025-02-15,19299.01,4.39,113172.65,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-09-22
+726,INV-0000726,345,118,2025-06-24,91715.7,2.62,357145.13,Suez Canal transit dues - Vehicles Carriers,Paid,2025-02-12
+727,INV-0000727,274,14,2025-03-19,183502.97,1.58,393534.69,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-08-19
+728,INV-0000728,336,151,2025-10-18,23216.27,4.14,154215.36,Suez Canal transit dues - Other Vessels,Paid,2025-08-12
+729,INV-0000729,296,82,2025-04-14,49319.5,3.43,237065.88,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-04-24
+730,INV-0000730,141,18,2025-03-25,36031.0,3.42,188226.02,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-06-28
+731,INV-0000731,135,102,2025-07-30,25192.77,4.01,160023.01,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-01-28
+732,INV-0000732,411,138,2025-01-18,63184.59,2.97,234908.23,Suez Canal transit dues - Cruise Ships,Paid,2025-07-11
+733,INV-0000733,455,176,2025-08-07,176624.39,2.19,493807.41,Suez Canal transit dues - Containerships,Pending,2025-02-11
+734,INV-0000734,173,26,2025-03-26,69853.55,1.86,212427.6,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-01-15
+735,INV-0000735,293,175,2025-03-15,116566.75,2.23,362143.85,Suez Canal transit dues - Containerships,Issued,2025-02-20
+736,INV-0000736,335,35,2025-03-10,170658.77,1.69,416013.32,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-06-21
+737,INV-0000737,441,108,2025-11-21,13513.17,4.73,87817.29,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-01-20
+738,INV-0000738,117,73,2025-01-28,16380.37,6.19,128494.49,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-08-30
+739,INV-0000739,418,143,2025-03-06,15837.25,6.21,122849.32,Suez Canal transit dues - Special Floating Units,Issued,2025-03-13
+740,INV-0000740,10,19,2025-11-28,58878.56,3.34,264854.39,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-08-18
+741,INV-0000741,481,67,2025-08-21,32643.45,4.01,171100.23,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-02-10
+742,INV-0000742,67,174,2025-06-24,66167.08,2.83,247452.84,Suez Canal transit dues - Containerships,Paid,2025-04-21
+743,INV-0000743,346,140,2025-11-09,132238.91,2.77,433051.78,Suez Canal transit dues - Cruise Ships,Issued,2025-11-08
+744,INV-0000744,418,143,2025-03-29,15837.25,6.21,122849.32,Suez Canal transit dues - Special Floating Units,Pending,2025-02-26
+745,INV-0000745,333,63,2025-02-03,160278.91,4.06,739082.37,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-06-04
+746,INV-0000746,160,167,2025-10-02,95724.38,2.62,370947.88,Suez Canal transit dues - Containerships,Pending,2025-05-03
+747,INV-0000747,227,27,2025-12-01,97765.97,1.61,257403.21,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-11-15
+748,INV-0000748,186,12,2025-02-28,43881.95,1.86,164120.43,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-02-26
+749,INV-0000749,270,109,2025-11-07,30069.12,3.42,152936.39,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-10-02
+750,INV-0000750,218,54,2025-07-25,44696.3,3.27,210106.9,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-09-21
+751,INV-0000751,346,140,2025-02-11,132238.91,2.77,433051.78,Suez Canal transit dues - Cruise Ships,Pending,2025-03-15
+752,INV-0000752,341,129,2025-12-21,11601.0,5.02,81837.02,Suez Canal transit dues - Cruise Ships,Issued,2025-01-01
+753,INV-0000753,434,54,2025-12-09,46839.94,3.27,217116.6,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-05-04
+754,INV-0000754,32,46,2025-04-08,29290.77,4.39,181836.48,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-04-06
+755,INV-0000755,69,21,2025-12-09,142484.55,2.9,517705.19,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-02-13
+756,INV-0000756,255,131,2025-08-24,43871.34,3.5,208549.69,Suez Canal transit dues - Cruise Ships,Issued,2025-02-04
+757,INV-0000757,466,106,2025-01-23,3715.09,8.17,30352.29,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-09-17
+758,INV-0000758,424,88,2025-06-07,32951.36,3.88,186901.28,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-01-11
+759,INV-0000759,408,38,2025-05-31,15463.63,4.96,99499.6,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-08-29
+760,INV-0000760,283,131,2025-11-28,61647.56,3.5,270766.46,Suez Canal transit dues - Cruise Ships,Pending,2025-07-18
+761,INV-0000761,409,26,2025-08-18,56085.36,1.86,186818.77,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-01-09
+762,INV-0000762,480,86,2025-11-18,6687.52,7.41,60504.52,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-02-04
+763,INV-0000763,50,34,2025-05-14,89322.36,1.76,276407.35,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-12-03
+764,INV-0000764,53,54,2025-05-12,69374.72,3.27,290805.33,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-10-25
+765,INV-0000765,51,123,2025-11-26,33440.98,3.0,151222.94,Suez Canal transit dues - Vehicles Carriers,Paid,2025-06-20
+766,INV-0000766,389,19,2025-06-30,57838.58,3.34,261380.86,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-06-30
+767,INV-0000767,30,19,2025-07-09,52698.58,3.34,244213.26,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-11-26
+768,INV-0000768,197,17,2025-11-27,16704.82,5.14,116462.77,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-12-17
+769,INV-0000769,167,145,2025-08-28,64810.89,4.14,339417.08,Suez Canal transit dues - Special Floating Units,Issued,2025-09-03
+770,INV-0000770,322,53,2025-08-14,29342.63,3.74,154891.44,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-03-11
+771,INV-0000771,442,102,2025-02-01,35003.54,4.01,199364.2,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-08-23
+772,INV-0000772,424,88,2025-10-06,32951.36,3.88,186901.28,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-04-14
+773,INV-0000773,70,69,2025-07-23,101139.6,3.55,422445.58,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-04-13
+774,INV-0000774,104,158,2025-08-28,29827.49,3.52,154392.76,Suez Canal transit dues - Other Vessels,Issued,2025-06-08
+775,INV-0000775,386,124,2025-11-10,44077.16,2.83,182438.36,Suez Canal transit dues - Vehicles Carriers,Pending,2025-10-06
+776,INV-0000776,315,139,2025-04-08,77262.83,2.88,276066.95,Suez Canal transit dues - Cruise Ships,Issued,2025-01-19
+777,INV-0000777,82,159,2025-04-03,43144.0,3.42,200952.48,Suez Canal transit dues - Other Vessels,Pending,2025-05-27
+778,INV-0000778,158,27,2025-07-16,92595.29,1.61,249078.42,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-01-25
+779,INV-0000779,130,136,2025-12-05,15580.51,4.27,86578.78,Suez Canal transit dues - Cruise Ships,Paid,2025-05-20
+780,INV-0000780,440,39,2025-08-23,39858.42,1.8,157745.16,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-07-08
+781,INV-0000781,409,26,2025-08-08,56085.36,1.86,186818.77,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-07-24
+782,INV-0000782,82,159,2025-08-05,43144.0,3.42,200952.48,Suez Canal transit dues - Other Vessels,Pending,2025-07-17
+783,INV-0000783,353,42,2025-09-19,154487.5,1.43,330317.12,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-09-12
+784,INV-0000784,43,3,2025-04-13,19791.99,5.14,132330.83,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-07-08
+785,INV-0000785,295,27,2025-01-30,104226.2,1.61,267804.18,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-02-12
+786,INV-0000786,324,132,2025-03-10,104727.11,3.39,417724.9,Suez Canal transit dues - Cruise Ships,Pending,2025-02-10
+787,INV-0000787,72,62,2025-11-28,84972.03,4.17,429483.37,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-04-03
+788,INV-0000788,166,131,2025-09-17,45087.75,3.5,212807.12,Suez Canal transit dues - Cruise Ships,Paid,2025-06-14
+789,INV-0000789,68,46,2025-08-04,26962.81,4.39,171616.74,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-06-17
+790,INV-0000790,272,176,2025-08-15,151230.11,2.19,438193.94,Suez Canal transit dues - Containerships,Pending,2025-06-06
+791,INV-0000791,460,146,2025-11-11,76344.28,3.75,384691.05,Suez Canal transit dues - Special Floating Units,Paid,2025-08-07
+792,INV-0000792,44,115,2025-09-22,12610.59,4.93,93820.21,Suez Canal transit dues - Vehicles Carriers,Pending,2025-08-16
+793,INV-0000793,138,110,2025-01-05,51156.47,3.2,222600.7,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-01-22
+794,INV-0000794,178,156,2025-03-18,8148.88,5.75,60756.06,Suez Canal transit dues - Other Vessels,Issued,2025-06-30
+795,INV-0000795,69,21,2025-10-14,142484.55,2.9,517705.19,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-05-21
+796,INV-0000796,297,42,2025-09-08,152851.0,1.43,327976.93,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-01-30
+797,INV-0000797,169,175,2025-10-31,110184.51,2.23,347911.46,Suez Canal transit dues - Containerships,Pending,2025-11-23
+798,INV-0000798,15,140,2025-03-12,132691.47,2.77,434305.37,Suez Canal transit dues - Cruise Ships,Issued,2025-09-20
+799,INV-0000799,408,38,2025-09-29,15463.63,4.96,99499.6,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-03-23
+800,INV-0000800,168,149,2025-04-27,7004.88,6.76,63752.99,Suez Canal transit dues - Other Vessels,Issued,2025-11-08
+801,INV-0000801,229,110,2025-04-19,41605.28,3.2,192036.9,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-08-13
+802,INV-0000802,415,130,2025-11-23,37972.01,3.55,187800.64,Suez Canal transit dues - Cruise Ships,Paid,2025-02-04
+803,INV-0000803,131,55,2025-09-28,96267.29,3.05,372965.23,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-11-27
+804,INV-0000804,412,146,2025-09-23,97435.42,3.75,463782.82,Suez Canal transit dues - Special Floating Units,Issued,2025-07-16
+805,INV-0000805,97,63,2025-06-02,142703.7,4.06,667727.02,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-11-06
+806,INV-0000806,272,176,2025-02-12,151230.11,2.19,438193.94,Suez Canal transit dues - Containerships,Pending,2025-08-19
+807,INV-0000807,77,145,2025-08-15,57779.25,4.14,310306.09,Suez Canal transit dues - Special Floating Units,Paid,2025-08-16
+808,INV-0000808,202,167,2025-01-22,88676.92,2.62,352483.53,Suez Canal transit dues - Containerships,Issued,2025-03-12
+809,INV-0000809,354,88,2025-05-31,31949.06,3.88,183012.35,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-07-23
+810,INV-0000810,308,47,2025-08-03,61041.37,3.84,309648.86,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-05-23
+811,INV-0000811,181,61,2025-04-13,50369.37,4.37,281264.15,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-01-14
+812,INV-0000812,248,48,2025-05-29,82036.92,3.59,387262.54,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-09-13
+813,INV-0000813,453,40,2025-09-11,52186.42,1.6,177498.27,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-10-15
+814,INV-0000814,240,168,2025-08-26,125516.14,2.56,448671.32,Suez Canal transit dues - Containerships,Issued,2025-05-14
+815,INV-0000815,239,63,2025-11-07,155108.54,4.06,718090.67,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-04-20
+816,INV-0000816,287,34,2025-10-09,88225.8,1.76,274477.41,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-12-22
+817,INV-0000817,484,19,2025-07-16,69645.66,3.34,300816.5,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-03-04
+818,INV-0000818,418,143,2025-06-09,15837.25,6.21,122849.32,Suez Canal transit dues - Special Floating Units,Pending,2025-02-07
+819,INV-0000819,274,14,2025-04-10,183502.97,1.58,393534.69,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-08-16
+820,INV-0000820,104,158,2025-09-24,29827.49,3.52,154392.76,Suez Canal transit dues - Other Vessels,Pending,2025-12-16
+821,INV-0000821,365,14,2025-12-26,291825.62,1.58,564684.48,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-06-27
+822,INV-0000822,27,118,2025-04-15,77754.27,2.62,320566.19,Suez Canal transit dues - Vehicles Carriers,Issued,2025-10-09
+823,INV-0000823,321,158,2025-03-31,34196.92,3.52,169773.16,Suez Canal transit dues - Other Vessels,Paid,2025-06-03
+824,INV-0000824,119,140,2025-12-30,142877.59,2.77,462520.92,Suez Canal transit dues - Cruise Ships,Issued,2025-12-30
+825,INV-0000825,27,118,2025-07-20,77754.27,2.62,320566.19,Suez Canal transit dues - Vehicles Carriers,Pending,2025-03-31
+826,INV-0000826,142,157,2025-07-03,14947.15,4.84,95344.21,Suez Canal transit dues - Other Vessels,Paid,2025-04-25
+827,INV-0000827,23,63,2025-07-12,154667.1,4.06,716298.43,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-03-13
+828,INV-0000828,267,110,2025-03-12,56289.27,3.2,239025.66,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-09-10
+829,INV-0000829,29,145,2025-02-14,65162.87,4.14,340874.28,Suez Canal transit dues - Special Floating Units,Issued,2025-10-11
+830,INV-0000830,54,4,2025-07-27,32228.05,2.55,164581.53,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-08-28
+831,INV-0000831,260,158,2025-09-06,37955.61,3.52,183003.75,Suez Canal transit dues - Other Vessels,Paid,2025-11-10
+832,INV-0000832,441,108,2025-05-04,13513.17,4.73,87817.29,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-06-08
+833,INV-0000833,34,27,2025-11-26,99870.46,1.61,260791.44,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-09-03
+834,INV-0000834,417,176,2025-11-01,160033.9,2.19,457474.24,Suez Canal transit dues - Containerships,Issued,2025-07-29
+835,INV-0000835,55,42,2025-12-11,128511.34,1.43,293171.22,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-03-06
+836,INV-0000836,329,36,2025-09-26,4020.74,8.21,33010.28,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-02-07
+837,INV-0000837,34,27,2025-05-30,99870.46,1.61,260791.44,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-12-15
+838,INV-0000838,26,133,2025-07-07,142572.92,3.27,543313.45,Suez Canal transit dues - Cruise Ships,Issued,2025-03-07
+839,INV-0000839,330,48,2025-01-03,76079.28,3.59,365874.62,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-10-28
+840,INV-0000840,324,132,2025-03-05,104727.11,3.39,417724.9,Suez Canal transit dues - Cruise Ships,Pending,2025-03-08
+841,INV-0000841,407,42,2025-10-25,138007.25,1.43,306750.37,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-01-29
+842,INV-0000842,311,159,2025-07-30,42208.8,3.42,197754.1,Suez Canal transit dues - Other Vessels,Pending,2025-03-20
+843,INV-0000843,60,176,2025-09-28,163100.49,2.19,464190.07,Suez Canal transit dues - Containerships,Pending,2025-03-24
+844,INV-0000844,388,53,2025-12-30,20809.34,3.74,122976.93,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-12-30
+845,INV-0000845,261,35,2025-10-10,166585.58,1.69,409129.63,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-09-23
+846,INV-0000846,51,123,2025-11-17,33440.98,3.0,151222.94,Suez Canal transit dues - Vehicles Carriers,Pending,2025-02-10
+847,INV-0000847,207,75,2025-01-03,62593.18,4.03,332150.52,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-11-22
+848,INV-0000848,494,20,2025-01-28,76800.02,3.01,322468.06,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-03-06
+849,INV-0000849,86,124,2025-02-28,49262.81,2.83,197113.75,Suez Canal transit dues - Vehicles Carriers,Issued,2025-11-11
+850,INV-0000850,127,143,2025-12-07,15324.45,6.21,119664.83,Suez Canal transit dues - Special Floating Units,Issued,2025-09-15
+851,INV-0000851,146,110,2025-05-02,44470.7,3.2,201206.24,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-10-31
+852,INV-0000852,447,14,2025-06-04,137671.04,1.58,321120.24,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-03-29
+853,INV-0000853,468,61,2025-12-03,41940.69,4.37,244430.82,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-11-06
+854,INV-0000854,491,10,2025-10-23,17991.18,4.38,104701.37,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-10-16
+855,INV-0000855,25,21,2025-03-07,139577.5,2.9,509274.75,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-01-15
+856,INV-0000856,242,146,2025-12-17,72098.77,3.75,368770.39,Suez Canal transit dues - Special Floating Units,Issued,2025-11-25
+857,INV-0000857,153,146,2025-01-26,86004.55,3.75,420917.06,Suez Canal transit dues - Special Floating Units,Paid,2025-11-30
+858,INV-0000858,26,133,2025-12-15,142572.92,3.27,543313.45,Suez Canal transit dues - Cruise Ships,Pending,2025-10-20
+859,INV-0000859,156,70,2025-11-14,164547.85,3.45,643090.08,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Paid,2025-11-24
+860,INV-0000860,188,102,2025-09-08,37517.19,4.01,209443.93,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-11-18
+861,INV-0000861,439,103,2025-11-05,51933.63,3.75,264151.11,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-11-25
+862,INV-0000862,57,139,2025-08-31,87353.51,2.88,305128.11,Suez Canal transit dues - Cruise Ships,Issued,2025-05-06
+863,INV-0000863,426,149,2025-04-05,7512.92,6.76,67187.34,Suez Canal transit dues - Other Vessels,Pending,2025-06-02
+864,INV-0000864,30,19,2025-08-28,52698.58,3.34,244213.26,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-12-19
+865,INV-0000865,400,125,2025-08-27,94408.57,2.23,310231.11,Suez Canal transit dues - Vehicles Carriers,Pending,2025-08-14
+866,INV-0000866,491,10,2025-08-19,17991.18,4.38,104701.37,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-08-26
+867,INV-0000867,62,149,2025-01-09,5850.73,6.76,55950.93,Suez Canal transit dues - Other Vessels,Paid,2025-11-07
+868,INV-0000868,189,55,2025-04-25,94650.73,3.05,368034.73,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-06-13
+869,INV-0000869,433,168,2025-11-29,160221.57,2.56,537517.22,Suez Canal transit dues - Containerships,Pending,2025-06-26
+870,INV-0000870,487,70,2025-11-06,137269.73,3.45,548980.57,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-07-09
+871,INV-0000871,362,68,2025-05-22,57465.84,3.71,265398.27,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-02-24
+872,INV-0000872,448,27,2025-02-04,117017.85,1.61,288398.74,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-08-27
+873,INV-0000873,429,35,2025-02-23,186194.72,1.69,442269.08,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-08-19
+874,INV-0000874,154,7,2025-03-18,187150.54,1.85,469128.5,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-02-19
+875,INV-0000875,489,123,2025-06-19,39211.77,3.0,168535.31,Suez Canal transit dues - Vehicles Carriers,Issued,2025-07-16
+876,INV-0000876,76,45,2025-05-23,16440.69,5.41,121794.13,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-05-08
+877,INV-0000877,273,25,2025-09-13,37691.32,2.17,151890.16,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-06-17
+878,INV-0000878,44,115,2025-12-19,12610.59,4.93,93820.21,Suez Canal transit dues - Vehicles Carriers,Paid,2025-06-10
+879,INV-0000879,211,96,2025-05-20,68926.75,3.2,274615.6,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-03-23
+880,INV-0000880,43,3,2025-09-11,19791.99,5.14,132330.83,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-08-28
+881,INV-0000881,493,47,2025-05-26,42793.15,3.84,239575.7,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-06-07
+882,INV-0000882,131,55,2025-04-22,96267.29,3.05,372965.23,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-02-16
+883,INV-0000883,482,146,2025-07-09,76440.8,3.75,385053.0,Suez Canal transit dues - Special Floating Units,Paid,2025-08-23
+884,INV-0000884,259,19,2025-08-20,53685.97,3.34,247511.14,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-10-26
+885,INV-0000885,174,80,2025-05-14,10451.0,5.27,77976.77,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-01-26
+886,INV-0000886,220,27,2025-11-29,80998.91,1.61,230408.25,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-11-02
+887,INV-0000887,500,47,2025-08-03,43141.95,3.84,240915.09,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-08-29
+888,INV-0000888,64,95,2025-06-16,23650.07,3.29,128258.73,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-01-05
+889,INV-0000889,350,7,2025-07-27,169845.17,1.85,437113.56,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-03-10
+890,INV-0000890,487,70,2025-05-03,137269.73,3.45,548980.57,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-07-07
+891,INV-0000891,380,111,2025-03-08,77421.14,3.07,305682.9,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-01-24
+892,INV-0000892,18,20,2025-05-31,114099.98,3.01,434740.94,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-10-19
+893,INV-0000893,273,25,2025-09-01,37691.32,2.17,151890.16,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-07-05
+894,INV-0000894,425,7,2025-04-25,147417.47,1.85,395622.32,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-02-07
+895,INV-0000895,485,156,2025-07-17,7291.98,5.75,55828.88,Suez Canal transit dues - Other Vessels,Issued,2025-08-19
+896,INV-0000896,297,42,2025-07-29,152851.0,1.43,327976.93,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-11-16
+897,INV-0000897,48,169,2025-01-18,187468.19,2.5,606820.48,Suez Canal transit dues - Containerships,Paid,2025-03-02
+898,INV-0000898,394,20,2025-03-07,103611.03,3.01,403169.2,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-07-21
+899,INV-0000899,145,70,2025-11-02,136168.16,3.45,545180.15,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-06-23
+900,INV-0000900,257,117,2025-11-25,56687.79,3.32,256053.46,Suez Canal transit dues - Vehicles Carriers,Paid,2025-07-07
+901,INV-0000901,247,173,2025-06-04,36260.91,3.05,161995.78,Suez Canal transit dues - Containerships,Issued,2025-11-05
+902,INV-0000902,450,164,2025-05-14,16574.78,5.12,114612.87,Suez Canal transit dues - Containerships,Paid,2025-09-14
+903,INV-0000903,448,27,2025-02-06,117017.85,1.61,288398.74,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-01-20
+904,INV-0000904,395,78,2025-04-28,3221.33,8.53,27477.94,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-06-20
+905,INV-0000905,143,47,2025-10-05,46765.07,3.84,254827.87,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-08-22
+906,INV-0000906,413,42,2025-01-30,193021.2,1.43,385420.32,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-09-21
+907,INV-0000907,259,19,2025-03-12,53685.97,3.34,247511.14,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-11-10
+908,INV-0000908,375,81,2025-01-13,26056.94,3.84,151558.65,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-07-21
+909,INV-0000909,462,68,2025-10-06,45436.39,3.71,220769.01,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-06-03
+910,INV-0000910,289,68,2025-11-25,51408.31,3.71,242924.83,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-09-17
+911,INV-0000911,234,139,2025-12-26,102905.69,2.88,349918.39,Suez Canal transit dues - Cruise Ships,Issued,2025-09-08
+912,INV-0000912,115,33,2025-11-28,57039.33,1.88,218033.94,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-06-03
+913,INV-0000913,488,62,2025-07-15,103816.67,4.17,508065.51,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Pending,2025-01-09
+914,INV-0000914,228,118,2025-01-03,95651.99,2.62,367458.21,Suez Canal transit dues - Vehicles Carriers,Paid,2025-12-11
+915,INV-0000915,174,80,2025-01-14,10451.0,5.27,77976.77,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-10-26
+916,INV-0000916,15,140,2025-11-13,132691.47,2.77,434305.37,Suez Canal transit dues - Cruise Ships,Issued,2025-12-19
+917,INV-0000917,369,142,2025-11-29,8367.51,6.9,75335.82,Suez Canal transit dues - Special Floating Units,Pending,2025-11-02
+918,INV-0000918,414,174,2025-04-26,52272.74,2.83,208131.85,Suez Canal transit dues - Containerships,Issued,2025-12-02
+919,INV-0000919,370,89,2025-03-10,47483.36,3.75,242312.6,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-04-27
+920,INV-0000920,113,158,2025-09-26,24467.83,3.52,135526.76,Suez Canal transit dues - Other Vessels,Pending,2025-10-26
+921,INV-0000921,66,68,2025-08-03,48570.85,3.71,232397.85,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-09-26
+922,INV-0000922,379,96,2025-10-11,40315.48,3.2,183059.54,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-11-14
+923,INV-0000923,1,143,2025-11-06,11577.44,6.21,96395.9,Suez Canal transit dues - Special Floating Units,Paid,2025-12-15
+924,INV-0000924,193,116,2025-10-12,33015.29,3.52,176063.82,Suez Canal transit dues - Vehicles Carriers,Issued,2025-10-21
+925,INV-0000925,180,79,2025-01-05,9749.66,6.59,73950.26,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-04-08
+926,INV-0000926,307,26,2025-09-18,60903.85,1.86,195781.16,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-06-10
+927,INV-0000927,192,69,2025-12-09,119890.8,3.55,489012.34,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-07-31
+928,INV-0000928,337,166,2025-08-10,62529.73,3.32,278748.7,Suez Canal transit dues - Containerships,Issued,2025-07-30
+929,INV-0000929,434,54,2025-04-29,46839.94,3.27,217116.6,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Pending,2025-11-10
+930,INV-0000930,161,83,2025-10-20,79036.83,3.22,337098.59,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-02-01
+931,INV-0000931,161,83,2025-08-14,79036.83,3.22,337098.59,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-09-23
+932,INV-0000932,157,87,2025-07-31,11044.32,5.16,90438.69,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-06-16
+933,INV-0000933,10,19,2025-10-16,58878.56,3.34,264854.39,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-09-27
+934,INV-0000934,182,133,2025-11-13,145953.06,3.27,554366.51,Suez Canal transit dues - Cruise Ships,Pending,2025-03-30
+935,INV-0000935,418,143,2025-06-22,15837.25,6.21,122849.32,Suez Canal transit dues - Special Floating Units,Pending,2025-09-30
+936,INV-0000936,96,45,2025-06-17,14369.66,5.41,110589.86,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Issued,2025-07-01
+937,INV-0000937,289,68,2025-12-07,51408.31,3.71,242924.83,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-12-15
+938,INV-0000938,87,140,2025-09-23,142448.68,2.77,461332.84,Suez Canal transit dues - Cruise Ships,Pending,2025-12-21
+939,INV-0000939,353,42,2025-07-08,154487.5,1.43,330317.12,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-09-05
+940,INV-0000940,338,146,2025-07-07,89755.75,3.75,434984.06,Suez Canal transit dues - Special Floating Units,Issued,2025-05-23
+941,INV-0000941,232,175,2025-05-15,70981.59,2.23,260488.95,Suez Canal transit dues - Containerships,Pending,2025-04-26
+942,INV-0000942,81,110,2025-01-24,50174.23,3.2,219457.54,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-05-28
+943,INV-0000943,48,169,2025-05-24,187468.19,2.5,606820.48,Suez Canal transit dues - Containerships,Issued,2025-12-20
+944,INV-0000944,439,103,2025-04-09,51933.63,3.75,264151.11,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Pending,2025-06-12
+945,INV-0000945,123,18,2025-08-10,26087.39,3.42,154218.87,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-10-14
+946,INV-0000946,31,158,2025-12-22,31739.6,3.52,161123.39,Suez Canal transit dues - Other Vessels,Paid,2025-05-28
+947,INV-0000947,399,78,2025-06-08,4310.8,8.53,36771.12,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-12-13
+948,INV-0000948,286,116,2025-07-15,37728.9,3.52,192655.73,Suez Canal transit dues - Vehicles Carriers,Pending,2025-07-22
+949,INV-0000949,14,7,2025-03-09,242488.51,1.85,571503.74,Suez Canal transit dues - Crude Oil Tankers,Pending,2025-03-16
+950,INV-0000950,129,70,2025-05-06,131957.39,3.45,530653.0,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-05-28
+951,INV-0000951,180,79,2025-01-21,9749.66,6.59,73950.26,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-06-27
+952,INV-0000952,156,70,2025-02-25,164547.85,3.45,643090.08,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-05-12
+953,INV-0000953,249,74,2025-02-10,20390.69,4.51,152662.01,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-04-20
+954,INV-0000954,323,158,2025-06-25,35396.92,3.52,173997.16,Suez Canal transit dues - Other Vessels,Pending,2025-10-03
+955,INV-0000955,43,3,2025-12-21,19791.99,5.14,132330.83,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-10-15
+956,INV-0000956,111,158,2025-12-26,27744.23,3.52,147059.69,Suez Canal transit dues - Other Vessels,Paid,2025-03-12
+957,INV-0000957,182,133,2025-06-13,145953.06,3.27,554366.51,Suez Canal transit dues - Cruise Ships,Paid,2025-10-28
+958,INV-0000958,363,42,2025-12-20,197182.03,1.43,391370.3,Suez Canal transit dues - Dry Bulk Vessels,Issued,2025-01-26
+959,INV-0000959,110,53,2025-10-26,32008.19,3.74,164860.63,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-09-29
+960,INV-0000960,414,174,2025-05-02,52272.74,2.83,208131.85,Suez Canal transit dues - Containerships,Paid,2025-04-30
+961,INV-0000961,334,81,2025-06-11,24195.81,3.84,144411.91,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-07-31
+962,INV-0000962,99,88,2025-03-17,28369.16,3.88,169122.34,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-08-30
+963,INV-0000963,143,47,2025-12-09,46765.07,3.84,254827.87,Suez Canal transit dues - Liquefied Petroleum Gas (LPG) Carriers,Paid,2025-03-12
+964,INV-0000964,353,42,2025-06-12,154487.5,1.43,330317.12,Suez Canal transit dues - Dry Bulk Vessels,Pending,2025-03-22
+965,INV-0000965,163,82,2025-03-26,46835.33,3.43,228545.18,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Pending,2025-09-01
+966,INV-0000966,25,21,2025-05-31,139577.5,2.9,509274.75,Suez Canal transit dues - Petroleum Product Tankers,Pending,2025-04-13
+967,INV-0000967,209,103,2025-03-12,49744.85,3.75,255943.19,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Issued,2025-05-27
+968,INV-0000968,31,158,2025-11-29,31739.6,3.52,161123.39,Suez Canal transit dues - Other Vessels,Issued,2025-02-15
+969,INV-0000969,91,141,2025-05-24,3196.65,10.42,33309.09,Suez Canal transit dues - Special Floating Units,Issued,2025-04-29
+970,INV-0000970,438,124,2025-11-21,41904.01,2.83,176288.35,Suez Canal transit dues - Vehicles Carriers,Paid,2025-01-20
+971,INV-0000971,227,27,2025-05-30,97765.97,1.61,257403.21,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-04-01
+972,INV-0000972,378,132,2025-11-15,91080.01,3.39,371461.23,Suez Canal transit dues - Cruise Ships,Pending,2025-07-23
+973,INV-0000973,140,133,2025-02-18,121903.92,3.27,475725.82,Suez Canal transit dues - Cruise Ships,Paid,2025-05-29
+974,INV-0000974,389,19,2025-12-26,57838.58,3.34,261380.86,Suez Canal transit dues - Petroleum Product Tankers,Issued,2025-06-02
+975,INV-0000975,345,118,2025-10-04,91715.7,2.62,357145.13,Suez Canal transit dues - Vehicles Carriers,Pending,2025-02-24
+976,INV-0000976,28,138,2025-03-04,69239.31,2.97,252890.75,Suez Canal transit dues - Cruise Ships,Issued,2025-08-21
+977,INV-0000977,376,158,2025-10-03,23739.78,3.52,132964.03,Suez Canal transit dues - Other Vessels,Pending,2025-09-26
+978,INV-0000978,303,145,2025-01-22,67415.8,4.14,350201.41,Suez Canal transit dues - Special Floating Units,Issued,2025-03-10
+979,INV-0000979,258,100,2025-12-17,6352.15,7.14,57654.35,Suez Canal transit dues - Roll-On/Roll-Off (Ro/Ro) Vessels,Paid,2025-05-20
+980,INV-0000980,126,145,2025-03-05,59184.06,4.14,316122.01,Suez Canal transit dues - Special Floating Units,Pending,2025-02-27
+981,INV-0000981,274,14,2025-12-23,183502.97,1.58,393534.69,Suez Canal transit dues - Crude Oil Tankers,Issued,2025-08-23
+982,INV-0000982,361,88,2025-11-19,31288.43,3.88,180449.11,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Paid,2025-04-06
+983,INV-0000983,108,158,2025-09-08,20618.19,3.52,121976.03,Suez Canal transit dues - Other Vessels,Pending,2025-06-22
+984,INV-0000984,230,27,2025-10-26,77168.7,1.61,224241.61,Suez Canal transit dues - Petroleum Product Tankers,Paid,2025-12-12
+985,INV-0000985,385,146,2025-07-26,93423.42,3.75,448737.82,Suez Canal transit dues - Special Floating Units,Issued,2025-11-09
+986,INV-0000986,446,93,2025-11-14,8066.73,6.3,60170.4,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-07-27
+987,INV-0000987,360,7,2025-04-26,136700.11,1.85,375795.2,Suez Canal transit dues - Crude Oil Tankers,Paid,2025-06-17
+988,INV-0000988,238,76,2025-01-07,75918.12,3.78,384370.49,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Paid,2025-12-09
+989,INV-0000989,348,124,2025-06-20,46974.85,2.83,190638.83,Suez Canal transit dues - Vehicles Carriers,Pending,2025-03-13
+990,INV-0000990,408,38,2025-07-06,15463.63,4.96,99499.6,Suez Canal transit dues - Dry Bulk Vessels,Paid,2025-05-08
+991,INV-0000991,414,174,2025-02-16,52272.74,2.83,208131.85,Suez Canal transit dues - Containerships,Paid,2025-07-16
+992,INV-0000992,140,133,2025-09-21,121903.92,3.27,475725.82,Suez Canal transit dues - Cruise Ships,Pending,2025-05-17
+993,INV-0000993,317,81,2025-12-20,34664.86,3.84,184613.06,Suez Canal transit dues - Chemical Tankers & Other Liquid Bulk Tankers,Issued,2025-10-26
+994,INV-0000994,91,141,2025-08-04,3196.65,10.42,33309.09,Suez Canal transit dues - Special Floating Units,Pending,2025-01-06
+995,INV-0000995,419,139,2025-11-19,77092.86,2.88,275577.44,Suez Canal transit dues - Cruise Ships,Issued,2025-07-04
+996,INV-0000996,152,62,2025-09-01,74169.8,4.17,384438.07,Suez Canal transit dues - Liquefied Natural Gas (LNG) Carriers,Issued,2025-02-01
+997,INV-0000997,336,151,2025-10-17,23216.27,4.14,154215.36,Suez Canal transit dues - Other Vessels,Pending,2025-08-27
+998,INV-0000998,155,96,2025-12-07,68505.3,3.2,273266.96,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Issued,2025-07-27
+999,INV-0000999,17,89,2025-12-18,62949.78,3.75,300311.68,Suez Canal transit dues - General Cargo / Multi-Purpose / Heavy Lift Vessels,Pending,2025-12-27
+1000,INV-0001000,455,176,2025-03-02,176624.39,2.19,493807.41,Suez Canal transit dues - Containerships,Issued,2025-03-02

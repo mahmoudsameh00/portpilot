@@ -1,10 +1,12 @@
 [project]
-name = "project"
+name = "portpilot"
 version = "0.1.0"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "defusedxml==0.7.1",
     "faker==40.38.0",
+    "fastapi==0.150.0",
+    "filelock==4.2.1",
     "geopandas==1.1.4",
     "global-land-mask==1.0.0",
     "httpx==0.28.1",
@@ -29,6 +31,7 @@ dependencies = [
     "pydantic==2.14.0",
     "pymongo==4.18.3",
     "pymupdf==1.28.2",
+    "python-multipart==0.0.32",
     "python-pptx==1.0.2",
     "qdrant-client==1.19.1",
     "rapidocr==3.9.2",
@@ -37,6 +40,7 @@ dependencies = [
     "searoute==1.6.0",
     "sentry-sdk==2.72.0",
     "tokenizers==0.22.1",
+    "uvicorn==0.54.0",
 ]
 
 [dependency-groups]
@@ -58,7 +62,7 @@ select = ["E4", "E7", "E9", "F", "B"]
 ignore = ["E402", "E701", "E702", "E731", "E741", "B007", "B905"]
 
 [tool.pyright]
-include = ["pipelines/agents", "pipelines/lib"]
+include = ["pipelines/agents", "pipelines/lib", "pipelines/api"]
 pythonVersion = "3.13"
 typeCheckingMode = "basic"
 venvPath = "."

@@ -213,8 +213,10 @@ n_od = compare(V["kpi_overdue_list"][["report_week", "invoice_number", "amount_s
 # invoice_audit: migration 015 (ADR-049) — checked by Tools_check.py, listed here so the schema has no stray object
 # (the list missed it from 2026-10-19 until 2026-10-31, failing this phase)
 expected_views = ["dim_customer", "dim_date", "dim_toll_band", "dim_vessel", "dim_week", "fact_ar_snapshot",
-                  "fact_invoice", "fact_payment", "invoice_audit", "kpi_customer_13w", "kpi_overdue_list", "kpi_weekly",
-                  "kpi_weekly_category", "kpi_weekly_trend"]
+                  "fact_invoice", "fact_payment", "invoice_audit", "kpi_customer_13w", "kpi_overdue_list",
+                  "kpi_traffic_link",                                      # migration 027 (M17; checked by Traffic_link_check.py)
+                  "kpi_weekly", "kpi_weekly_category", "kpi_weekly_trend",
+                  "pack_approved_summary", "pack_trend_long", "pack_variance_long"]   # migration 024 (ADR-067)
 assert views_in_db == expected_views, f"finance objects: {views_in_db}"
 assert tuple(undocumented) == (0, 0), f"views / columns without COMMENT: {undocumented}"
 print(f"compared: kpi_weekly 52 × {n_wk} columns, kpi_weekly_category 676 × {n_cat}, kpi_customer_13w 2080 × {n_cust}, "

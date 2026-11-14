@@ -14,8 +14,19 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-EVIDENCE_ID = r"^(kpi|audit|insight)\.[A-Za-z0-9_.:-]+$"
+from pipelines.agents.deck import charts
+
+EVIDENCE_ID = r"^(kpi|audit|insight|context)\.[A-Za-z0-9_.:-]+$"   # context.*: external-context plan
 SLIDES = 10                                   # deck-style-guide: ten slides in a fixed order
+# A slot may name a row ({kpi.category[LNG Carriers]:billed_sdr}); a Writer that copies the slot's head into
+# evidence_ids writes "kpi.category[LNG Carriers]". The citation is the result, not its row, so code drops a trailing
+# [row] before the check (D-EC-5, external-context plan Phase E: W16 failed twice on it). An id that is wrong for any
+# other reason is still refused.
+ROW_SUFFIX_RE = re.compile(r"\[[^\[\]{}]+\]$")
+
+
+def norm_ids(ids: list[str]) -> list[str]:
+    return [ROW_SUFFIX_RE.sub("", e) for e in ids]
 
 
 class Cited(BaseModel):
@@ -25,9 +36,10 @@ class Cited(BaseModel):
 
     @model_validator(mode="after")
     def _ids(self):
+        self.evidence_ids = norm_ids(self.evidence_ids)
         bad = [e for e in self.evidence_ids if not re.match(EVIDENCE_ID, e)]
         if bad:
-            raise ValueError(f"evidence ids must look like kpi.weekly / audit.week / insight.<id>: {bad}")
+            raise ValueError(f"evidence ids must look like kpi.weekly / audit.week / insight.<id> / context.<name>: {bad}")
         return self
 
 
@@ -47,7 +59,7 @@ class InsightNotes(BaseModel):
     drivers: list[Driver] = Field(default_factory=list, description="at most 3")
     context: list[Cited] = Field(default_factory=list,
                                  description="external context (Suez transits, news, tariff rules), kept apart "
-                                             "from NileGate's numbers; 'context unavailable' when a tool said so")
+                                             "from PortPilot's numbers; 'context unavailable' when a tool said so")
     caveats: list[str] = Field(default_factory=list, description="warm-up week, flagged invoices, missing context")
 
 
@@ -64,8 +76,8 @@ class Bullet(Cited):
 
 class DeckDraft(BaseModel):
     """The deck as text with number slots (Phase 6, §5c); `pipelines/agents/deck/render.py` renders it into the
-    NileGate PPTX template."""
-    title: str = Field(min_length=1, description='"NileGate Weekly Finance Pack — <week> — Draft for approval"')
+    PortPilot PPTX template."""
+    title: str = Field(min_length=1, description='"PortPilot Weekly Finance Pack — <week> — Draft for approval"')
     slide_titles: list[SlideTitle] = Field(description="one title per slide, slides 1 to 10")
     bullets: list[Bullet] = Field(description="every bullet of slides 2 to 9, in slide order")
 
@@ -79,9 +91,10 @@ class Fix(BaseModel):
 
     @model_validator(mode="after")
     def _ids(self):
+        self.evidence_ids = norm_ids(self.evidence_ids)
         bad = [e for e in self.evidence_ids if not re.match(EVIDENCE_ID, e)]
         if bad:
-            raise ValueError(f"evidence ids must look like kpi.weekly / audit.week / insight.<id>: {bad}")
+            raise ValueError(f"evidence ids must look like kpi.weekly / audit.week / insight.<id> / context.<name>: {bad}")
         return self
 
 
@@ -95,7 +108,7 @@ class DeckPatch(BaseModel):
 class Problem(BaseModel):
     # V1 citation, V2 number, V3 draft label, V4 deck shape; Phase 6 (§5c): V5 evidence per slide, V6 direction,
     # V7 attribution, V8 the rendered PPTX; weekly-pack plan Phase D: V9 the claim check (W-R6)
-    rule: Literal["V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9"]
+    rule: Literal["V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10"]   # V10: traffic-billing link plan
     slide: int | None = None
     bullet: int | None = Field(default=None, description="index of the bullet in DeckDraft.bullets")
     token: str | None = Field(default=None, description="the number token that failed, if any")
@@ -115,22 +128,152 @@ class Verdict(BaseModel):
 
 # --- Approval (the interrupt's resume value) ------------------------------------------------------------------------
 
+# Approver-additions plan (APPROVED 2026-11-06): an `edit` changes text, adds bullets or changes charts (no LLM call);
+# a `revise` changes the Insight notes and / or steers the Insight agent, then the Writer drafts again (owner C1); one
+# kind per decision (D1); caps D3. These classes are the approver's input, never an LLM schema: the Writer's
+# `DeckDraft` is unchanged, so its prompt stays byte-identical (ADR-052 not triggered).
+
+MAX_ADDITION_CHARS = 300
+MAX_STEER_CHARS = 300
+MAX_ANALYSIS_EDITS = 10
+MAX_CHART_CHANGES = 3
+MAX_NOTE_CHARS = 400
+
+
 class Edit(BaseModel):
     bullet: int = Field(ge=0, description="index in DeckDraft.bullets")
     text: str = Field(min_length=1)
 
 
+class Addition(BaseModel):
+    """A new bullet the approver writes (owner B2): appended after the Writer's bullets of a free-text slide; its
+    numbers are literals bound to that slide's evidence by the Validator (V2's human-edit path)."""
+    slide: int = Field(ge=1, le=SLIDES)
+    text: str = Field(min_length=1, max_length=MAX_ADDITION_CHARS)
+
+
+class ChartChoice(BaseModel):
+    """A variant of a pack chart from `deck/charts.py` (owner C2); None = keep that option's default."""
+    chart: Literal[charts.PACK_CHARTS]  # pyright: ignore[reportInvalidTypeForm] (Literal built from the data tuple)
+    series: list[Literal[tuple(charts.TREND_SERIES)]] | None = None  # pyright: ignore[reportInvalidTypeForm]
+    weeks: Literal[charts.TREND_WEEKS] | None = None  # pyright: ignore[reportInvalidTypeForm]
+    measure: Literal[tuple(charts.VARIANCE_MEASURES)] | None = None  # pyright: ignore[reportInvalidTypeForm]
+    rows: Literal[charts.ROWS] | None = None  # pyright: ignore[reportInvalidTypeForm]
+
+    @model_validator(mode="after")
+    def _options(self):
+        given = {k for k in ("series", "weeks", "measure", "rows") if getattr(self, k) is not None}
+        extra = given - set(charts.OPTIONS[self.chart])
+        if extra:
+            raise ValueError(f"the {self.chart} chart has no option {sorted(extra)}")
+        if not given:
+            raise ValueError(f"a {self.chart} change names at least one of {list(charts.OPTIONS[self.chart])}")
+        return self
+
+
+# which operations each part of the notes allows (plan §2b): the five summary points and the code-chosen drivers keep
+# their count, so only their wording changes
+ANALYSIS_OPS = {"summary": ("replace",), "driver": ("replace",), "context": ("replace", "remove", "add"),
+                "caveat": ("replace", "remove", "add")}
+
+
+class AnalysisEdit(BaseModel):
+    target: Literal["summary", "driver", "context", "caveat"]
+    op: Literal["replace", "remove", "add"]
+    index: int | None = Field(default=None, ge=0, description="replace / remove: the position in that list")
+    text: str | None = Field(default=None, min_length=1, max_length=MAX_NOTE_CHARS,
+                             description="replace / add; a driver's replace is its explanation")
+    evidence_ids: list[str] = Field(default_factory=list,
+                                    description="summary / context: ids already in the run's evidence")
+
+    @model_validator(mode="after")
+    def _shape(self):
+        if self.op not in ANALYSIS_OPS[self.target]:
+            raise ValueError(f"{self.target}: only {list(ANALYSIS_OPS[self.target])}")
+        if (self.op in ("replace", "remove")) != (self.index is not None):
+            raise ValueError("an index is given exactly for replace / remove")
+        if (self.op != "remove") != (self.text is not None):
+            raise ValueError("a text is given exactly for replace / add")
+        if self.evidence_ids and self.target in ("driver", "caveat"):
+            raise ValueError(f"a {self.target} carries no evidence ids (a driver keeps its own)")
+        self.evidence_ids = norm_ids(self.evidence_ids)
+        bad = [e for e in self.evidence_ids if not re.match(EVIDENCE_ID, e)]
+        if bad:
+            raise ValueError(f"evidence ids must look like kpi.weekly / audit.week / insight.<id> / context.<name>: {bad}")
+        return self
+
+
 class ApprovalDecision(BaseModel):
-    decision: Literal["approve", "edit", "reject"]
+    decision: Literal["approve", "edit", "revise", "reject"]
     approver_employee_id: int = Field(ge=1, description="checked in PostgreSQL: a Finance manager or the CEO")
     edits: list[Edit] = Field(default_factory=list)
+    additions: list[Addition] = Field(default_factory=list)
+    charts: list[ChartChoice] = Field(default_factory=list, max_length=MAX_CHART_CHANGES)
+    analysis_edits: list[AnalysisEdit] = Field(default_factory=list, max_length=MAX_ANALYSIS_EDITS)
+    steer: str | None = Field(default=None, min_length=1, max_length=MAX_STEER_CHARS)
     comment: str | None = None
 
     @model_validator(mode="after")
-    def _edits(self):
-        if (self.decision == "edit") != bool(self.edits):
-            raise ValueError("edits are given exactly when the decision is 'edit'")
+    def _kind(self):
+        text = bool(self.edits or self.additions)
+        analysis = bool(self.analysis_edits or self.steer)
+        if self.decision == "edit" and not (text or self.charts):
+            raise ValueError("an 'edit' carries edits, additions or chart changes")
+        if self.decision == "edit" and analysis:
+            raise ValueError("analysis edits and a steer belong to 'revise'")
+        if self.decision == "revise" and not analysis:
+            raise ValueError("a 'revise' carries analysis edits and / or a steer")
+        if self.decision == "revise" and text:
+            raise ValueError("a 'revise' re-drafts the deck, so text edits and additions go in a later 'edit' (D1)")
+        if self.decision in ("approve", "reject") and (text or analysis or self.charts):
+            raise ValueError(f"'{self.decision}' carries no changes")
+        if len({c.chart for c in self.charts}) != len(self.charts):
+            raise ValueError("one change per chart")
         return self
+
+
+# --- Views (plan §2d, owner C3): a reader's chart, chosen from the catalogue -----------------------------------------
+
+class ViewChoice(BaseModel):
+    """What the views endpoint draws. Also the schema of its one structured call: the model sees the question and this
+    catalogue only, never data (owner D5); `week` None → the API asks back."""
+    kind: Literal[charts.VIEW_KINDS]  # pyright: ignore[reportInvalidTypeForm] (Literal built from the data tuple)
+    week: int | None = Field(default=None, ge=1, le=52, description="ISO week of 2025; null when the question names none")
+    series: list[Literal[tuple(charts.TREND_SERIES)]] | None = Field(  # pyright: ignore[reportInvalidTypeForm]
+        default=None, description="trend only: 1-3 fields of one unit")
+    # an int, not a Literal: Gemini's schema takes string enums only (Views_eval run 1); the catalogue checks it
+    weeks: int | None = Field(default=None, description="trend only: the window, 4, 8, 13 or 26 weeks")
+    measure: str | None = Field(default=None, description="category: billed_sdr / budget_variance_sdr / "
+                                                          "budget_variance_pct / billed_wow_change_sdr; customers: "
+                                                          "share_13w_pct / ar_sdr / overdue_sdr")
+    rows: Literal[charts.ROWS] | None = Field(  # pyright: ignore[reportInvalidTypeForm]
+        default=None, description="category only")
+    compare_week: int | None = Field(default=None, ge=1, le=52, description="category / aging: a second week")
+
+    @model_validator(mode="after")
+    def _catalogue(self):
+        bad = charts.view_problems(self.model_dump())
+        if bad:
+            raise ValueError("; ".join(bad))
+        return self
+
+
+Unit = Literal["SDR", "%", "days"]
+
+
+class ViewSeries(BaseModel):
+    name: str
+    values: list[float | None]
+
+
+class ViewSpec(BaseModel):
+    """A drawn view: every value a field of a finance view (= Power BI = the pack); the caption is code's."""
+    choice: ViewChoice
+    categories: list[str]
+    series: list[ViewSeries]
+    unit: Unit
+    caption: str
+    sources: list[dict] = Field(default_factory=list, description="the tool results used: view + filter")
 
 
 # --- Finance Q&A (Agents plan Phase 7, §5d P7-1: `graphs/finance_qa.py`) --------------------------------------------
@@ -141,11 +284,12 @@ class QaAnswer(BaseModel):
         "answered = the tools gave the answer; not_in_data = the data or documents do not hold it; not_permitted = "
         "a tool refused this user's access"))
     answer: str = Field(min_length=1, max_length=1500, description=(
-        "the answer in the question's language, two to four sentences; every NileGate number written as a slot"))
+        "the answer in the question's language, two to four sentences; every PortPilot number written as a slot"))
     evidence_ids: list[str] = Field(default_factory=list, description="ids of the tool results the answer uses")
 
     @model_validator(mode="after")
     def _ids(self):
+        self.evidence_ids = norm_ids(self.evidence_ids)
         bad = [e for e in self.evidence_ids if not re.match(EVIDENCE_ID, e)]
         if bad:
             raise ValueError(f"evidence ids look like insight.<id> (from the evidence list): {bad}")
@@ -160,7 +304,7 @@ class SupervisorAnswer(QaAnswer):
         "not permitted named, without its figures; not_in_data = the data does not hold it; not_permitted = nothing "
         "asked is permitted to this user"))
     answer: str = Field(min_length=1, max_length=2000, description=(
-        "the answer in the question's language, two to six sentences; every NileGate number written as a slot"))
+        "the answer in the question's language, two to six sentences; every PortPilot number written as a slot"))
 
 
 # --- Route advice (Agents plan Phase 10, §6b: `graphs/route_advice.py`) ---------------------------------------------
@@ -212,7 +356,7 @@ class RouteAdvice(BaseModel):
     headline: str = Field(min_length=1, max_length=300, description="one sentence: the choice and its main reason")
     reasons: list[RouteReason] = Field(min_length=1, max_length=5, description="cost, time and risk reasons")
     risks: list[RouteReason] = Field(default_factory=list, max_length=4,
-                                     description="external context only (route.traffic, route.news): no NileGate "
+                                     description="external context only (route.traffic, route.news): no PortPilot "
                                                  "number; 'context unavailable' when a tool said so")
 
 

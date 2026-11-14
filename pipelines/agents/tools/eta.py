@@ -125,7 +125,7 @@ def suez_ahead(vessel_id: int, covered_nm: float) -> bool:
 # --- the tool (for the supervisor, Phase 12; the watch graph calls the functions directly) -------------------------
 
 class EtaArgs(BaseModel):
-    vessel_id: int = Field(ge=1, description="one of NileGate's vessels")
+    vessel_id: int = Field(ge=1, description="one of PortPilot's vessels")
 
 
 def voyage_eta(user, as_of: datetime | None = None, **args) -> ToolResult:
@@ -158,6 +158,6 @@ def voyage_eta(user, as_of: datetime | None = None, **args) -> ToolResult:
 
 @tool("voyage_eta", args_schema=EtaArgs)
 def voyage_eta_tool(runtime: ToolRuntime, **args) -> dict:
-    """The estimated time of arrival of one of NileGate's vessels at its destination, from its position and recent
+    """The estimated time of arrival of one of PortPilot's vessels at its destination, from its position and recent
     speed, as of the run's clock (no ETA for a vessel at anchor, in port or not yet departed)."""
     return voyage_eta(context.user_of(runtime), as_of=context.as_of_of(runtime), **args).model_dump(mode="json")

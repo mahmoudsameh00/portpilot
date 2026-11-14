@@ -1,11 +1,12 @@
-"""The NileGate weekly deck renderer (Agents plan §5c, P6-2 / P6-4 / P6-7): draft + evidence → a 10-slide PPTX.
+"""The PortPilot weekly deck renderer (Agents plan §5c, P6-2 / P6-4 / P6-7): draft + evidence → a 10-slide PPTX.
 
 Two steps, so the Validator can check the file against the same intent the renderer drew from:
 1. `build_spec(draft, evidence, readiness, label)` — every element of every slide as data: its **name**, its kind
    and what it must show. Names carry the contract V8 checks:
    - `tpl:<key>`   fixed template text (brand, footers, labels, headers, footnotes) — the full template allowlist;
    - `bind:{…}`    one code-rendered value, the slot text of its field (a tile's number);
-   - `txt:<key>`   the Writer's text with its slots filled (`txt:title`, `txt:b<i>` = bullet i of the draft);
+   - `txt:<key>`   the Writer's text with its slots filled (`txt:title`, `txt:b<i>` = bullet i of the draft;
+                   `txt:approver:<i>` = bullet i when it is the approver's addition, drawn with its mark);
    - `tbl:<name>`  a table: header cells are template text, data cells are labels from the evidence or bindings;
    - `chart:<name>` a native chart: categories and series = the tool's exact values (axis formats show M / k);
    - `deco:<key>`  a shape without text (backgrounds, rules).
@@ -18,6 +19,7 @@ roll-forward and the DSO split on slide 6, the receivables-risk table on slide 7
 in a week without findings, the Suez transits chart on slide 9, slide 10 as an appendix; no accent rule under titles.
 """
 import io
+import re
 from dataclasses import dataclass, field
 from typing import cast
 
@@ -31,13 +33,20 @@ from pptx.oxml.ns import qn
 from pptx.oxml.xmlchemy import OxmlElement
 from pptx.util import Emu, Inches, Pt
 
+from pipelines.agents.deck import charts as C
 from pipelines.agents.deck import slots
 from pipelines.agents.deck import style as S
+from pipelines.agents.deck.validator import APPROVER
 
 SLIDES = 10
-BRAND = "NileGate Weekly Finance Pack"
+APPROVER_MARK = "Approver's addition: "     # plan Phase B: an approver's bullet says whose it is (`txt:approver:<i>`)
+BRAND = "PortPilot Weekly Finance Pack"
 WARMUP_FOOTNOTE = "Receivables still building up since 1 Jan 2025"
-CONTEXT_NOTE = "External context: public data and news, not NileGate figures"
+CONTEXT_NOTE = "External context: public data and news, not PortPilot figures"
+# traffic-billing link plan Phase 4 (M17): the slide-9 line's fixed words; the three numbers are bound values
+LINK_LABEL = "PortPilot billing vs Suez transits so far this year — r: same week · week before · threshold"
+LINK_VERDICT = {"link": "Moves with traffic (not a cause)", "no_link": "No measurable link"}
+LINK_EARLY = "PortPilot billing vs Suez transits: too few weeks to measure a link (from week 13)"
 UNIT_NOTE = "Amounts in SDR"
 # proposed action per audit check (skill suez-toll-audit)
 ACTIONS = {"duplicate_charge": "Void it; if paid, credit note / refund",
@@ -145,14 +154,18 @@ def _cell(ev, eid, f, fmt=None, row=None) -> Cell:
 # --- the spec -------------------------------------------------------------------------------------------------------
 
 class _Spec:
-    def __init__(self, draft: dict, evidence: dict, readiness: dict, label: str):
+    def __init__(self, draft: dict, evidence: dict, readiness: dict, label: str, charts: dict | None = None):
         self.d, self.ev, self.ready, self.label = draft, evidence, readiness or {}, label
+        self.charts = charts or {}                 # the approver's chart variants (plan Phase C); {} = the defaults
         self.k = evidence["kpi.weekly"]["rows"][0]
         self.week_label = self.k["iso_week_label"]
         self.titles = {st["slide"]: slots.render_text(st["title"], evidence)[0] for st in draft["slide_titles"]}
         self.bullets = {}
+        self.approver: set[int] = set()            # draft indexes of the approver's additions (plan Phase B)
         for i, b in enumerate(draft["bullets"]):
             self.bullets.setdefault(b["slide"], []).append((i, slots.render_text(b["text"], evidence)[0]))
+            if b.get("origin") == APPROVER:
+                self.approver.add(i)
 
     # common parts
     def frame(self, s: int) -> list[El]:
@@ -161,7 +174,7 @@ class _Spec:
         out = [El("txt:title", "text", (S.MARGIN, S.TITLE_TOP, S.CONTENT_W, S.TITLE_H), self.titles.get(s, ""),
                   {"size": _title_size(self.titles.get(s, "")), "bold": True, "color": S.NAVY, "anchor": "bottom"}),
                El("tpl:footer", "text", (S.MARGIN, y, Inches(7), S.FOOTER_H),
-                  f"NileGate · {BRAND.removeprefix('NileGate ')} · {self.week_label} · {UNIT_NOTE}",
+                  f"PortPilot · {BRAND.removeprefix('PortPilot ')} · {self.week_label} · {UNIT_NOTE}",
                   {"size": S.FOOT_PT, "color": S.MUTED}),
                El("tpl:page", "text", (S.WIDTH - S.MARGIN - Inches(0.8), y, Inches(0.8), S.FOOTER_H), f"{s} / {SLIDES}",
                   {"size": S.FOOT_PT, "color": S.MUTED, "align": "right"}),
@@ -178,7 +191,8 @@ class _Spec:
         """The slide's comments stacked from `y`, each box as tall as its wrapped text (at least `step`); the type
         steps down to 10 pt until they fit above the footnote / footer (c5b W48: three real comments overlapped on
         slide 6 in fixed-height boxes)."""
-        items = self.bullets.get(s, [])
+        # an approver's addition is marked in its own text, so a reader tells it from the Writer's (owner B2)
+        items = [(i, APPROVER_MARK + t if i in self.approver else t) for i, t in self.bullets.get(s, [])]
         bottom = (S.FOOTNOTE_TOP if self.k.get("is_warmup") else S.FOOTER_TOP) - Inches(0.08)
         size = S.BODY_PT if s == 2 else S.SMALL_PT + Pt(2)
         hs = [max(step, _text_h(t, w, size)) for _, t in items]
@@ -187,7 +201,11 @@ class _Spec:
             hs = [max(step, _text_h(t, w, size)) for _, t in items]
         out, top = [], y
         for (i, text), h in zip(items, hs):
-            out.append(El(f"txt:b{i}", "text", (x, top, w, h), text, {"size": size, "color": S.INK}))
+            if i in self.approver:
+                out.append(El(f"txt:approver:{i}", "text", (x, top, w, h), text,
+                              {"size": size, "color": S.NAVY, "italic": True}))
+            else:
+                out.append(El(f"txt:b{i}", "text", (x, top, w, h), text, {"size": size, "color": S.INK}))
             top += h
         return out
 
@@ -313,12 +331,20 @@ class _Spec:
 
     def s4(self) -> list[El]:
         out, k = self.frame(4), "kpi.weekly"
-        trend = self.ev["kpi.trend"]["rows"]
+        tc = C.resolve({**self.charts.get("trend", {}), "chart": "trend"})
+        trend = trend_window(self.ev, tc["weeks"])
         cats = [r["trend_week_label"] for r in trend]
-        hi = next((i for i, r in enumerate(trend) if r.get("is_report_week")), len(trend) - 1)
-        out.append(El("chart:trend", "chart", _in(0.6, 1.55, 5.6, 3.3), chart={
-            "type": "line", "categories": cats, "fmt": S.AXIS_M, "highlight": hi,
-            "series": [("Billed", [r["billed_sdr"] for r in trend]), ("Budget", [r["budget_sdr"] for r in trend])]}))
+        # the report week: the last row marked so (a 26-week window also holds week − 13's own report-week row)
+        hi = max((i for i, r in enumerate(trend) if r.get("is_report_week")), default=len(trend) - 1)
+        units = {C.TREND_SERIES[f][1] for f in tc["series"]}
+        box = _in(0.6, 1.55, 5.6, 3.3)
+        if not C.is_default(tc):                   # a variant names itself above the chart (the default does not)
+            names = ", ".join(C.TREND_SERIES[f][0] for f in tc["series"])
+            out.append(self.muted("trend.window", f"{names} — {len(trend)} weeks", _in(0.6, 1.55, 5.6, 0.3)))
+            box = _in(0.6, 1.85, 5.6, 3.0)
+        out.append(El("chart:trend", "chart", box, chart={
+            "type": "line", "categories": cats, "fmt": S.AXIS_M if units == {"SDR"} else S.AXIS_DAYS,
+            "highlight": hi, "series": [(C.TREND_SERIES[f][0], [r[f] for r in trend]) for f in tc["series"]]}))
         # the period line under the chart (M9b): "13 weeks: billed x vs budget y, z"
         y, row = Inches(4.95), Inches(0.32)
         out += [El("tpl:period.label", "text", _in(0.6, 4.95, 1.2, 0.32), self.period().capitalize() + ":",
@@ -356,13 +382,19 @@ class _Spec:
         out = self.frame(5)
         # a bar chart draws its first category at the bottom: the largest shortfall first puts the largest excess on
         # top (no reversed axis, which moves the value axis to the top)
-        rows = sorted(self.ev["kpi.category"]["rows"],
-                      key=lambda r: (r["budget_variance_sdr"] or 0, r["vessel_category"]))
+        vc = C.resolve({**self.charts.get("variance", {}), "chart": "variance"})
+        f, (name, unit) = vc["measure"], C.VARIANCE_MEASURES[vc["measure"]]
+        rows = variance_rows(self.ev, f, vc["rows"])
         misses = budget_misses(self.ev) if DRAW_BUDGET_MISS else []
-        out.append(El("chart:variance", "chart", _in(0.6, 1.5, 8.3, 4.2 if misses else 5.0), chart={
+        top, h = 1.5, 4.2 if misses else 5.0
+        if not C.is_default(vc):                   # a variant names itself above the chart (the default does not)
+            which = {"all": "every category", "top5": "the 5 highest", "bottom5": "the 5 lowest"}[vc["rows"]]
+            out.append(self.muted("variance.choice", f"{name} — {which}", _in(0.6, 1.5, 8.3, 0.3)))
+            top, h = 1.8, h - 0.3
+        out.append(El("chart:variance", "chart", _in(0.6, top, 8.3, h), chart={
             "type": "bar", "categories": [SHORT.get(r["vessel_category"], r["vessel_category"]) for r in rows],
-            "fmt": S.AXIS_M, "diverging": True,
-            "series": [("Billed − budget", [r["budget_variance_sdr"] for r in rows])]}))
+            "fmt": S.AXIS_M if unit == "SDR" else S.AXIS_PCT, "diverging": True,
+            "series": [(name, [r[f] for r in rows])]}))
         if misses:                     # c4: drawn by code, so a budget miss never depends on the Writer saying it
             shown = misses[:BUDGET_MISS_ROWS]
             more = f" — the largest {len(shown)} of {len(misses)}" if len(misses) > len(shown) else ""
@@ -523,9 +555,28 @@ class _Spec:
             out += self.comments(9, Inches(6.9), S.BODY_TOP + Inches(0.1), Inches(5.83), Inches(1.1))
         else:
             out += self.comments(9, S.MARGIN, S.BODY_TOP + Inches(0.1), S.CONTENT_W, Inches(0.8))
+        out += self.link_line()
         out.append(El("tpl:context.note", "text", (S.MARGIN, S.FOOTNOTE_TOP, S.CONTENT_W, Inches(0.3)), CONTEXT_NOTE,
                       {"size": S.FOOT_PT, "color": S.MUTED, "italic": True}))
         return out
+
+    def link_line(self) -> list[El]:
+        """Traffic-billing link plan Phase 4 (M17, `context.link`): one code-drawn line under the chart — r at lag 0 /
+        lag 1 against the threshold, and the verdict in fixed words ("moves with", never a cause). Nothing when the
+        result is missing or unavailable; a fixed sentence before week 13."""
+        res = self.ev.get("context.link") or {}
+        row = (res.get("rows") or [None])[0] if res.get("status") == "ok" else None
+        if row is None:
+            return []
+        y1, y2, st = 5.3, 5.62, {"size": S.SMALL_PT, "color": S.INK_2}
+        if row.get("link") is None:
+            return [El("tpl:link.early", "text", _in(0.6, y1, 6.0, 0.3), LINK_EARLY, st)]
+        return [El("tpl:link.label", "text", _in(0.6, y1, 6.0, 0.3), LINK_LABEL, st),
+                self.value("context.link", "r_lag0", "x", _in(0.6, y2, 1.0, 0.3), bold=True),
+                self.value("context.link", "r_lag1", "x", _in(1.65, y2, 1.0, 0.3), bold=True),
+                self.value("context.link", "r_threshold", "x", _in(2.7, y2, 1.0, 0.3)),
+                El("tpl:link.verdict", "text", _in(3.75, y2, 2.85, 0.3), LINK_VERDICT[row["link"]],
+                   {"size": S.SMALL_PT, "color": S.NAVY, "bold": True})]
 
     def s10(self) -> list[El]:
         out = self.frame(10)
@@ -555,9 +606,40 @@ class _Spec:
         return out
 
 
-def build_spec(draft: dict, evidence: dict, readiness: dict, label: str) -> list[list[El]]:
-    sp = _Spec(draft, evidence, readiness, label)
+def trend_window(evidence: dict, weeks: int) -> list[dict]:
+    """The trend rows a window shows, oldest first: `kpi.trend` (13 weeks ending at the report week), preceded by
+    `kpi.trend_prev` (week − 13's) for a longer window; a shorter one keeps the last `weeks`."""
+    rows = list(evidence["kpi.trend"]["rows"])
+    if weeks > len(rows) and "kpi.trend_prev" in evidence:
+        have = {r["trend_week"] for r in rows}
+        rows = [r for r in evidence["kpi.trend_prev"]["rows"] if r["trend_week"] not in have] + rows
+    return rows[-weeks:] if weeks < len(rows) else rows
+
+
+def variance_rows(evidence: dict, field: str, which: str) -> list[dict]:
+    """Slide 5's categories in drawing order: ascending by the measure (a bar chart draws its first category at the
+    bottom), then the top / bottom five when asked."""
+    rows = sorted(evidence["kpi.category"]["rows"], key=lambda r: (r[field] or 0, r["vessel_category"]))
+    return {"all": rows, "top5": rows[-5:], "bottom5": rows[:5]}[which]
+
+
+def build_spec(draft: dict, evidence: dict, readiness: dict, label: str,
+               charts: dict | None = None) -> list[list[El]]:
+    sp = _Spec(draft, evidence, readiness, label, charts)
     return [getattr(sp, f"s{s}")() for s in range(1, SLIDES + 1)]
+
+
+NOTE_RE = re.compile(r"txt:(?:b|approver:)\d+")
+
+
+def comment_overflow(draft: dict, evidence: dict, readiness: dict, label: str,
+                     charts: dict | None = None) -> list[int]:
+    """The slides whose comment boxes end below the body even at the smallest type (the renderer's own wrap
+    estimate). Plan Phase B (D-B1): an approver's addition is accepted only while its slide has room."""
+    warm = evidence["kpi.weekly"]["rows"][0].get("is_warmup")
+    bottom = S.FOOTNOTE_TOP if warm else S.FOOTER_TOP
+    return [s for s, els in enumerate(build_spec(draft, evidence, readiness, label, charts), 1)
+            if any(NOTE_RE.fullmatch(e.name) and e.box[1] + e.box[3] > bottom for e in els)]
 
 
 # --- drawing --------------------------------------------------------------------------------------------------------
@@ -660,16 +742,18 @@ def _chart(slide, e: El):
     plot = ch.plots[0]
     colors = [S.SERIES_1, S.COMPARISON]
     if c["type"] == "line":
-        for n, s in enumerate(plot.series):
+        for n, (s, (name, _)) in enumerate(zip(plot.series, c["series"])):
+            # a measure keeps its colour in every variant (Billed blue, Budget dashed grey = the default deck)
+            rgb = S.SERIES_OF.get(name, colors[n % len(colors)])
             s.smooth = False
-            s.format.line.color.rgb = colors[n]
+            s.format.line.color.rgb = rgb
             s.format.line.width = Pt(2.25)
             s.marker.style = XL_MARKER_STYLE.CIRCLE
             s.marker.size = 5
             s.marker.format.fill.solid()
-            s.marker.format.fill.fore_color.rgb = colors[n]
-            s.marker.format.line.color.rgb = colors[n]
-            if n:
+            s.marker.format.fill.fore_color.rgb = rgb
+            s.marker.format.line.color.rgb = rgb
+            if name in S.DASHED:
                 s.format.line.dash_style = MSO_LINE_DASH_STYLE.DASH
         hi = c.get("highlight")
         if hi is not None and plot.series:
@@ -709,11 +793,11 @@ def _point_fills(series, colors):
             d_pt.idx.addnext(flag)
 
 
-def render(draft: dict, evidence: dict, readiness: dict, label: str) -> bytes:
+def render(draft: dict, evidence: dict, readiness: dict, label: str, charts: dict | None = None) -> bytes:
     prs = Presentation()
     prs.slide_width, prs.slide_height = S.WIDTH, S.HEIGHT
     blank = prs.slide_layouts[6]
-    for els in build_spec(draft, evidence, readiness, label):
+    for els in build_spec(draft, evidence, readiness, label, charts):
         slide = prs.slides.add_slide(blank)
         for e in els:
             {"text": _text, "deco": _deco, "table": _table, "chart": _chart}[e.kind](slide, e)

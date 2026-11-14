@@ -72,6 +72,11 @@ REPEATS = int(os.environ.get("EVAL_REPEATS", "2"))
 TAG = os.environ.get("EVAL_TAG", "")
 BASELINE = os.environ.get("EVAL_BASELINE", "")
 TRACE = os.environ.get("EVAL_TRACE") == "1"     # LangSmith for the real runs (Phase 8, P8-4); off by default
+# EVAL_REPLAY=1 (with EVAL_REAL_MODELS=1 and the run's EVAL_TAG, D-TL-12): score a finished run again from its
+# caches after a scorer change. Nothing is sent: a request that is not in the cache is refused before the network,
+# so the role moves to the next candidate exactly as it did when the main model was down; a request in no cache
+# stops the replay. Results go to stage1_eval_<date>_<tag>_rescored.json (the original file is never overwritten).
+REPLAY = os.environ.get("EVAL_REPLAY") == "1"
 # D-P12-7: EVAL_SCOPE=qa runs the finance Q&A alone (no packs) — a change that reaches only the Q&A agent is compared
 # with the baseline on the Q&A primaries and the gates the Q&A can fail; c4: EVAL_SCOPE=packs runs the 11 golden
 # weeks alone (a change of the pack only); the default `all` is the full evaluation
@@ -113,6 +118,12 @@ print(f"✅ Phase 1 validation passed: the four frozen inputs unchanged (hashes)
 ERROR_WORDS = re.compile(r"duplicat|error|wrong|mismatch|flagged|overbill|underbill|overcharg|undercharg|"
                          r"exception|mispric|incorrect", re.I)
 ORIGINAL_WORDS = re.compile(r"\boriginal\b|الأصل", re.I)
+# "a duplicate of INV-…" names the original (tl2 repeat 2, live week 15: "The week's finding is a duplicate of
+# INV-0000491", true by hand, the flagged copy not named in the sentence — D-TL-12)
+DUPLICATE_OF = re.compile(r"(?:duplicat\w*|cop(?:y|ies)) of (?:invoice |the original )?(INV-\d{7})", re.I)
+# a direction word belongs to its own clause (tl2 repeat 1, live week 48: "{+18.8 %} above budget this week, but
+# {−15.6 %} below budget over the 13-week period", true by hand: "above" stood before the second value — D-TL-12)
+CLAUSE_END = re.compile(r"[,;،؛]|\b(?:but|while|whereas|yet|however)\b|لكن|بينما", re.I)
 EARLIER_WORDS = re.compile(r"\b(?:year[- ]to[- ]date|YTD|so far this year|this year|earlier|prior|previous|past"
                            r"|historical|still open|before)\b", re.I)
 BELOW_WORDS = re.compile(r"below (its |the )?budget|under (its |the )?budget|missed (its |the )?budget|"
@@ -228,6 +239,8 @@ def false_alarms(narrative: list[dict], ev: dict) -> tuple[int, int, list[str]]:
             originals = {original_of[i] for i in named & flagged if original_of[i]}
             if ORIGINAL_WORDS.search(b["text"]):
                 originals |= named & set(original_of.values())
+            # "… is a duplicate of INV-X": X is called the original — true only if X is one of this week's originals
+            originals |= set(DUPLICATE_OF.findall(b["text"])) & set(original_of.values())
             weeks = {int(x) for x in re.findall(r"(?i)\b(?:weeks?|W)\s*(\d{1,2})\b", b["text"])}
             for inv in named - originals:
                 if inv in earlier and (earlier[inv] in weeks or EARLIER_WORDS.search(b["text"])):
@@ -258,7 +271,7 @@ def claims(narrative: list[dict], ev: dict) -> tuple[int, int, list[str]]:
         for x in b["bound"]:
             if x.slot.direction or not slots.is_change(x.slot.field) or not x.value:
                 continue
-            before = b["raw"][max(0, x.slot.start - 40):x.slot.start].lower()
+            before = CLAUSE_END.split(b["raw"][max(0, x.slot.start - 40):x.slot.start].lower())[-1]
             up, down = re.search(qa.UP_WORDS, before), re.search(qa.DOWN_WORDS, before)
             if up or down:
                 n += 1
@@ -283,6 +296,10 @@ def holds_frozen(run, frozen) -> bool:
         return isinstance(run, dict) and all(k in run and holds_frozen(run[k], v) for k, v in frozen.items())
     if isinstance(frozen, list):
         return isinstance(run, list) and len(run) == len(frozen) and all(map(holds_frozen, run, frozen))
+    if isinstance(frozen, str) and isinstance(run, str):
+        # the 2026-11-11 rename (ADR-068): the frozen file keeps the old product name in tool notes; the name alone
+        # is read as equal, every other character (and every number) must still match
+        return run.replace("PortPilot", "NileGate") == frozen.replace("PortPilot", "NileGate")
     return run == frozen
 
 
@@ -456,6 +473,14 @@ def ytd_state(key: str) -> dict:
     return st
 
 
+def contrast_state(key: str) -> dict:
+    """A fake state whose weekly row carries live week 48's two budget variances (the 13-week column came with
+    migration 021, after the golden evidence was frozen): above budget this week, below over 13 weeks."""
+    st = fake_state(key)
+    st["evidence"]["kpi.weekly"]["rows"][0].update(budget_variance_pct=18.82, budget_variance_13w_pct=-15.62)
+    return st
+
+
 def with_bullet(st: dict, slide: int, text: str, ids: list[str]) -> dict:
     d = json.loads(json.dumps(st["draft"]))
     d["bullets"].append({"slide": slide, "text": text, "evidence_ids": ids})
@@ -487,6 +512,14 @@ cases = {
         None)["false_alarms"],
     "original_called_duplicate": score_pack("test:23", with_bullet(
         fake_state("test:23"), 2, "INV-0000292 is a duplicate charge", ["audit.week"]), None)["false_alarms"],
+    # tl2 (D-TL-12): "a duplicate of <this week's original>", the flagged copy not named — no alarm; "a duplicate
+    # of" an invoice that is no original this week is still one
+    "duplicate_of_original": score_pack("test:23", with_bullet(
+        fake_state("test:23"), 2, "The week's finding is a duplicate of INV-0000292; the action is to void the "
+                                  "duplicate", ["audit.week"]), None)["false_alarms"],
+    "duplicate_of_other": score_pack("test:23", with_bullet(
+        fake_state("test:23"), 2, "The week's finding is a duplicate of INV-0000001", ["audit.week"]),
+        None)["false_alarms"],
     # c5 (D-C5-1): an earlier week's finding (audit.ytd) told with its week or as year to date — no alarm; told as
     # this week's, still one
     "ytd_with_week": score_pack("live:47", with_bullet(ytd_state("live:47"), 8,
@@ -504,6 +537,16 @@ cases = {
     "wrong_direction": score_pack("live:47", with_bullet(fake_state("live:47"), 3,
                                                          "Billing rose {kpi.weekly:billed_wow_pct|%1} this week",
                                                          ["kpi.weekly"]), None)["claims_wrong"],
+    # tl2 (D-TL-12): a direction word counts for the value of its own clause — "above …, but {negative} below" is
+    # right; "…, and rose {negative}" (the up word in the value's own clause) is still wrong
+    "direction_other_clause": score_pack("live:47", with_bullet(
+        contrast_state("live:47"), 3, "Budget variance was {kpi.weekly:budget_variance_pct|%1} above budget this "
+        "week, but {kpi.weekly:budget_variance_13w_pct|%1} below budget over the 13-week period", ["kpi.weekly"]),
+        None)["claims_wrong"],
+    "direction_own_clause": score_pack("live:47", with_bullet(
+        contrast_state("live:47"), 3, "Billing was {kpi.weekly:budget_variance_pct|%1} above budget this week, and "
+        "rose {kpi.weekly:budget_variance_13w_pct|%1} over the 13-week period", ["kpi.weekly"]),
+        None)["claims_wrong"],
     "non_driver": score_pack("live:47", with_bullet(fake_state("live:47"), 4,
                                                     "Revenue was driven by Vehicles Carriers", ["kpi.category"]),
                              None)["claims_wrong"],
@@ -556,21 +599,24 @@ qa_cases = {
     "refusal_with_number": score_qa(r01, qa_state(r01, "AR was 47.63 M SDR.", "answered",
                                                   bound=good_answer(q01)["bound"]))["refusal_ok"],
     "hbr_leak": score_qa(r03, qa_state(r03, "Revenue grew to €940.4 million.", "not_in_data"))["leak"],
-    "abstain_ok": score_qa(a01, qa_state(a01, "NileGate's data covers 2025 only.", "not_in_data"))["refusal_ok"],
+    "abstain_ok": score_qa(a01, qa_state(a01, "PortPilot's data covers 2025 only.", "not_in_data"))["refusal_ok"],
     "answered_instead": score_qa(a01, qa_state(a01, "Billing was high.", "answered"))["refusal_ok"],
 }
 actual = {"pack": cases, "qa": qa_cases}
 expected_cases = {"pack": {"good": (True, 0, 0, True), "evidence_tampered": False, "false_invoice": 1,
                            "duplicate_with_original": (0, 1), "duplicate_with_other": 1,
-                           "original_named_as_original": 0, "original_called_duplicate": 1, "ytd_with_week": 0, "ytd_as_this_week": 1, "false_miss": 1, "planted_miss_found": True, "planted_miss_silent": False,
-                           "wrong_direction": 1, "non_driver": 1, "untraced": True,
+                           "original_named_as_original": 0, "original_called_duplicate": 1,
+                           "duplicate_of_original": 0, "duplicate_of_other": 1,
+                           "ytd_with_week": 0, "ytd_as_this_week": 1, "false_miss": 1, "planted_miss_found": True, "planted_miss_silent": False,
+                           "wrong_direction": 1, "direction_other_clause": 0, "direction_own_clause": 1,
+                           "non_driver": 1, "untraced": True,
                            "budget_miss_named": True, "flat_week_strong": False, "not_published": []},
                   "qa": {"good_complete": 1.0, "good_relevant": 1.0, "wrong_week_value": 0.0, "refusal_ok": True,
                          "refusal_with_number": False, "hbr_leak": True, "abstain_ok": True,
                          "answered_instead": False}}
 assert actual == expected_cases, actual
 # the Q&A checker (c3, D-P7-15): digits inside a tool's own text (a vessel named "… 165", a citation page) are names,
-# not typed figures; a NileGate amount typed as text is still refused
+# not typed figures; a PortPilot amount typed as text is still refused
 od = {"insight.c1": {"tool": "finance_kpi", "status": "ok", "source": {"kind": "view", "name": "finance.kpi_overdue_list",
                                                                        "filter": "f"}, "note": None,
                      "rows": [{"invoice_number": "INV-0000723", "vessel_name": "Liquefied Voyager 165",
@@ -582,6 +628,18 @@ typed = qa.check_answer({"status": "answered", "evidence_ids": ["insight.c1"],
                          "answer": "INV-0000723 of Liquefied Voyager 165: 673,471.35 SDR."}, od,
                         "Largest overdue in week 49?")[2]
 assert name_ok == [] and len(typed) == 1 and "673471.35" in typed[0], (name_ok, typed)
+# D-TL-13 (tl2qa r04): a cited passage's page is a number field of its citation — naming it is not a typed figure; a
+# figure that is in no passage (the model's own expansion of "894,461 (x EUR 1,000)") is still refused
+doc = {"insight.c1": {"tool": "search_documents", "status": "ok", "rows": [
+    {"title": "Income statement (x EUR 1,000)", "text": "Net revenue 894,461. Total operating income 940,355.",
+     "citation": {"filename": "HbR_Annual_report_2025_highlights.pdf", "page": 82}}]}}
+page_ok = qa.check_answer({"status": "answered", "evidence_ids": ["insight.c1"],
+                           "answer": 'Net revenue was "894,461" (x EUR 1,000) (HbR_Annual_report_2025_highlights.pdf, '
+                                     "page 82)."}, doc, "What revenue did the Port Authority report?")[2]
+expanded = qa.check_answer({"status": "answered", "evidence_ids": ["insight.c1"],
+                            "answer": "Net revenue was 894,461,000 euros (page 82)."}, doc,
+                           "What revenue did the Port Authority report?")[2]
+assert page_ok == [] and len(expanded) == 1 and "894461000" in expanded[0], (page_ok, expanded)
 # the year rule (D-P12-12, dp127 run 2 a01): a finance figure for a question about another year is refused, in
 # Western or Arabic digits; the same answer to a 2025 question passes
 slot_answer = {"status": "answered", "evidence_ids": ["insight.c1"],
@@ -801,7 +859,15 @@ print(f"✅ Phase 4 validation passed: {len(fake_answers)} questions through the
 # folder and a re-run resumes from the caches. The results file is written only for complete runs.
 # EVAL_SCOPE=qa (D-P12-7): the packs are skipped, a run's gates are QA_GATES and its primaries QA_PRIMARIES, and
 # ADR-052 compares only what the candidate measured.
-results_path = EVAL / f"stage1_eval_{date.today().isoformat()}{'_' + TAG if TAG else ''}.json"
+results_path = EVAL / (f"stage1_eval_{date.today().isoformat()}{'_' + TAG if TAG else ''}"
+                       f"{'_rescored' if REPLAY else ''}.json")
+
+
+class ReplayQuota(llm.QuotaState):
+    """EVAL_REPLAY: every request that is not already cached is refused before it is sent."""
+
+    def check(self, provider: str, model: str) -> None:
+        raise llm.Exhausted(f"{provider}/{model}: replay — not in the cache, nothing is sent")
 
 
 def adr052(base: dict, cand: dict) -> dict:
@@ -840,7 +906,7 @@ if not REAL:
     print("Phase 5: skipped (set EVAL_REAL_MODELS=1 to run the real models)")
 else:
     SCRATCH.mkdir(parents=True, exist_ok=True)
-    quota = llm.QuotaState(llm.CACHE_DIR)
+    quota = ReplayQuota(llm.CACHE_DIR) if REPLAY else llm.QuotaState(llm.CACHE_DIR)
     runs, stopped = [], None
     # D-P7-11: the free tier of the main model allows 500 requests a day (Gemini's 429, 2026-10-20). A run that
     # loses its main model mid-way would mix models (the fallback answers the rest) and could not be compared
@@ -849,6 +915,8 @@ else:
     MAIN = {c[0].provider + "/" + c[0].model for c in roles.ROLES.values()}
 
     def main_models_ok() -> None:
+        if REPLAY:                                      # the recorded run decided this; nothing is sent now
+            return
         for name in sorted(MAIN):
             prov, model = name.split("/", 1)
             quota.check(prov, model)                    # raises llm.Exhausted when the day's quota is gone
@@ -899,7 +967,7 @@ else:
         if stopped:
             break
     out = {"plan": "Agents plan §5d; ADR-052 (two runs, hard gates, primaries −0.03)", "date": date.today().isoformat(),
-           "tag": TAG or "baseline", "scope": SCOPE, "c4": C4,
+           "tag": TAG or "baseline", "scope": SCOPE, "c4": C4, "replay": REPLAY,
            "inputs_sha256": sha, "models": {k: [c.name for c in v] for k, v in roles.ROLES.items()},
            "runs": runs, "stopped": stopped}
     complete = [x for x in runs if x["complete"]]

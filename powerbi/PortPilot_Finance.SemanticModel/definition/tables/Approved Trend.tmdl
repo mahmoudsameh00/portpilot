@@ -1,0 +1,77 @@
+/// finance.pack_trend_long (migration 024): the approved trend chart (slide 4) as long rows — the approved window x the approved series; filter Week, chart over trend_week_label by series_name.
+table 'Approved Trend'
+	lineageTag: b00d0043-1088-40bd-9565-d3b4beef1f45
+
+	measure 'Approved Trend Value' = SUM('Approved Trend'[value])
+		formatString: #,0.00
+		lineageTag: 3904d98f-e495-476c-80e8-14aa92052d15
+
+	column report_week
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 0f8f8c5a-3d8c-417b-a9b0-c7f9a8439c5f
+		summarizeBy: none
+		sourceColumn: report_week
+
+	column trend_week
+		dataType: int64
+		formatString: 0
+		lineageTag: 08f277e7-dee0-41bb-a7e5-152eaa2dc757
+		summarizeBy: none
+		sourceColumn: trend_week
+
+	column trend_week_label
+		dataType: string
+		lineageTag: 88eea96a-d0cf-45cb-a73d-71f8ed5392b5
+		summarizeBy: none
+		sourceColumn: trend_week_label
+		sortByColumn: trend_week
+
+	column is_report_week
+		dataType: boolean
+		lineageTag: 72391c18-3bca-422e-9519-0334dffe6864
+		summarizeBy: none
+		sourceColumn: is_report_week
+
+	column series_order
+		dataType: int64
+		formatString: 0
+		lineageTag: 44b63e13-cbb8-4e43-b479-ee036404e0d5
+		summarizeBy: none
+		sourceColumn: series_order
+
+	column series
+		dataType: string
+		lineageTag: c63e8422-797e-4ae4-9aa6-a7cfe29da5a0
+		summarizeBy: none
+		sourceColumn: series
+
+	column series_name
+		dataType: string
+		lineageTag: 53a0fe35-f5d8-44f0-b489-f5d50c892e31
+		summarizeBy: none
+		sourceColumn: series_name
+
+	column unit
+		dataType: string
+		lineageTag: 9491b993-445f-4951-b9b0-c93cf4cc5114
+		summarizeBy: none
+		sourceColumn: unit
+
+	column value
+		dataType: double
+		isHidden
+		lineageTag: ee56552e-b31a-42e5-85ac-37c13ce1607d
+		summarizeBy: none
+		sourceColumn: value
+
+	partition 'finance pack_trend_long' = m
+		mode: directQuery
+		source =
+				let
+				  Source = PostgreSQL.Database("127.0.0.1:5432", "ports_logistics"),
+				  #"Navigation 1" = Source{[Schema = "finance", Item = "pack_trend_long"]}[Data]
+				in
+				  #"Navigation 1"
+

@@ -36,7 +36,7 @@ class AuditArgs(BaseModel):
                                                                            "of 2025")
     invoice_numbers: list[str] | None = Field(default=None, min_length=1, max_length=50,
                                               description="or audit these invoices (INV-0000123 format)")
-    dataset: Literal["live", "test"] = Field(default="live", description="live = NileGate's invoices; test = the "
+    dataset: Literal["live", "test"] = Field(default="live", description="live = PortPilot's invoices; test = the "
                                                                          "evaluation copy with planted errors")
     # weekly-pack plan Phase C (W-R4): the year to date, weeks 1 … report_week — set by the pack's code only, never
     # offered to a model (AuditToolArgs has no such field)
@@ -114,7 +114,7 @@ def invoice_audit(user, **args) -> ToolResult:
     if unknown:
         notes.append(f"not found: {', '.join(unknown)}")
     if a.dataset == "test":
-        notes.append("evaluation copy with planted errors, not NileGate's invoices")
+        notes.append("evaluation copy with planted errors, not PortPilot's invoices")
     return AuditResult(tool="invoice_audit", status="ok", rows=rows, note="; ".join(notes),
                        source=Source(kind="view", name=view, filter=flt),
                        invoices_checked=len(checked), invoices_flagged=len(stake),

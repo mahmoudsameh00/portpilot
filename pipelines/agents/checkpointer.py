@@ -20,7 +20,7 @@ from psycopg_pool import ConnectionPool
 from pipelines.lib.common import load_env
 
 SCHEMA = "agent_state"
-POOL_MAX = 2                 # one pack runs its steps one after another
+POOL_MAX = 2                 # one pack runs its steps one after another; PG_AGENT_POOL_MAX in .env overrides (C6)
 CONNECT_TIMEOUT_S = 5
 
 
@@ -42,7 +42,8 @@ _pool: ConnectionPool | None = None
 def pool() -> ConnectionPool:
     global _pool
     if _pool is None:
-        _pool = ConnectionPool(conninfo("PG_AGENT_USER", "PG_AGENT_PASSWORD"), min_size=1, max_size=POOL_MAX,
+        info = conninfo("PG_AGENT_USER", "PG_AGENT_PASSWORD")          # loads .env first
+        _pool = ConnectionPool(info, min_size=1, max_size=int(os.environ.get("PG_AGENT_POOL_MAX") or POOL_MAX),
                                open=True, kwargs={"autocommit": True, "prepare_threshold": 0,
                                                   "row_factory": dict_row})
         atexit.register(close)

@@ -44,7 +44,7 @@ def latest_price() -> dict | None:
 
 
 class ParamsArgs(BaseModel):
-    vessel_id: int | None = Field(default=None, ge=1, description="one of NileGate's vessels; its category, SCNT and "
+    vessel_id: int | None = Field(default=None, ge=1, description="one of PortPilot's vessels; its category, SCNT and "
                                                                  "service speed are read from the vessels table and "
                                                                  "its voyage")
     vessel_type: Literal[CATEGORIES] | None = Field(default=None, description="tariff vessel category")  # pyright: ignore[reportInvalidTypeForm]
@@ -115,5 +115,5 @@ def vessel_params(user, **args) -> ToolResult:
 @tool("vessel_params", args_schema=ParamsArgs)
 def vessel_params_tool(runtime: ToolRuntime, **args) -> dict:
     """A vessel's speed, fuel consumption per sea day (tonnes) and the bunker price per tonne in SDR, for one of
-    NileGate's vessels (vessel_id) or for a category and tonnage; `speed_kn` prices the fuel at another speed."""
+    PortPilot's vessels (vessel_id) or for a category and tonnage; `speed_kn` prices the fuel at another speed."""
     return vessel_params(context.user_of(runtime), **args).model_dump(mode="json")

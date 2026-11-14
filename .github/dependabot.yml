@@ -10,3 +10,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+  # Frontend plan §11.1: the web app's npm packages (exact pins; 0.x packages such as assistant-ui reviewed one by one).
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      web-minor-patch:
+        update-types: ["minor", "patch"]
+        exclude-patterns: ["@assistant-ui/*"]

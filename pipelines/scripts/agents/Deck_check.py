@@ -1,4 +1,4 @@
-"""Deck check (Agents plan Phase 6, §5c): number slots, the NileGate PPTX, the Validator v2 and its planted numbers.
+"""Deck check (Agents plan Phase 6, §5c): number slots, the PortPilot PPTX, the Validator v2 and its planted numbers.
 
 Plan:    docs/archive/2026-11-01_Agents_plan.md §5c (owner decisions P6-1…P6-8, approved 2026-10-19); one phase per test of §5c.
 Run:     uv run python tools/run.py pipelines/scripts/agents/Deck_check.py  (from the project root)
@@ -15,6 +15,9 @@ Phases (§5c "Tests")
 3. Planted wrong numbers: 17 classes × the golden weeks 5 / 10 / 23 / 49, 100 % caught (S2); PPTX classes (S3).
 4. The real failures replayed: the Phase 5 run (S2) and the first Phase 6 run (S6). Real models: Weekly_pack_check
    Phase 5.
+5. Planted over-claims (V9). 6. Layout: long comments fit.
+7. Approver additions (approver-additions plan Phase B): V1–V9 + V8 on four weeks, planted faults, room.
+8. Chart variants (Phase C): every catalogue variant read back (V8 + the independent field check), planted faults.
 Final Checkpoint (pending phases listed).
 """
 # %% Setup
@@ -569,7 +572,7 @@ hints = ["{kpi.overdue[INV-0000211]:amount_sdr|k}" in replay6[(5, 0)][0][2],
          "{audit.week[INV-0000626/duplicate_charge]:difference_sdr}" in replay6[(10, 0)][0][2],
          "drop the extra 'days'" in replay6[(23, 0)][0][2]]
 assert all(hints), [v[0][2] for k, v in replay6.items() if v]
-# run 2, week 10: a NileGate figure slotted on the context slide from an Insight result without that field; the
+# run 2, week 10: a PortPilot figure slotted on the context slide from an Insight result without that field; the
 # message must say what the fix is (slide 9 is context only), not only where the field lives (kpi.weekly, which
 # slide 9 may not cite). Planted in the clean week-10 deck; a finance_kpi result cited there is refused the same way.
 d10 = copy.deepcopy(DRAFTS[10])
@@ -605,10 +608,10 @@ assert run3 == {"billed then budget (week 5)": [], "billed then variance (week 4
 # run 4 (4 / 4 published) looked at as PNG: "up up 25.8 %" (a direction word before a |dir slot) and slide 1's title
 # copied from the deck title, so the approved deck still said "Draft for approval" — both now caught.
 RUN4 = {
-    "up before |dir": "NileGate billed {kpi.weekly:billed_sdr|M} in week 23, up {kpi.weekly:billed_wow_pct|%1|dir} "
+    "up before |dir": "PortPilot billed {kpi.weekly:billed_sdr|M} in week 23, up {kpi.weekly:billed_wow_pct|%1|dir} "
                       "week-on-week.",
     "rose before |dir": "Overdue receivables rose {kpi.weekly:overdue_wow_pct|%1|dir} to {kpi.weekly:overdue_sdr|M}.",
-    "fixed": "NileGate billed {kpi.weekly:billed_sdr|M} in week 23, {kpi.weekly:billed_wow_pct|%1|dir} week-on-week.",
+    "fixed": "PortPilot billed {kpi.weekly:billed_sdr|M} in week 23, {kpi.weekly:billed_wow_pct|%1|dir} week-on-week.",
 }
 run4 = {k: sorted({r for r, _, _ in v2.check_text(t, EVS[23], ["kpi.weekly"], 23)[1]}) for k, t in RUN4.items()}
 d23 = copy.deepcopy(DRAFTS[23])
@@ -678,7 +681,7 @@ NORM = {
                                    ["insight.s"]),
     "unit twice (c1 test 23)": (10, f"Invoice {inv10['invoice_number']} had a difference of "
                                     f"{{audit.week[{key10}]:difference_sdr|M}} SDR.", ["audit.week"]),
-    "direction twice": (23, "NileGate billed {kpi.weekly:billed_sdr|M}, up {kpi.weekly:billed_wow_pct|%1|dir} WoW.",
+    "direction twice": (23, "PortPilot billed {kpi.weekly:billed_sdr|M}, up {kpi.weekly:billed_wow_pct|%1|dir} WoW.",
                         ["kpi.weekly"]),
     "key on one row": (23, "DSO was {kpi.weekly[2025-W23]:dso_days} in week 23.", ["kpi.weekly"]),
     # W12, 2026-10-27 (the first missed-Monday firing): "82 days-day window" — the unit again after a hyphen
@@ -810,7 +813,11 @@ na9 = {c: [w for w, a in zip(CLAIM_WEEKS, ws) if a is None] for c, ws in v9_appl
 actual = {"classes": len(v9_applicable), "planted": len(v9_caught), "missed": missed9, "other_rules": v9_other,
           "accepted_problems": accepted_problems, "applicable_w12": sorted(c for c, ws in v9_applicable.items()
                                                                            if 12 in ws)}
-expected = {"classes": 14, "planted": 28 - sum(len(v) for v in na9.values()), "missed": [], "other_rules": {},
+expected = {"classes": 14, "planted": 28 - sum(len(v) for v in na9.values()), "missed": [],
+            # reviewed 2026-11-09 (traffic-billing link plan Phase 5): V10 also refuses the two "external cause"
+            # classes — they relate billing to traffic / the news with a cause word; V9 still catches them alone
+            "other_rules": {(w, c): ["V10"] for w in CLAIM_WEEKS
+                            for c in ("external cause on the cover (W12)", "external cause in a comment")},
             "accepted_problems": [], "applicable_w12": sorted(v9_applicable)}   # every W12 over-claim is false in W12
 # reviewed 2026-11-01: 11 classes, every one false in both W11 and W12 → 22 planted, all caught by V9 alone
 # reviewed 2026-11-02: + 3 classes of rules 6–8 (c5's real sentences) → 14 classes, 28 planted, all caught
@@ -872,12 +879,177 @@ print("✅ Phase 6 validation passed: every comment box of slides 2–8, stretch
       "slide 7's table ends above the watch rule")
 DONE.append(6)
 
+# %% Phase 7 — Approver additions (approver-additions plan Phase B, owner B2)
+# On the golden weeks 5 / 10 / 23 / 49 the approver adds one bullet to each free-text slide 3–9 (two with a literal
+# number of their slide's evidence, the rest without numbers), placed and cited as the approval node does
+# (`v2.addition_evidence`), skipping a slide with no room (D-B1: `render.comment_overflow`). Every deck must pass
+# V1–V9 and V8 with each addition drawn as a `txt:approver:<i>` shape carrying the mark. Planted, per week: a number
+# 1 % off (V2), another slide's number (V2), an addition on slide 2 (V4), a third addition on a slide (V4) — all
+# caught. The 52 clean decks of Phase 2 have no addition and no overflow (`comment_overflow` = []).
+def _with_additions(d, ev, ready, texts):
+    new, skipped = list(d["bullets"]), []
+    for s, t in texts.items():
+        at = max((i + 1 for i, b in enumerate(new) if b["slide"] <= s), default=0)
+        trial = new[:at] + [{"slide": s, "text": t, "origin": v2.APPROVER,
+                             "evidence_ids": v2.addition_evidence(ev, s)}] + new[at:]
+        if s in render.comment_overflow({**d, "bullets": trial}, ev, ready, LABEL):
+            skipped.append(s)
+            continue
+        new = trial
+    return {**d, "bullets": new}, skipped
+
+
+add_ok, add_v8, add_shapes, add_caught, add_skipped = {}, {}, {}, {}, {}
+for w in (5, 10, 23, 49):
+    ev, ready = EVS[w], READY[w]
+    lit = {f: slots.render_text("{kpi.weekly:" + f + "|M}", ev)[0] for f in ("billed_sdr", "overdue_sdr")}
+    texts = {3: "Finance will check these tiles again next week.",
+             4: f"Billing was {lit['billed_sdr']} in week {w} of 2025.",
+             5: "Finance will review the budget of these categories with the owner.",
+             6: f"Overdue stood at {lit['overdue_sdr']} this week.",
+             7: "The watch-list customers get a call from Finance this week.",
+             8: "Finance will confirm each finding with the invoicing team.",
+             9: "The approver reads the canal figures as context only."}
+    dd, add_skipped[w] = _with_additions(DRAFTS[w], ev, ready, texts)
+    add_ok[w] = problems_of(v2.validate(dd, ev, w))
+    data = render.render(dd, ev, ready, LABEL)
+    add_v8[w] = [(p.slide, p.token, p.message) for p in readback.validate_pptx(data, dd, ev, ready, LABEL)]
+    add_shapes[w] = sum(n.startswith("txt:approver:") and it["text"].startswith(render.APPROVER_MARK)
+                        for sl in readback.read(data) for n, it in sl)
+    mine = {b["slide"]: i for i, b in enumerate(dd["bullets"]) if b.get("origin") == v2.APPROVER}
+    k = ev["kpi.weekly"]["rows"][0]
+    plants = {}
+    off = copy.deepcopy(dd)
+    off["bullets"][mine[4]]["text"] = f"Billing was {k['billed_sdr'] * 1.01 / 1e6:.2f} M SDR in week {w} of 2025."
+    plants["off_by_1pct"] = off
+    other = copy.deepcopy(dd)
+    other["bullets"][mine[5]]["text"] = f"Overdue stood at {lit['overdue_sdr']} this week."
+    plants["other_slide"] = other
+    s2 = copy.deepcopy(dd)
+    s2["bullets"].insert(5, {"slide": 2, "text": "Another summary point.", "origin": v2.APPROVER, "evidence_ids": []})
+    plants["slide_2"] = s2
+    three = copy.deepcopy(dd)
+    at = mine[8] + 1
+    three["bullets"][at:at] = [{"slide": 8, "text": "One more note.", "origin": v2.APPROVER, "evidence_ids": []}] * 2
+    plants["third_on_slide"] = three
+    add_caught[w] = {name: sorted({p.rule for p in v2.validate(dr, ev, w).problems}) for name, dr in plants.items()}
+clean_overflow = {w: o for w in range(1, 53) if (o := render.comment_overflow(DRAFTS[w], EVS[w], READY[w], LABEL))}
+
+actual = {"pass": {w: p for w, p in add_ok.items() if p}, "v8": {w: p for w, p in add_v8.items() if p},
+          "shapes": add_shapes, "skipped": add_skipped, "caught": add_caught, "clean_overflow": clean_overflow}
+caught = {"off_by_1pct": ["V2"], "other_slide": ["V2"], "slide_2": ["V4"], "third_on_slide": ["V4"]}
+expected = {"pass": {}, "v8": {}, "shapes": {5: 6, 10: 6, 23: 7, 49: 7},
+            "skipped": {5: [7], 10: [7], 23: [], 49: []},     # warm-up weeks: slide 7 is full (D-B1)
+            "caught": {w: caught for w in (5, 10, 23, 49)}, "clean_overflow": {}}
+assert actual == expected, actual
+print(f"Phase 7: additions per week {add_shapes}, skipped for room {add_skipped}")
+print("✅ Phase 7 validation passed: approver additions on slides 3–9 of weeks 5 / 10 / 23 / 49 pass V1–V9 and V8 as "
+      "marked txt:approver shapes; 16 / 16 planted faults caught (a number off, another slide's number, slide 2, a "
+      "third addition); no clean deck overflows")
+DONE.append(7)
+
+# %% Phase 8 — Chart variants (approver-additions plan Phase C, owner C2)
+# Every catalogue variant the window rule allows (trend: each series alone, three SDR series, AR + overdue, DSO days,
+# × 4 / 8 / 13 / 26 weeks; variance: 3 measures × all / top 5 / bottom 5) is drawn on weeks 5 / 10 / 23 / 49 and read
+# back: V8, which now also re-derives each variant chart from the evidence apart from the renderer (D-A2). A 26-week
+# window reads `kpi.trend_prev` (week − 13's trend) as the approval node fetches it. The default variants give the
+# same spec as no choice on all 52 weeks (a deck without changes is unchanged). Planted on a variant spec, per week:
+# a series under another measure's name, a point 1 % off, the window shifted one week back, the variance drawn from
+# another measure under the chosen one's name, the bottom five drawn for "top 5" — all caught by
+# `readback.chart_field_problems`.
+import dataclasses  # noqa: E402
+
+from pipelines.agents.deck import charts as C  # noqa: E402
+from pipelines.agents.tools import finance  # noqa: E402
+
+DEFAULT_CHARTS = {k: C.resolve(v) for k, v in C.DEFAULTS.items()}
+same_default = sum(render.build_spec(DRAFTS[w], EVS[w], READY[w], LABEL)
+                   == render.build_spec(DRAFTS[w], EVS[w], READY[w], LABEL, DEFAULT_CHARTS) for w in range(1, 53))
+
+
+def _variants(w):
+    out = []
+    for s in [[f] for f in C.TREND_SERIES] + [["billed_sdr", "budget_sdr", "collected_sdr"], ["ar_sdr", "overdue_sdr"]]:
+        out += [c for n in C.TREND_WEEKS if not C.problems(c := {"chart": "trend", "series": s, "weeks": n}, w)]
+    out += [c for f in C.VARIANCE_MEASURES for r in C.ROWS
+            if not C.problems(c := {"chart": "variance", "measure": f, "rows": r}, w)]
+    return out
+
+
+def _with_prev(ev, w):
+    return {**ev, "kpi.trend_prev": finance.finance_kpi(fin_mgr, report_week=w - 13, dataset="trend")
+            .model_dump(mode="json")} if w > 13 else ev
+
+
+def _swap_names(c, ev):
+    c["series"] = [(c["series"][1][0], c["series"][0][1]), (c["series"][0][0], c["series"][1][1])]
+
+
+def _off(c, ev):
+    n0, v0 = c["series"][0]
+    c["series"][0] = (n0, [v0[0] * 1.01, *v0[1:]])
+
+
+def _shift(c, ev):
+    rows = render.trend_window(ev, len(c["categories"]) + 1)[:-1]
+    c["categories"] = [r["trend_week_label"] for r in rows]
+    c["series"] = [(n, [r[f] for r in rows]) for (n, _), f in zip(c["series"], ["billed_sdr", "collected_sdr"])]
+
+
+def _drawn_as(c, ev, field, which):
+    rows = render.variance_rows(ev, field, which)
+    c["categories"] = [render.SHORT.get(r["vessel_category"], r["vessel_category"]) for r in rows]
+    c["series"] = [(c["series"][0][0], [r[field] for r in rows])]
+
+
+CHART_FAULTS = (("swapped_series", _swap_names, "chart:trend"), ("point_off", _off, "chart:trend"),
+                ("window_shifted", _shift, "chart:trend"),
+                ("other_measure", lambda c, ev: _drawn_as(c, ev, "budget_variance_sdr", "top5"), "chart:variance"),
+                ("bottom_for_top", lambda c, ev: _drawn_as(c, ev, "budget_variance_pct", "bottom5"), "chart:variance"))
+
+
+def _tampered(base, ev, fn, name):
+    """The spec with one chart's data changed (only that element copied: the styles hold RGBColor, not deep-copyable)."""
+    spec = [[dataclasses.replace(x, chart=copy.deepcopy(x.chart)) if x.name == name else x for x in els]
+            for els in base]
+    fn(next(x for els in spec for x in els if x.name == name).chart, ev)
+    return spec
+
+
+n_variants, variant_v8, planted_charts = 0, {}, {}
+for w in (5, 10, 23, 49):
+    ev = _with_prev(EVS[w], w)
+    for ch in _variants(w):
+        chs = {ch["chart"]: C.resolve(ch)}
+        data = render.render(DRAFTS[w], ev, READY[w], LABEL, chs)
+        n_variants += 1
+        if p := readback.validate_pptx(data, DRAFTS[w], ev, READY[w], LABEL, chs):
+            variant_v8[(w, str(ch))] = [x.message[:80] for x in p[:2]]
+    chs = {"trend": C.resolve({"chart": "trend", "series": ["billed_sdr", "collected_sdr"], "weeks": 8 if w >= 8 else 4}),
+           "variance": C.resolve({"chart": "variance", "measure": "budget_variance_pct", "rows": "top5"})}
+    base = render.build_spec(DRAFTS[w], ev, READY[w], LABEL, chs)
+    assert not readback.chart_field_problems(base, ev, chs)
+    planted_charts[w] = {k: bool(readback.chart_field_problems(_tampered(base, ev, fn, name), ev, chs))
+                         for k, fn, name in CHART_FAULTS}
+
+actual = {"default_same_spec": same_default, "variants_v8": variant_v8, "planted": planted_charts}
+expected = {"default_same_spec": 52, "variants_v8": {},
+            "planted": {w: dict.fromkeys(("swapped_series", "point_off", "window_shifted", "other_measure",
+                                           "bottom_for_top"), True) for w in (5, 10, 23, 49)}}
+assert actual == expected, actual
+print(f"Phase 8: {n_variants} chart variants drawn and read back on weeks 5 / 10 / 23 / 49; 20 planted faults")
+print("✅ Phase 8 validation passed: every catalogue chart variant passes V8 with the independent field check (D-A2); "
+      "the default variants = no choice on 52 weeks; 20 / 20 planted chart faults caught (swapped series, a point "
+      "off, a shifted window, another measure, the wrong five)")
+DONE.append(8)
+
 # %% Final Checkpoint
 # Narrative: pipelines/checkpoints/agents/Deck_check.md (written when Phase 6 closes).
 # (§5c listed a Phase 5 "real models" here: it is Weekly_pack_check.py Phase 5 — the real pack, its V1–V8 and the
 # published deck.pptx — so it is not run twice; the claim check V9 became Phase 5 on 2026-11-01)
 PHASES = {1: "slots", 2: "52 clean decks (V1–V9)", 3: "planted wrong numbers", 4: "real failures replayed",
-          5: "planted over-claims (V9)", 6: "layout: long comments fit"}
+          5: "planted over-claims (V9)", 6: "layout: long comments fit", 7: "approver additions",
+          8: "chart variants"}
 pending = [f"{k} {v}" for k, v in PHASES.items() if k not in DONE]
 assert DONE == sorted(DONE) and set(DONE) <= set(PHASES)
 print(f"Final Checkpoint: done {DONE}; pending: {pending}")

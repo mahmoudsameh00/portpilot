@@ -1,0 +1,46 @@
+table 'Trend Series'
+	lineageTag: 020c8a62-f999-4dea-b5d2-9ed3aaea0dff
+
+	column 'Trend Series Order'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 816420cb-da3f-4888-a6ac-aa04b2bad5dd
+		summarizeBy: sum
+		sourceColumn: [Value3]
+
+	column 'Trend Series Fields'
+		dataType: string
+		isHidden
+		lineageTag: c9612cf4-a51f-44c6-be20-34f8a2433f6d
+		summarizeBy: none
+		sourceColumn: [Value2]
+		sortByColumn: 'Trend Series Order'
+
+		extendedProperty ParameterMetadata =
+				{
+				  "version": 3,
+				  "kind": 2
+				}
+
+	column 'Trend Series'
+		dataType: string
+		lineageTag: 953e4e61-c86a-4d54-b079-1bd06767e2e9
+		summarizeBy: none
+		sourceColumn: [Value1]
+		sortByColumn: 'Trend Series Order'
+
+		relatedColumnDetails
+			groupByColumn: 'Trend Series Fields'
+
+	partition 'Trend Series' = calculated
+		mode: import
+		source =
+				{
+				    ("Billed", NAMEOF('Weekly KPIs'[Trend Billed SDR]), 0),
+				    ("Budget", NAMEOF('Weekly KPIs'[Trend Budget SDR]), 1),
+				    ("Collected", NAMEOF('Weekly KPIs'[Trend Collected SDR]), 2),
+				    ("Receivables", NAMEOF('Weekly KPIs'[Trend AR SDR]), 3),
+				    ("Overdue", NAMEOF('Weekly KPIs'[Trend Overdue SDR]), 4)
+				}
+

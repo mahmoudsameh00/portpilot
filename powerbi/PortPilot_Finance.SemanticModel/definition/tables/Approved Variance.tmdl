@@ -1,0 +1,63 @@
+/// finance.pack_variance_long (migration 024): the approved variance chart (slide 5) — the categories by the approved measure, all / top 5 / bottom 5 as approved; filter Week.
+table 'Approved Variance'
+	lineageTag: 1c10b0e8-d6fc-4abd-8275-f3c15047b922
+
+	measure 'Approved Variance Value' = SUM('Approved Variance'[value])
+		formatString: #,0.00
+		lineageTag: b40dc91a-0075-457c-a7c8-aa9319a4fd67
+
+	column report_week
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 4d47b271-918b-4577-939e-a4c9d6240369
+		summarizeBy: none
+		sourceColumn: report_week
+
+	column measure
+		dataType: string
+		lineageTag: d16f7de5-8409-483c-bd8a-fbc840d45853
+		summarizeBy: none
+		sourceColumn: measure
+
+	column measure_name
+		dataType: string
+		lineageTag: 138921c3-27a5-4eb9-a22d-c50838b41fec
+		summarizeBy: none
+		sourceColumn: measure_name
+
+	column unit
+		dataType: string
+		lineageTag: f2add63a-461d-4a80-a3ac-36bcf098c5d6
+		summarizeBy: none
+		sourceColumn: unit
+
+	column vessel_category
+		dataType: string
+		lineageTag: d66b6325-1f3f-4547-9976-29fcac8c8347
+		summarizeBy: none
+		sourceColumn: vessel_category
+
+	column value
+		dataType: double
+		isHidden
+		lineageTag: 06d0feb7-0261-41e1-aef9-bae5256a7fa6
+		summarizeBy: none
+		sourceColumn: value
+
+	column sort_order
+		dataType: int64
+		formatString: 0
+		lineageTag: 39639fe8-71cd-4d7b-9734-e186f35539a8
+		summarizeBy: none
+		sourceColumn: sort_order
+
+	partition 'finance pack_variance_long' = m
+		mode: directQuery
+		source =
+				let
+				  Source = PostgreSQL.Database("127.0.0.1:5432", "ports_logistics"),
+				  #"Navigation 1" = Source{[Schema = "finance", Item = "pack_variance_long"]}[Data]
+				in
+				  #"Navigation 1"
+

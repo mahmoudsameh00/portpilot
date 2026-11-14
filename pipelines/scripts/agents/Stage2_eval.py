@@ -298,7 +298,7 @@ twin_leak_bound = score_item(t06, state("partial", refused_text, [b("insight.t",
                                         {**TOC, **ODC}, {**TO, **OD}, refused=["finance_kpi"]))
 twin_not_refused = score_item(t06, state("partial", refused_text, [b("insight.t", 0, "amount_sdr", toll)], TOC, TO,
                                          refused=[]))
-abst_good = score_item(BY_ID["a01"], state("not_in_data", "Vessel 9999 is not in NileGate's data."))
+abst_good = score_item(BY_ID["a01"], state("not_in_data", "Vessel 9999 is not in PortPilot's data."))
 abst_number = score_item(BY_ID["a01"], state("not_in_data", "x", [b("insight.t", 0, "amount_sdr", toll)], TOC, TO))
 untraced = score_item(o14, state(rendered="339", bound=[b("insight.w", i339, "wave_height_max_m", wave)], calls=WC,
                                  evidence=W, ids=[]))
@@ -386,7 +386,7 @@ class Play:
             text += (" دورك مالوش صلاحية على بيانات المالية والفواتير." if ar
                      else " Your role has no access to the finance data and invoices (Finance).")
         if status == "not_in_data":
-            text = "مفيش البيانات دي عندنا." if ar else "This is not in NileGate's data."
+            text = "مفيش البيانات دي عندنا." if ar else "This is not in PortPilot's data."
         return {"status": status, "answer": text, "evidence_ids": [f"insight.{c}" for _, _, c in self.calls]}
 
     def __call__(self, role, msgs, tools, schema):
@@ -462,7 +462,19 @@ print("✅ Phase 3 validation passed: the harness end to end on fake models — 
 # state. An item finished after a main model's daily quota ran out is dropped and the run stops (D-P7-11: never a
 # mixed-model run); a re-run the next provider day resumes from the caches. After a complete run whose hard gate
 # fails, the evaluation stops and is reported (owner answer 4). The results file only for complete runs.
-results_path = EVAL / f"stage2_eval_{date.today().isoformat()}{'_' + TAG if TAG else ''}.json"
+# EVAL_REPLAY=1 (with EVAL_REAL_MODELS=1 and the run's EVAL_TAG; D-TL-14, as in Stage1_eval): a finished run scored
+# again from its caches after a code change that makes no new request. Nothing is sent: a request that is not cached
+# is refused before the network, and a request in no cache stops the replay. Results → …_<tag>_rescored.json.
+REPLAY = os.environ.get("EVAL_REPLAY") == "1"
+results_path = EVAL / (f"stage2_eval_{date.today().isoformat()}{'_' + TAG if TAG else ''}"
+                       f"{'_rescored' if REPLAY else ''}.json")
+
+
+class ReplayQuota(llm.QuotaState):
+    """EVAL_REPLAY: every request that is not already cached is refused before it is sent."""
+
+    def check(self, provider: str, model: str) -> None:
+        raise llm.Exhausted(f"{provider}/{model}: replay — not in the cache, nothing is sent")
 BASELINE = os.environ.get("EVAL_BASELINE", "").strip()          # e.g. stage2_eval_2026-10-29.json (candidate c1)
 
 
@@ -492,10 +504,12 @@ if not REAL:
     print("Phase 4: skipped (set EVAL_REAL_MODELS=1 to run the real models)")
 else:
     SCRATCH.mkdir(parents=True, exist_ok=True)
-    quota = llm.QuotaState(llm.CACHE_DIR)
+    quota = ReplayQuota(llm.CACHE_DIR) if REPLAY else llm.QuotaState(llm.CACHE_DIR)
     MAIN = {roles.ROLES[r][0].provider + "/" + roles.ROLES[r][0].model for r in ("tools", "writer")}
 
     def main_models_ok() -> None:
+        if REPLAY:                                      # the recorded run decided this; nothing is sent now
+            return
         for name in sorted(MAIN):
             prov, model = name.split("/", 1)
             quota.check(prov, model)
@@ -533,7 +547,7 @@ else:
             stopped = f"repeat {r}: a gate failed ({failed}) — stopped for the owner"
             break
     out = {"plan": "Agents plan §6d S5; the done-when fixed 2026-10-29", "date": date.today().isoformat(),
-           "tag": TAG or "baseline", "inputs_sha256": sha,
+           "tag": TAG or "baseline", "replay": REPLAY, "inputs_sha256": sha,
            "models": {k: [c.name for c in v] for k, v in roles.ROLES.items()}, "runs": runs, "stopped": stopped}
     complete = [x for x in runs if x["complete"]]
     for x in complete:

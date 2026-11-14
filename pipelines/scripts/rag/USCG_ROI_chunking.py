@@ -2961,7 +2961,7 @@ MONEY_RE = re.compile(r"\$\s?\d|\bdollars?\b|\bcosts?\b|\bcostly\b|\bfinanc|\bpr
                       r"\binsur|\bclaims?\b|\bbudget|\brevenue|\bprofit", re.I)
 access_candidates = units_df[units_df["content"].map(lambda t: bool(MONEY_RE.search(t)))]
 # reviewed 2026-09-26: the candidates are damage estimates, civil-penalty findings, costs of safety measures and
-# insurance/claims facts printed in a public federal report — none is NileGate's own financial data -> level 1 / Operations
+# insurance/claims facts printed in a public federal report — none is PortPilot's own financial data -> level 1 / Operations
 ACCESS_REASON = "public_federal_report_fact (rbac_mapping §4)"
 access_decisions_df = access_candidates[["unit_id"]].assign(level=LEVEL, department=DEPARTMENT, reason=ACCESS_REASON)
 assert access_decisions_df["unit_id"].tolist() == access_candidates["unit_id"].tolist()

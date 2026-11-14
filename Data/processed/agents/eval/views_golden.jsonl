@@ -1,0 +1,30 @@
+{"expected": {"kind": "trend", "series": ["billed_sdr", "budget_sdr", "collected_sdr"], "week": 23, "weeks": 8}, "id": "v01", "lang": "en", "question": "Show billed, budget and collected over the last 8 weeks to week 23."}
+{"expected": {"kind": "trend", "series": ["dso_days"], "week": 40}, "id": "v02", "lang": "en", "question": "How did DSO move over the 13 weeks to week 40?"}
+{"expected": {"kind": "trend", "series": ["ar_sdr", "overdue_sdr"], "week": 48, "weeks": 26}, "id": "v03", "lang": "en", "question": "Receivables and overdue over the 26 weeks ending week 48."}
+{"expected": {"kind": "trend", "week": 12}, "id": "v04", "lang": "en", "question": "Billed against budget trend for week 12."}
+{"expected": {"kind": "category", "measure": "billed_sdr", "rows": "top5", "week": 23}, "id": "v05", "lang": "en", "question": "Show the top 5 vessel categories by billed amount in week 23."}
+{"expected": {"kind": "category", "measure": "budget_variance_pct", "week": 36}, "id": "v06", "lang": "en", "question": "Budget variance percentage by vessel category for week 36."}
+{"expected": {"compare_week": 9, "kind": "category", "measure": "billed_sdr", "week": 10}, "id": "v07", "lang": "en", "question": "Compare billed by vessel category in week 10 with week 9."}
+{"expected": {"kind": "category", "measure": "budget_variance_sdr", "rows": "bottom5", "week": 45}, "id": "v08", "lang": "en", "question": "The 5 vessel categories furthest below budget in week 45, in SDR."}
+{"expected": {"kind": "category", "measure": "billed_wow_change_sdr", "week": 30}, "id": "v09", "lang": "en", "question": "Week-on-week change in billing by vessel category for week 30."}
+{"expected": {"kind": "aging", "week": 20}, "id": "v10", "lang": "en", "question": "Receivables aging in week 20."}
+{"expected": {"compare_week": 40, "kind": "aging", "week": 50}, "id": "v11", "lang": "en", "question": "Compare the receivables aging of week 50 against week 40."}
+{"expected": {"kind": "customers", "measure": "share_13w_pct", "week": 33}, "id": "v12", "lang": "en", "question": "Top customers by share of billing for week 33."}
+{"expected": {"kind": "customers", "measure": "overdue_sdr", "week": 47}, "id": "v13", "lang": "en", "question": "Which customers hold the most overdue in week 47?"}
+{"expected": {"kind": "trend", "series": ["collected_sdr"], "week": null}, "id": "v14", "lang": "en", "question": "Show the collections trend."}
+{"expected": {"kind": "category", "measure": "billed_sdr", "week": null}, "id": "v15", "lang": "en", "question": "Billed by vessel category, please."}
+{"expected": {"kind": "trend", "week": 15, "weeks": 4}, "id": "v16", "lang": "ar", "question": "وريني الـ billed والـ budget آخر 4 أسابيع لحد أسبوع 15"}
+{"expected": {"kind": "trend", "series": ["dso_days"], "week": 52, "weeks": 26}, "id": "v17", "lang": "ar", "question": "الـ DSO عامل إزاي في الـ 26 أسبوع اللي بتنتهي بأسبوع 52"}
+{"expected": {"kind": "trend", "series": ["collected_sdr"], "week": 30, "weeks": 8}, "id": "v18", "lang": "ar", "question": "المتحصّل (collected) في آخر 8 أسابيع لحد أسبوع 30"}
+{"expected": {"kind": "category", "measure": "billed_sdr", "rows": "top5", "week": 18}, "id": "v19", "lang": "ar", "question": "أعلى 5 فئات سفن في الـ billed في أسبوع 18"}
+{"expected": {"kind": "category", "measure": "budget_variance_pct", "week": 7}, "id": "v20", "lang": "ar", "question": "نسبة الفرق عن الـ budget لكل فئة سفن في أسبوع 7"}
+{"expected": {"compare_week": 24, "kind": "category", "measure": "billed_sdr", "week": 25}, "id": "v21", "lang": "ar", "question": "قارن الـ billed لكل فئة سفن في أسبوع 25 بأسبوع 24"}
+{"expected": {"kind": "category", "measure": "budget_variance_sdr", "rows": "bottom5", "week": 39}, "id": "v22", "lang": "ar", "question": "أكتر 5 فئات تحت الـ budget بالـ SDR في أسبوع 39"}
+{"expected": {"kind": "category", "measure": "billed_wow_change_sdr", "week": 44}, "id": "v23", "lang": "ar", "question": "التغيير في الـ billed عن الأسبوع اللي فات لكل فئة في أسبوع 44"}
+{"expected": {"kind": "aging", "week": 28}, "id": "v24", "lang": "ar", "question": "أعمار المديونية (aging) في أسبوع 28"}
+{"expected": {"compare_week": 26, "kind": "aging", "week": 52}, "id": "v25", "lang": "ar", "question": "قارن الـ aging بتاع أسبوع 52 بأسبوع 26"}
+{"expected": {"kind": "customers", "measure": "share_13w_pct", "week": 11}, "id": "v26", "lang": "ar", "question": "أكبر العملاء في نصيبهم من الفواتير أسبوع 11"}
+{"expected": {"kind": "customers", "measure": "ar_sdr", "week": 35}, "id": "v27", "lang": "ar", "question": "العملاء اللي عليهم أكبر receivables في أسبوع 35"}
+{"expected": {"kind": "customers", "measure": "overdue_sdr", "week": 49}, "id": "v28", "lang": "ar", "question": "العملاء اللي عليهم أكبر متأخرات (overdue) أسبوع 49"}
+{"expected": {"kind": "trend", "series": ["ar_sdr"], "week": null}, "id": "v29", "lang": "ar", "question": "وريني اتجاه الـ receivables"}
+{"expected": {"kind": "aging", "week": null}, "id": "v30", "lang": "ar", "question": "الـ aging من فضلك"}

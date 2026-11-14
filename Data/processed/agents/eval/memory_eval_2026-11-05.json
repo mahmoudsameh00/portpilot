@@ -1,0 +1,2423 @@
+{
+ "set_sha": "212b1204b146aec1",
+ "date": "2026-11-05",
+ "runs": [
+  {
+   "run": 1,
+   "summary": {
+    "gates": {
+     "leakage_0": true,
+     "invented_0": true,
+     "numbers_from_this_turn": true,
+     "clarify_all": true,
+     "no_failed_run": true
+    },
+    "primary": {
+     "resolution": {
+      "en": 1.0,
+      "ar": 1.0
+     },
+     "en_ok": true,
+     "ar_ok": true,
+     "status_ok": 0.9149
+    }
+   },
+   "turns": [
+    {
+     "id": "m01",
+     "lang": "en",
+     "turn": 1,
+     "q": "How much did we bill in week 23 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       23
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m01",
+     "lang": "en",
+     "turn": 2,
+     "q": "And week 24?",
+     "by": "code",
+     "used": {
+      "report_week": [
+       24
+      ]
+     },
+     "standalone": "How much did we bill in week 24 of 2025?",
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m01",
+     "lang": "en",
+     "turn": 3,
+     "q": "Was that above or below budget?",
+     "by": "code",
+     "used": {
+      "report_week": [
+       24
+      ]
+     },
+     "standalone": "Was that above or below budget? (week 24 of 2025)",
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m02",
+     "lang": "ar",
+     "turn": 1,
+     "q": "كام فوترنا في الأسبوع 23 من 2025؟",
+     "by": "none",
+     "used": {
+      "report_week": [
+       23
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m02",
+     "lang": "ar",
+     "turn": 2,
+     "q": "طب والأسبوع اللي بعده؟",
+     "by": "code",
+     "used": {
+      "report_week": [
+       24
+      ]
+     },
+     "standalone": "كام فوترنا في الأسبوع 24 من 2025؟",
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m03",
+     "lang": "en",
+     "turn": 1,
+     "q": "What was DSO at the end of week 49 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       49
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 4,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m03",
+     "lang": "en",
+     "turn": 2,
+     "q": "And the week before?",
+     "by": "code",
+     "used": {
+      "report_week": [
+       48
+      ]
+     },
+     "standalone": "What was DSO at the end of week 48 of 2025?",
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m03",
+     "lang": "en",
+     "turn": 3,
+     "q": "Compare it with week 52.",
+     "by": "code",
+     "used": {
+      "report_week": [
+       48,
+       52
+      ]
+     },
+     "standalone": "Compare it with week 52. (week 48 of 2025, week 52 of 2025)",
+     "status": "not_in_data",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": false
+    },
+    {
+     "id": "m04",
+     "lang": "ar",
+     "turn": 1,
+     "q": "الـDSO كان كام في آخر الأسبوع 49 من 2025؟",
+     "by": "none",
+     "used": {
+      "report_week": [
+       49
+      ]
+     },
+     "standalone": null,
+     "status": "not_in_data",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": false
+    },
+    {
+     "id": "m04",
+     "lang": "ar",
+     "turn": 2,
+     "q": "والأسبوع اللي قبله؟",
+     "by": "code",
+     "used": {
+      "report_week": [
+       48
+      ]
+     },
+     "standalone": "الـDSO كان كام في آخر الأسبوع 48 من 2025؟",
+     "status": "not_in_data",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": false
+    },
+    {
+     "id": "m05",
+     "lang": "en",
+     "turn": 1,
+     "q": "How much did we bill in week 23 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       23
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m05",
+     "lang": "en",
+     "turn": 2,
+     "q": "What is double that figure?",
+     "by": "code",
+     "used": {
+      "report_week": [
+       23
+      ]
+     },
+     "standalone": "What is double that figure? (week 23 of 2025)",
+     "status": "not_in_data",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m06",
+     "lang": "en",
+     "turn": 1,
+     "q": "Where is Special Voyager 001 now and what is its next port?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       1
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "fleet_customers",
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 4,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m06",
+     "lang": "en",
+     "turn": 2,
+     "q": "When will it arrive there?",
+     "by": "code",
+     "used": {
+      "vessel": [
+       1
+      ]
+     },
+     "standalone": "When will it arrive there? (vessel 1)",
+     "status": "answered",
+     "tools": [
+      "voyage_eta"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m07",
+     "lang": "ar",
+     "turn": 1,
+     "q": "السفينة 21 فين دلوقتي؟",
+     "by": "none",
+     "used": {
+      "vessel": [
+       21
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m07",
+     "lang": "ar",
+     "turn": 2,
+     "q": "وهتوصل إمتى؟",
+     "by": "code",
+     "used": {
+      "vessel": [
+       21
+      ]
+     },
+     "standalone": "وهتوصل إمتى؟ (السفينة 21)",
+     "status": "answered",
+     "tools": [
+      "voyage_eta"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m08",
+     "lang": "en",
+     "turn": 1,
+     "q": "Should vessel 21 go from Singapore to Rotterdam via Suez or the Cape?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       21
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "route_advice"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m08",
+     "lang": "en",
+     "turn": 2,
+     "q": "And at 14 knots?",
+     "by": "code",
+     "used": {
+      "route": [
+       "SGSIN-NLRTM"
+      ],
+      "vessel": [
+       21
+      ],
+      "speed_kn": [
+       14
+      ]
+     },
+     "standalone": "Should vessel 21 go from Singapore to Rotterdam via Suez or the Cape at 14 knots?",
+     "status": "answered",
+     "tools": [
+      "route_advice"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m09",
+     "lang": "en",
+     "turn": 1,
+     "q": "Where is vessel 36 now?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       36
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m09",
+     "lang": "en",
+     "turn": 2,
+     "q": "And vessel 41?",
+     "by": "code",
+     "used": {
+      "vessel": [
+       41
+      ]
+     },
+     "standalone": "Where is vessel 41 now?",
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m09",
+     "lang": "en",
+     "turn": 3,
+     "q": "Which of the two arrives first?",
+     "by": "code",
+     "used": {
+      "vessel": [
+       36,
+       41
+      ]
+     },
+     "standalone": "Which of the two arrives first? (vessel 36, vessel 41)",
+     "status": "answered",
+     "tools": [
+      "voyage_eta"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m10",
+     "lang": "ar",
+     "turn": 1,
+     "q": "السفينة 2 فاضلها كام ميل بحري لحد ما توصل؟",
+     "by": "none",
+     "used": {
+      "vessel": [
+       2
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m10",
+     "lang": "ar",
+     "turn": 2,
+     "q": "وبتحرق وقود قد إيه في اليوم؟",
+     "by": "code",
+     "used": {
+      "vessel": [
+       2
+      ]
+     },
+     "standalone": "وبتحرق وقود قد إيه في اليوم؟ (السفينة 2)",
+     "status": "answered",
+     "tools": [
+      "vessel_params"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m11",
+     "lang": "en",
+     "turn": 1,
+     "q": "Which vessels have a high weather alert in the latest voyage watch?",
+     "by": "none",
+     "used": {},
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "watch_alerts"
+     ],
+     "problems": [],
+     "model_calls": 4,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m11",
+     "lang": "en",
+     "turn": 2,
+     "q": "Where is the first one now?",
+     "by": "code",
+     "used": {
+      "vessel": [
+       234
+      ],
+      "customer": [
+       34
+      ]
+     },
+     "standalone": "Where is the first one now? (vessel 234, customer 34)",
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 4,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m12",
+     "lang": "en",
+     "turn": 1,
+     "q": "Which customer had the largest overdue amount at the end of week 52 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       52
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m12",
+     "lang": "en",
+     "turn": 2,
+     "q": "Where are its vessels now?",
+     "by": "code",
+     "used": {
+      "vessel": [
+       165
+      ],
+      "report_week": [
+       52
+      ],
+      "customer": [
+       15
+      ]
+     },
+     "standalone": "Where are its vessels now? (vessel 165, week 52 of 2025, customer 15)",
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 4,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m13",
+     "lang": "ar",
+     "turn": 1,
+     "q": "مين العميل اللي عليه أكبر مبلغ متأخر في آخر الأسبوع 52 من 2025؟",
+     "by": "none",
+     "used": {
+      "report_week": [
+       52
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m13",
+     "lang": "ar",
+     "turn": 2,
+     "q": "وسفنه فين دلوقتي؟",
+     "by": "code",
+     "used": {
+      "vessel": [
+       165
+      ],
+      "report_week": [
+       52
+      ],
+      "customer": [
+       15
+      ]
+     },
+     "standalone": "وسفنه فين دلوقتي؟ (السفينة 165, الأسبوع 52 من 2025, العميل 15)",
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m14",
+     "lang": "en",
+     "turn": 1,
+     "q": "What does my uploaded procedure say about the reefer pre-trip inspection?",
+     "by": "none",
+     "used": {},
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m14",
+     "lang": "en",
+     "turn": 2,
+     "q": "And what about the electrical check?",
+     "by": "code",
+     "used": {
+      "document": [
+       "ng_ops_prc_0042"
+      ]
+     },
+     "standalone": "And what about the electrical check? (my uploaded document ng_ops_prc_0042)",
+     "status": "answered",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 4,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m15",
+     "lang": "ar",
+     "turn": 1,
+     "q": "المستند اللي رفعته بيقول إيه عن فحص الكهربا؟",
+     "by": "none",
+     "used": {},
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m15",
+     "lang": "ar",
+     "turn": 2,
+     "q": "وفيه إيه تاني بعد الخطوة دي؟",
+     "by": "code",
+     "used": {
+      "document": [
+       "ng_ops_prc_0042"
+      ]
+     },
+     "standalone": "وفيه إيه تاني بعد الخطوة دي؟ (المستند اللي رفعته ng_ops_prc_0042)",
+     "status": "not_in_data",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": false
+    },
+    {
+     "id": "m16",
+     "lang": "en",
+     "turn": 1,
+     "q": "Where is vessel 238 now?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       238
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m16",
+     "lang": "en",
+     "turn": 2,
+     "q": "And how many days past due is its overdue invoice at the end of week 52 of 2025?",
+     "by": "code",
+     "used": {
+      "report_week": [
+       52
+      ],
+      "vessel": [
+       238
+      ]
+     },
+     "standalone": "And how many days past due is its overdue invoice at the end of week 52 of 2025? (vessel 238)",
+     "status": "not_permitted",
+     "tools": [],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m17",
+     "lang": "en",
+     "turn": 1,
+     "q": "Which customer had the largest overdue amount at the end of week 52 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       52
+      ]
+     },
+     "standalone": null,
+     "status": "not_permitted",
+     "tools": [],
+     "problems": [],
+     "model_calls": 0,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m17",
+     "lang": "en",
+     "turn": 2,
+     "q": "Where are its vessels now?",
+     "by": "clarify",
+     "used": {},
+     "standalone": null,
+     "status": "clarify",
+     "tools": [],
+     "problems": [],
+     "model_calls": 0,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": true,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m18",
+     "lang": "en",
+     "turn": 1,
+     "q": "How much did we bill in week 23 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       23
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m18",
+     "lang": "en",
+     "turn": 2,
+     "q": "Where is Special Voyager 001 now?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       1
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "fleet_customers",
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 4,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m19",
+     "lang": "en",
+     "turn": 1,
+     "q": "Where are vessels 36 and 41 now?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       36,
+       41
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m19",
+     "lang": "en",
+     "turn": 2,
+     "q": "When will it arrive?",
+     "by": "clarify",
+     "used": {},
+     "standalone": null,
+     "status": "clarify",
+     "tools": [],
+     "problems": [],
+     "model_calls": 0,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": true,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m20",
+     "lang": "ar",
+     "turn": 1,
+     "q": "السفن 36 و41 فين دلوقتي؟",
+     "by": "none",
+     "used": {
+      "vessel": [
+       36,
+       41
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m20",
+     "lang": "ar",
+     "turn": 2,
+     "q": "وهتوصل إمتى؟",
+     "by": "clarify",
+     "used": {},
+     "standalone": null,
+     "status": "clarify",
+     "tools": [],
+     "problems": [],
+     "model_calls": 0,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": true,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m21",
+     "lang": "en",
+     "turn": 1,
+     "q": "Where is vessel 36 now?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       36
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m21",
+     "lang": "en",
+     "turn": 2,
+     "q": "And the other one?",
+     "by": "clarify",
+     "used": {},
+     "standalone": null,
+     "status": "clarify",
+     "tools": [],
+     "problems": [],
+     "model_calls": 0,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": true,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m22",
+     "lang": "en",
+     "turn": 1,
+     "q": "Which 3 customers had the largest overdue amounts at the end of week 52 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       52
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m22",
+     "lang": "en",
+     "turn": 2,
+     "q": "Where are that customer's vessels now?",
+     "by": "clarify",
+     "used": {},
+     "standalone": null,
+     "status": "clarify",
+     "tools": [],
+     "problems": [],
+     "model_calls": 0,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": true,
+     "numbers_ok": true,
+     "status_ok": true
+    }
+   ]
+  },
+  {
+   "run": 2,
+   "summary": {
+    "gates": {
+     "leakage_0": true,
+     "invented_0": true,
+     "numbers_from_this_turn": true,
+     "clarify_all": true,
+     "no_failed_run": true
+    },
+    "primary": {
+     "resolution": {
+      "en": 1.0,
+      "ar": 1.0
+     },
+     "en_ok": true,
+     "ar_ok": true,
+     "status_ok": 0.9149
+    }
+   },
+   "turns": [
+    {
+     "id": "m01",
+     "lang": "en",
+     "turn": 1,
+     "q": "How much did we bill in week 23 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       23
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m01",
+     "lang": "en",
+     "turn": 2,
+     "q": "And week 24?",
+     "by": "code",
+     "used": {
+      "report_week": [
+       24
+      ]
+     },
+     "standalone": "How much did we bill in week 24 of 2025?",
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m01",
+     "lang": "en",
+     "turn": 3,
+     "q": "Was that above or below budget?",
+     "by": "code",
+     "used": {
+      "report_week": [
+       24
+      ]
+     },
+     "standalone": "Was that above or below budget? (week 24 of 2025)",
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m02",
+     "lang": "ar",
+     "turn": 1,
+     "q": "كام فوترنا في الأسبوع 23 من 2025؟",
+     "by": "none",
+     "used": {
+      "report_week": [
+       23
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 4,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m02",
+     "lang": "ar",
+     "turn": 2,
+     "q": "طب والأسبوع اللي بعده؟",
+     "by": "code",
+     "used": {
+      "report_week": [
+       24
+      ]
+     },
+     "standalone": "كام فوترنا في الأسبوع 24 من 2025؟",
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m03",
+     "lang": "en",
+     "turn": 1,
+     "q": "What was DSO at the end of week 49 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       49
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m03",
+     "lang": "en",
+     "turn": 2,
+     "q": "And the week before?",
+     "by": "code",
+     "used": {
+      "report_week": [
+       48
+      ]
+     },
+     "standalone": "What was DSO at the end of week 48 of 2025?",
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m03",
+     "lang": "en",
+     "turn": 3,
+     "q": "Compare it with week 52.",
+     "by": "code",
+     "used": {
+      "report_week": [
+       48,
+       52
+      ]
+     },
+     "standalone": "Compare it with week 52. (week 48 of 2025, week 52 of 2025)",
+     "status": "validation_failed",
+     "tools": [
+      "search_documents",
+      "suez_transits"
+     ],
+     "problems": [
+      "slot {insight.call_2206013552108883687[fleet]:mean_daily_transits|none}: no row 'fleet' in insight.call_2206013552108883687 (key date); rows: 2025-11-01, 2025-11-02, 2025-11-03, 2025-11-04, 2025-11-05, 2025-11-06, 2025-11-07, 2025-11-08, 2025-11-09, 2025-11-10, 2025-11-11, 2025-11-12, 2025-11-13, 2025-11-14, 2025-11-15 — name the row by its date, e.g. {insight.call_2206013552108883687[2025-11-01]:mean_daily_transits|none}"
+     ],
+     "model_calls": 4,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": false
+    },
+    {
+     "id": "m04",
+     "lang": "ar",
+     "turn": 1,
+     "q": "الـDSO كان كام في آخر الأسبوع 49 من 2025؟",
+     "by": "none",
+     "used": {
+      "report_week": [
+       49
+      ]
+     },
+     "standalone": null,
+     "status": "not_in_data",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": false
+    },
+    {
+     "id": "m04",
+     "lang": "ar",
+     "turn": 2,
+     "q": "والأسبوع اللي قبله؟",
+     "by": "code",
+     "used": {
+      "report_week": [
+       48
+      ]
+     },
+     "standalone": "الـDSO كان كام في آخر الأسبوع 48 من 2025؟",
+     "status": "not_in_data",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": false
+    },
+    {
+     "id": "m05",
+     "lang": "en",
+     "turn": 1,
+     "q": "How much did we bill in week 23 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       23
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m05",
+     "lang": "en",
+     "turn": 2,
+     "q": "What is double that figure?",
+     "by": "code",
+     "used": {
+      "report_week": [
+       23
+      ]
+     },
+     "standalone": "What is double that figure? (week 23 of 2025)",
+     "status": "not_in_data",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m06",
+     "lang": "en",
+     "turn": 1,
+     "q": "Where is Special Voyager 001 now and what is its next port?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       1
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "fleet_customers",
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 4,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m06",
+     "lang": "en",
+     "turn": 2,
+     "q": "When will it arrive there?",
+     "by": "code",
+     "used": {
+      "vessel": [
+       1
+      ]
+     },
+     "standalone": "When will it arrive there? (vessel 1)",
+     "status": "answered",
+     "tools": [
+      "voyage_eta"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m07",
+     "lang": "ar",
+     "turn": 1,
+     "q": "السفينة 21 فين دلوقتي؟",
+     "by": "none",
+     "used": {
+      "vessel": [
+       21
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m07",
+     "lang": "ar",
+     "turn": 2,
+     "q": "وهتوصل إمتى؟",
+     "by": "code",
+     "used": {
+      "vessel": [
+       21
+      ]
+     },
+     "standalone": "وهتوصل إمتى؟ (السفينة 21)",
+     "status": "answered",
+     "tools": [
+      "voyage_eta"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m08",
+     "lang": "en",
+     "turn": 1,
+     "q": "Should vessel 21 go from Singapore to Rotterdam via Suez or the Cape?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       21
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "route_advice"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m08",
+     "lang": "en",
+     "turn": 2,
+     "q": "And at 14 knots?",
+     "by": "code",
+     "used": {
+      "route": [
+       "SGSIN-NLRTM"
+      ],
+      "vessel": [
+       21
+      ],
+      "speed_kn": [
+       14
+      ]
+     },
+     "standalone": "Should vessel 21 go from Singapore to Rotterdam via Suez or the Cape at 14 knots?",
+     "status": "answered",
+     "tools": [
+      "route_advice"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m09",
+     "lang": "en",
+     "turn": 1,
+     "q": "Where is vessel 36 now?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       36
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m09",
+     "lang": "en",
+     "turn": 2,
+     "q": "And vessel 41?",
+     "by": "code",
+     "used": {
+      "vessel": [
+       41
+      ]
+     },
+     "standalone": "Where is vessel 41 now?",
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m09",
+     "lang": "en",
+     "turn": 3,
+     "q": "Which of the two arrives first?",
+     "by": "code",
+     "used": {
+      "vessel": [
+       36,
+       41
+      ]
+     },
+     "standalone": "Which of the two arrives first? (vessel 36, vessel 41)",
+     "status": "answered",
+     "tools": [
+      "voyage_eta"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m10",
+     "lang": "ar",
+     "turn": 1,
+     "q": "السفينة 2 فاضلها كام ميل بحري لحد ما توصل؟",
+     "by": "none",
+     "used": {
+      "vessel": [
+       2
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m10",
+     "lang": "ar",
+     "turn": 2,
+     "q": "وبتحرق وقود قد إيه في اليوم؟",
+     "by": "code",
+     "used": {
+      "vessel": [
+       2
+      ]
+     },
+     "standalone": "وبتحرق وقود قد إيه في اليوم؟ (السفينة 2)",
+     "status": "answered",
+     "tools": [
+      "vessel_params"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m11",
+     "lang": "en",
+     "turn": 1,
+     "q": "Which vessels have a high weather alert in the latest voyage watch?",
+     "by": "none",
+     "used": {},
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "watch_alerts"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m11",
+     "lang": "en",
+     "turn": 2,
+     "q": "Where is the first one now?",
+     "by": "code",
+     "used": {
+      "vessel": [
+       234
+      ],
+      "customer": [
+       34
+      ]
+     },
+     "standalone": "Where is the first one now? (vessel 234, customer 34)",
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m12",
+     "lang": "en",
+     "turn": 1,
+     "q": "Which customer had the largest overdue amount at the end of week 52 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       52
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m12",
+     "lang": "en",
+     "turn": 2,
+     "q": "Where are its vessels now?",
+     "by": "code",
+     "used": {
+      "vessel": [
+       165
+      ],
+      "report_week": [
+       52
+      ],
+      "customer": [
+       15
+      ]
+     },
+     "standalone": "Where are its vessels now? (vessel 165, week 52 of 2025, customer 15)",
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m13",
+     "lang": "ar",
+     "turn": 1,
+     "q": "مين العميل اللي عليه أكبر مبلغ متأخر في آخر الأسبوع 52 من 2025؟",
+     "by": "none",
+     "used": {
+      "report_week": [
+       52
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 4,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m13",
+     "lang": "ar",
+     "turn": 2,
+     "q": "وسفنه فين دلوقتي؟",
+     "by": "code",
+     "used": {
+      "vessel": [
+       165
+      ],
+      "report_week": [
+       52
+      ],
+      "customer": [
+       15
+      ]
+     },
+     "standalone": "وسفنه فين دلوقتي؟ (السفينة 165, الأسبوع 52 من 2025, العميل 15)",
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 4,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m14",
+     "lang": "en",
+     "turn": 1,
+     "q": "What does my uploaded procedure say about the reefer pre-trip inspection?",
+     "by": "none",
+     "used": {},
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m14",
+     "lang": "en",
+     "turn": 2,
+     "q": "And what about the electrical check?",
+     "by": "code",
+     "used": {
+      "document": [
+       "ng_ops_prc_0042"
+      ]
+     },
+     "standalone": "And what about the electrical check? (my uploaded document ng_ops_prc_0042)",
+     "status": "answered",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m15",
+     "lang": "ar",
+     "turn": 1,
+     "q": "المستند اللي رفعته بيقول إيه عن فحص الكهربا؟",
+     "by": "none",
+     "used": {},
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m15",
+     "lang": "ar",
+     "turn": 2,
+     "q": "وفيه إيه تاني بعد الخطوة دي؟",
+     "by": "code",
+     "used": {
+      "document": [
+       "ng_ops_prc_0042"
+      ]
+     },
+     "standalone": "وفيه إيه تاني بعد الخطوة دي؟ (المستند اللي رفعته ng_ops_prc_0042)",
+     "status": "not_in_data",
+     "tools": [
+      "search_documents"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": false
+    },
+    {
+     "id": "m16",
+     "lang": "en",
+     "turn": 1,
+     "q": "Where is vessel 238 now?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       238
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m16",
+     "lang": "en",
+     "turn": 2,
+     "q": "And how many days past due is its overdue invoice at the end of week 52 of 2025?",
+     "by": "code",
+     "used": {
+      "report_week": [
+       52
+      ],
+      "vessel": [
+       238
+      ]
+     },
+     "standalone": "And how many days past due is its overdue invoice at the end of week 52 of 2025? (vessel 238)",
+     "status": "partial",
+     "tools": [],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m17",
+     "lang": "en",
+     "turn": 1,
+     "q": "Which customer had the largest overdue amount at the end of week 52 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       52
+      ]
+     },
+     "standalone": null,
+     "status": "not_permitted",
+     "tools": [],
+     "problems": [],
+     "model_calls": 0,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m17",
+     "lang": "en",
+     "turn": 2,
+     "q": "Where are its vessels now?",
+     "by": "clarify",
+     "used": {},
+     "standalone": null,
+     "status": "clarify",
+     "tools": [],
+     "problems": [],
+     "model_calls": 0,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": true,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m18",
+     "lang": "en",
+     "turn": 1,
+     "q": "How much did we bill in week 23 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       23
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m18",
+     "lang": "en",
+     "turn": 2,
+     "q": "Where is Special Voyager 001 now?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       1
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "fleet_customers",
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 4,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m19",
+     "lang": "en",
+     "turn": 1,
+     "q": "Where are vessels 36 and 41 now?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       36,
+       41
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m19",
+     "lang": "en",
+     "turn": 2,
+     "q": "When will it arrive?",
+     "by": "clarify",
+     "used": {},
+     "standalone": null,
+     "status": "clarify",
+     "tools": [],
+     "problems": [],
+     "model_calls": 0,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": true,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m20",
+     "lang": "ar",
+     "turn": 1,
+     "q": "السفن 36 و41 فين دلوقتي؟",
+     "by": "none",
+     "used": {
+      "vessel": [
+       36,
+       41
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m20",
+     "lang": "ar",
+     "turn": 2,
+     "q": "وهتوصل إمتى؟",
+     "by": "clarify",
+     "used": {},
+     "standalone": null,
+     "status": "clarify",
+     "tools": [],
+     "problems": [],
+     "model_calls": 0,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": true,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m21",
+     "lang": "en",
+     "turn": 1,
+     "q": "Where is vessel 36 now?",
+     "by": "none",
+     "used": {
+      "vessel": [
+       36
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "voyage_status"
+     ],
+     "problems": [],
+     "model_calls": 3,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m21",
+     "lang": "en",
+     "turn": 2,
+     "q": "And the other one?",
+     "by": "clarify",
+     "used": {},
+     "standalone": null,
+     "status": "clarify",
+     "tools": [],
+     "problems": [],
+     "model_calls": 0,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": true,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m22",
+     "lang": "en",
+     "turn": 1,
+     "q": "Which 3 customers had the largest overdue amounts at the end of week 52 of 2025?",
+     "by": "none",
+     "used": {
+      "report_week": [
+       52
+      ]
+     },
+     "standalone": null,
+     "status": "answered",
+     "tools": [
+      "finance_kpi"
+     ],
+     "problems": [],
+     "model_calls": 2,
+     "failed": null,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": null,
+     "numbers_ok": true,
+     "status_ok": true
+    },
+    {
+     "id": "m22",
+     "lang": "en",
+     "turn": 2,
+     "q": "Where are that customer's vessels now?",
+     "by": "clarify",
+     "used": {},
+     "standalone": null,
+     "status": "clarify",
+     "tools": [],
+     "problems": [],
+     "model_calls": 0,
+     "failed": null,
+     "resolved_ok": true,
+     "leak": false,
+     "invented": [],
+     "clarify_ok": true,
+     "numbers_ok": true,
+     "status_ok": true
+    }
+   ]
+  }
+ ]
+}

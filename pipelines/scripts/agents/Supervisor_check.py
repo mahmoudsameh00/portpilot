@@ -205,9 +205,24 @@ NORM = {"خلال {insight.c1:eta_in_h} ساعة من دلوقتي.": "خلال 
         "in {insight.c1:eta_in_h} hours.": "in {insight.c1:eta_in_h}.",
         "الموج {insight.c4[234/weather]:wave_height_max_m} متر.": "الموج {insight.c4[234/weather]:wave_height_max_m}.",
         "{insight.c1:eta_in_h} ساعات": "{insight.c1:eta_in_h}",
-        "{insight.c1:eta_in_h} سفينة": "{insight.c1:eta_in_h} سفينة"}
-norm_wrong = {t: got for t, want in NORM.items() if (got := _slots.normalize_text(t, EV)[0]) != want}
+        "{insight.c1:eta_in_h} سفينة": "{insight.c1:eta_in_h} سفينة",
+        # D-TL-14 (Stage 2 run tl3s2): the format written with its kind → the format alone; a slot that is no slot
+        # (an unknown kind word) is left for the checker
+        "{insight.c3[suez]:suez_dues_sdr|money sdr}": "{insight.c3[suez]:suez_dues_sdr|sdr}",
+        "{insight.c3[difference]:change_total_sdr|money_sdr|dir}": "{insight.c3[difference]:change_total_sdr|sdr|dir}",
+        "{insight.c3[suez]:suez_dues_sdr|cash sdr}": "{insight.c3[suez]:suez_dues_sdr|cash sdr}"}
+# D-TL-14: a slot on a text field is replaced by the field's own text (tl3s2 o01: {…:next_port}, {…:as_of})
+_row1 = EV["insight.c1"]["rows"][0]
+_text_field = next(k for k, v in _row1.items() if isinstance(v, str) and v.strip())
+NORM[f"Next: {{insight.c1:{_text_field}}}."] = f"Next: {_row1[_text_field]}."
+norm_wrong = {t: got for t, want in NORM.items()
+              if (got := _slots.normalize_text(t, EV, answer_forms=True)[0]) != want}
 assert not norm_wrong, norm_wrong
+_fixed_answer = _slots.normalize_text("The dues are {insight.c3[suez]:suez_dues_sdr|money sdr}.", EV, answer_forms=True)
+assert not _slots.render_text(_fixed_answer[0], EV)[2] and len(_fixed_answer[1]) == 1, _fixed_answer
+# the pack Writer, the finance Q&A graph, route advice and the voyage watch keep D-P7-14's set (answer_forms off)
+_kept = "{insight.c3[suez]:suez_dues_sdr|money sdr}"
+assert _slots.normalize_text(_kept, EV) == (_kept, []), _slots.normalize_text(_kept, EV)
 print(f"✅ Phase 2 (D-P12-8): {len(NORM)} unit cases — the unit after a slot dropped in Arabic and English, another "
       "word kept")
 
@@ -298,7 +313,8 @@ actual_2s = {"stage": sq.stage, "within_budget": all(len(s.description) <= skill
              "reviewed": (sq.reviewed_by_owner, fqs.reviewed_by_owner)}
 REVIEWED_2S = {"stage": "2", "within_budget": True, "unknown_names": [], "bad_examples": [], "example_slots": 3,
                "rules_stated": True, "arabic_example": True, "finance_qa_exception": True,
-               "reviewed": ("2026-10-29", "2026-10-29")}
+               # finance-qa reviewed again 2026-11-09 (traffic-billing link plan: the traffic_link dataset line)
+               "reviewed": ("2026-10-29", "2026-11-09")}
 assert actual_2s == REVIEWED_2S, actual_2s
 print(f"skills: supervisor-qa {sq.body_tokens} tokens ({len(named)} names, {len(ex)} example slots), finance-qa "
       f"{fqs.body_tokens} tokens; reviewed by the owner {actual_2s['reviewed']}")
@@ -389,7 +405,7 @@ class Play:
             text += " دورك مالوش صلاحية على بيانات المالية والفواتير." if ar else \
                 " Your role has no access to the finance data and invoices (Finance)."
         if status == "not_in_data":
-            text = "مفيش البيانات دي عندنا." if ar else "This is not in NileGate's data."
+            text = "مفيش البيانات دي عندنا." if ar else "This is not in PortPilot's data."
         if self.mode == "always_bad" or (self.mode == "patch" and not patched):
             text += " That is about 2.2 M SDR."
         return {"status": status, "answer": text, "evidence_ids": [f"insight.{c}" for _, _, c in self.calls]}
@@ -480,7 +496,11 @@ actual_3 = {"items_run": len(results), "statuses": by_status, "wrong": 0,
 REVIEWED_3 = {"items_run": 33, "statuses": {"answered": 27, "not_in_data": 3, "partial": 3}, "wrong": 0,
               "patch": ("answered", 1), "always_bad": "validation_failed", "loop": ("output_invalid", True),
               # 7,137 → 7,339 on 2026-11-01: finance_kpi returns the migration-021 columns (weekly-pack plan Phase B)
-              "max_request_est_tokens": 7339, "over_conservative_budget": ["c10", "c10_ar"],
+              # 7,339 → 7,402 on 2026-11-09: finance_kpi's dataset traffic_link (M17) lengthens the tool schema
+              # 7,402 → 7,404, measured 2026-11-12 on the tree after the 2026-11-11 rename (the prompt texts changed
+              # with the product name; the tool schema did not) — still fits
+              # 7,404 → 7,457 on 2026-11-13: the former-name sentence in SUP_TASK (D-TL-13) — still fits
+              "max_request_est_tokens": 7457, "over_conservative_budget": ["c10", "c10_ar"],
               "fits_at_4_chars_per_token": True}
 assert actual_3 == REVIEWED_3, actual_3
 print(f"agent: {len(results)} golden items run end to end, statuses {by_status}; largest request "

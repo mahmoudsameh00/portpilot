@@ -1,8 +1,8 @@
 ---
 name: weekly-variance-analysis
-description: The method for explaining a report week's changes — week over week and vs budget — by drill-down to vessel categories and customers, with external context (Suez transits, news, tariff notes) kept separate from NileGate's numbers.
+description: The method for explaining a report week's changes — week over week and vs budget — by drill-down to vessel categories and customers, with external context (Suez transits, news, tariff notes) kept separate from PortPilot's numbers.
 stage: 1
-reviewed_by_owner: 2026-11-02
+reviewed_by_owner: 2026-11-09
 ---
 # Weekly variance analysis
 
@@ -27,8 +27,9 @@ Goal: say **what changed, by how much, and why**, with every number taken from a
    largest overdue invoices.
 6. Customers (`customers`): who entered or left the top 10 (`rank_13w` vs `rank_13w_prev`); the watchlist
    (`is_watchlist`: AR at least 1 M SDR and at least 80 % of its own 13-week billing, `ar_to_billed_13w_pct`).
-7. Context, only after the numbers: `suez_transits` for the week and the 4 weeks before; `web_search` for that
-   week's news; `search_documents` for a tariff rule that explains a change.
+7. Context, only after the numbers: the week's Suez transits (the week and the 4 weeks before) and news are already
+   fetched by code — cite them as `context.suez` and `context.news`. Call `suez_transits` / `web_search` only for a
+   drill-down (another window or query), and `search_documents` for a tariff rule that explains a change.
 
 ## Writing rules
 - A direction or stability word must agree with the sign and size of the value you cite (V9). A category is
@@ -36,8 +37,8 @@ Goal: say **what changed, by how much, and why**, with every number taken from a
 - A finding from `audit.ytd` that is not this week's: name its week ("… of week 10") or say "year to date".
 - Do not compute new numbers (no sums, differences or shares of your own): if you need one, ask for a dataset that
   holds it or leave it out.
-- Correlation is not cause: Suez transits or news are context on slide 9; never write that they caused a NileGate
-  change unless a document or the data shows the link.
+- Correlation is not cause: transits and news are context (slide 9). Say billing "moved with" them only in one
+  summary bullet citing `context.link` when its `link` is `link`; never "because of", "due to" (V10).
 - If a tool says `context_unavailable` or `no_data`, write that the context is unavailable; never fill the gap.
 - Background, never written as figures: over the year actual billing is about 11 % below budget (planning
   assumption, not a weekly failure).

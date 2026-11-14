@@ -68,6 +68,6 @@ def fleet_customers(user, **args) -> ToolResult:
 
 @tool("fleet_customers", args_schema=FleetArgs)
 def fleet_customers_tool(runtime: ToolRuntime, **args) -> dict:
-    """NileGate's vessels and their customer: the vessels of given customers, the customer_id of given vessels, or a
+    """PortPilot's vessels and their customer: the vessels of given customers, the customer_id of given vessels, or a
     vessel's id from its name. Ids only — the customer's name and money come from finance_kpi."""
     return fleet_customers(context.user_of(runtime), **args).model_dump(mode="json")

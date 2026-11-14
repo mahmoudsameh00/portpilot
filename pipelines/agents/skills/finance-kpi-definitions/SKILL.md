@@ -1,6 +1,6 @@
 ---
 name: finance-kpi-definitions
-description: What each weekly finance KPI of NileGate means, which finance_kpi dataset and field holds it, and the reporting conventions (report week, as-of Sunday, warm-up weeks, rounding). Load before reading or explaining any finance number.
+description: What each weekly finance KPI of PortPilot means, which finance_kpi dataset and field holds it, and the reporting conventions (report week, as-of Sunday, warm-up weeks, rounding). Load before reading or explaining any finance number.
 stage: 1
 reviewed_by_owner: 2026-10-19
 ---

@@ -1,0 +1,25 @@
+# PortPilot — Docker Compose (Frontend plan §11.2, F7). One service: the web. The three databases keep their own
+# containers and scripts (db/README.md, db/mongo/run.ps1, db/qdrant/); the API runs on the host
+# (`uv run python pipelines/scripts/api/Serve.py`, 127.0.0.1:8000) — "Compose for all services" stays a ROADMAP row.
+#   docker compose build web
+#   docker compose up -d web       → open http://localhost:3000 (the CSRF origin check expects this origin)
+#   docker compose down
+services:
+  web:
+    build:
+      context: ./web
+    image: portpilot-web:local
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      PORTPILOT_API_URL: "http://host.docker.internal:8000"
+      PORTPILOT_WEB_ORIGIN: "http://localhost:3000"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: "no"

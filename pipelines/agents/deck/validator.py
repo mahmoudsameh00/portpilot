@@ -26,6 +26,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import cast
 
 from pipelines.agents.deck import slots
+from pipelines.agents import traffic_claims
 from pipelines.agents.graphs import models as m
 
 REPORT_YEAR = 2025                                    # D12: replay of 2025's 52 ISO weeks
@@ -34,13 +35,18 @@ SUMMARY_BULLETS, MAX_COMMENTS = 5, 3
 CODE_SLIDES = (1, 10)                                  # rendered by code only (P6-2)
 COMMENT_SLIDES = range(3, 9)
 CONTEXT_SLIDE = 9
-NILEGATE_TOOLS = {"finance_kpi", "invoice_audit", "compute_toll"}   # NileGate's own data (ADR-049), never context
+NILEGATE_TOOLS = {"finance_kpi", "invoice_audit", "compute_toll"}   # PortPilot's own data (ADR-049), never context
+# approver-additions plan (owner B2, Phase B): the approver's own bullets, appended after the Writer's on a free-text
+# slide (comments 3–8, context 9); counted apart from the Writer's (V4); marked in the deck (`txt:approver:<i>`)
+APPROVER = "approver"
+ADDITION_SLIDES = range(3, 10)
+MAX_ADDITIONS = 2
 # evidence a slide may cite (§5c table); "x.*" = every id with that prefix
-SLIDE_EVIDENCE = {1: ("kpi.weekly",), 2: ("kpi.*", "audit.*", "insight.*"), 3: ("kpi.weekly",),
+SLIDE_EVIDENCE = {1: ("kpi.weekly",), 2: ("kpi.*", "audit.*", "insight.*", "context.*"), 3: ("kpi.weekly",),
                   4: ("kpi.trend", "kpi.category", "kpi.weekly", "audit.week"), 5: ("kpi.category",),
                   6: ("kpi.weekly", "kpi.overdue", "kpi.trend"), 7: ("kpi.customers", "kpi.weekly"),
                   8: ("audit.week", "audit.ytd"),
-                  9: ("insight.*",), 10: ()}
+                  9: ("context.*", "insight.*"), 10: ()}   # context.*: fetched by code
 
 # --- number tokens (the Phase 5 rules, kept) -------------------------------------------------------------------------
 NUM_RE = re.compile(r"(?<![\w.])([+\-−])?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(?:\s?(%|k\b|M\b))?")
@@ -596,15 +602,19 @@ def _num(v):
     return None if v is None else float(v)
 
 
+# Backwards-compatible V10 entry point; the same policy checks Q&A and analysis notes.
+link_problems = traffic_claims.problems
+
+
 def claim_problems(t: _Text, slide: int, title: bool, evidence: dict) -> list[tuple[str | None, str]]:
     """V9 on one text of slides 1–8 (after `t.check()`): (token, message) per refused claim."""
     out: list[tuple[str | None, str]] = []
     text = t.text
     k = ((evidence.get("kpi.weekly") or {}).get("rows") or [{}])[0]
-    # 1 no external cause on a NileGate slide (context is slide 9's, never a cause)
+    # 1 no external cause on a PortPilot slide (context is slide 9's, never a cause)
     for mt in EXTERNAL_RE.finditer(text):
         out.append((mt.group(0), f"'{mt.group(0)}' is external context: it belongs on slide 9 and never explains a "
-                                 "NileGate figure — drop it here"))
+                                 "PortPilot figure — drop it here"))
         break
     # 2 a stability word must agree with the family's week-on-week change
     for mt in STABLE_RE.finditer(text):
@@ -733,7 +743,7 @@ def validate(draft: dict, evidence: dict, report_week: int) -> m.Verdict:
     if DRAFT_LABEL not in d.title:
         add("V3", f'the title must say "{DRAFT_LABEL}"')
     for st in d.slide_titles:     # S6 run 4: slide 1's title copied the deck title, so the approved deck said "Draft"
-        if DRAFT_LABEL in st.title or "NileGate Weekly Finance Pack" in st.title:
+        if DRAFT_LABEL in st.title or "PortPilot Weekly Finance Pack" in st.title:
             add("V3", f"slide {st.slide}'s title repeats the deck title or its label (code draws them): state the "
                       "slide's finding", st.slide)
     # (text, slide whose evidence applies, slide reported — None for the deck title, bullet index)
@@ -751,25 +761,37 @@ def validate(draft: dict, evidence: dict, report_week: int) -> m.Verdict:
             allowed = ", ".join(SLIDE_EVIDENCE[slide]) or "none (code renders this slide)"
             add("V5", f"slide {slide} may cite only {allowed}, not {off}", where, bullet)
         if slide == CONTEXT_SLIDE:
-            # S6 week 10: a NileGate figure slotted on the context slide could not be fixed by two patches, because
+            # S6 week 10: a PortPilot figure slotted on the context slide could not be fixed by two patches, because
             # the hint named kpi.weekly, which slide 9 may not cite — say what the fix is
             # what the text itself uses: its slots, and a bullet's own citations (a title "cites" the whole slide)
             own = [s.eid for s in slots.find_slots(text)] + (cited if bullet is not None else [])
             nilegate = sorted({s.field for s in slots.find_slots(text) if field_families(s.field)}
                               | {e for e in own if (evidence.get(e) or {}).get("tool") in NILEGATE_TOOLS})
             if nilegate:
-                add("V5", f"slide 9 is external context only: no NileGate figure or result here ({nilegate}); drop "
+                add("V5", f"slide 9 is external context only: no PortPilot figure or result here ({nilegate}); drop "
                           "it and keep the line about Suez transits, news or tariff rules", where, bullet)
         t = _Text(text, evidence, used, report_week)
         for rule, token, message in t.check():
             add(rule, message, where, bullet, token)
-        if slide < CONTEXT_SLIDE:                    # V9 on the NileGate slides (1–8) and the deck title
+        if slide < CONTEXT_SLIDE:                    # V9 on the PortPilot slides (1–8) and the deck title
             for token, message in claim_problems(t, slide, bullet is None, evidence):
                 add("V9", message, where, bullet, token)
+        for token, message in link_problems(text, used, evidence):   # V10 on every slide (traffic-billing link)
+            add("V10", message, where, bullet, token)
     titles = sorted(st.slide for st in d.slide_titles)
     if titles != list(range(1, m.SLIDES + 1)):
         add("V4", f"one title per slide 1–{m.SLIDES} needed, got {titles}")
-    per = {s: sum(1 for b in d.bullets if b.slide == s) for s in range(1, m.SLIDES + 1)}
+    # the Writer's shape (V4) counts the Writer's bullets; the approver's additions have their own slides and cap
+    mine = [b.get("origin") == APPROVER for b in draft["bullets"]]
+    per = {s: sum(1 for b, a in zip(d.bullets, mine) if b.slide == s and not a) for s in range(1, m.SLIDES + 1)}
+    added = {s: [i for i, (b, a) in enumerate(zip(d.bullets, mine)) if b.slide == s and a]
+             for s in range(1, m.SLIDES + 1)}
+    for s, idx in added.items():
+        if idx and s not in ADDITION_SLIDES:
+            add("V4", f"the approver may add bullets on slides {ADDITION_SLIDES[0]}–{ADDITION_SLIDES[-1]} only, "
+                      f"not on slide {s}", s, idx[0])
+        elif len(idx) > MAX_ADDITIONS:
+            add("V4", f"at most {MAX_ADDITIONS} approver additions on slide {s}, got {len(idx)}", s, idx[-1])
     if per[2] != SUMMARY_BULLETS:
         add("V4", f"the executive summary needs five bullets, got {per[2]}", 2)
     for s in COMMENT_SLIDES:
@@ -781,6 +803,33 @@ def validate(draft: dict, evidence: dict, report_week: int) -> m.Verdict:
     if not per[CONTEXT_SLIDE]:
         add("V4", "slide 9 needs at least one context line (or 'context unavailable')", CONTEXT_SLIDE)
     return m.Verdict(passed=not problems, problems=problems)
+
+
+def note_problems(text: str, evidence: dict, cited: list[str], report_week: int, slide: int) -> list[str]:
+    """The approver's text for the Insight notes (approver-additions plan §2b), checked before any model sees it, by
+    the rules a deck text of `slide` meets: cited ids answered, every number bound to a cited field (V1 / V2 / V6 /
+    V7, the human-edit path), the claim words (V9) on PortPilot slides, and no PortPilot figure in external context
+    (V5 on slide 9). Messages for the approver; [] = the note may go to the Writer."""
+    out = [f"cites evidence that does not exist or has no data: {e}" for e in cited
+           if (evidence.get(e) or {}).get("status") != "ok"]
+    used = list(dict.fromkeys(cited + [s.eid for s in slots.find_slots(text)]))
+    if slide == CONTEXT_SLIDE and any((evidence.get(e) or {}).get("tool") in NILEGATE_TOOLS for e in used):
+        out.append("external context cites a PortPilot result: keep PortPilot figures in the summary or a driver")
+    t = _Text(text, evidence, used, report_week)
+    out += [f"{rule} {token or ''}: {message}".replace("  ", " ") for rule, token, message in t.check()]
+    if slide < CONTEXT_SLIDE:
+        out += [f"V9 {token or ''}: {message}".replace("  ", " ") for token, message in
+                claim_problems(t, slide, False, evidence)]
+    out += [f"V10 {token or ''}: {message}".replace("  ", " ") for token, message in link_problems(text, used, evidence)]
+    return out
+
+
+def addition_evidence(evidence: dict, slide: int) -> list[str]:
+    """The ids an approver's addition on `slide` cites: every answered result the slide may cite — its literals are
+    bound by search among their rows (V2's human-edit path); on the context slide only external results (V5)."""
+    return [eid for eid, res in sorted(evidence.items())
+            if res.get("status") == "ok" and allowed_on(eid, slide)
+            and not (slide == CONTEXT_SLIDE and res.get("tool") in NILEGATE_TOOLS)]
 
 
 def render_draft(draft: dict, evidence: dict) -> dict:

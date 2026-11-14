@@ -1,0 +1,18 @@
+PortPilot isolated API integration — owner-run evidence, 2026-11-12
+
+Command: powershell -NoProfile -File .\ops\tests\run_api_integration.ps1
+Target: disposable portpilot-api-test container, PostgreSQL 16.9, port 55432,
+        database portpilot_api_test (not the application database).
+Owner reported: exit 0 in 64s; validation lines 6.
+Owner reported: Data/processed and db/migrations changed 0, created 0, removed 0.
+Validation lines below confirmed against Notebooks/_scratch/run_Api_integration_check.log.
+
+✅ Phase 0: seven unsafe/implicit database targets refused before connection
+✅ Phase 1: seven deterministic identities sign in; only token hashes stored
+✅ Phase 2: conversation ownership, CEO read-only access and runtime grants enforced
+✅ Phase 3: owned run terminal result, SSE replay and token revocation
+✅ Phase 4: independent PostgreSQL lock connections; publication replacement rolls back and retries
+✅ Final Checkpoint: 5 / 5 phases; disposable database retained for inspection, no automatic deletion
+
+Scope: verifies the isolated fixture and real PostgreSQL API/storage contracts above.
+Does not verify full-data API integration, application schema parity, providers, Power BI or pushed CI.

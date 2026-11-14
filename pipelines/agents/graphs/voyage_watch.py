@@ -276,7 +276,7 @@ def deterministic(user, as_of: datetime, vessel_ids: list[int] | None = None) ->
 
 MAX_PATCHES = 1
 DIGEST_MODERATE = 20                    # the brief reads every high alert and at most this many moderate ones
-BRIEF_TASK = """You write the voyage watch brief for NileGate's Operations desk with the skill below. Return a WatchBrief
+BRIEF_TASK = """You write the voyage watch brief for PortPilot's Operations desk with the skill below. Return a WatchBrief
 (call the WatchBrief tool): a headline and up to six items. Every number is a slot over the evidence listed; each item
 lists in alert_ids the alerts it is about. Cite every high alert.
 
@@ -605,3 +605,30 @@ def parse_thread(thread_id: str, prefix: str = THREAD_PREFIX) -> tuple[datetime,
     if not x:
         return None
     return datetime.strptime(x[1], "%Y%m%dT%H%MZ").replace(tzinfo=context.DATA_AS_OF.tzinfo), int(x[2])
+
+
+def result_summary(st: dict) -> dict:
+    """What a caller may see of a final state (the CLI `Voyage_watch.py` and the API; FastAPI plan P6)."""
+    r = st.get("result") or {}
+    usage = st.get("llm_usage") or []
+    f = r.get("fleet") or {}
+    return {"status": r.get("status"), "as_of": r.get("as_of"), "brief_status": r.get("brief_status"),
+            "fleet": {k: f.get(k) for k in ("vessels_watched", "in_transit", "anchored", "alerts_total", "alerts_high",
+                                            "alerts_moderate", "suez_ahead_vessels", "weather_points",
+                                            "weather_unknown_points", "change_transits_pct")},
+            "headline": r.get("headline"), "items": [i["text"] for i in r.get("items") or []],
+            "alerts": [f"{a['alert_id']:<18} {a['severity']:<8} {a['vessel_name']} → {a['destination']} "
+                       f"ETA {a['eta_utc']}: {a['reason']}" for a in (r.get("alerts") or [])[:25]],
+            "assumptions": r.get("assumptions"), "problems": r.get("problems"), "run_file": r.get("run_file"),
+            "model_calls": len(usage), "cached": sum(bool(c.get("cached")) for c in usage),
+            "numbers": _numbers(st, r)}
+
+
+def _numbers(st: dict, r: dict) -> dict:
+    """D-FE-1: the number spans of the brief's headline and items (rendered again from the brief)."""
+    b, ev = st.get("brief") or {}, st.get("evidence") or {}
+    if not b or r.get("brief_status") != "ok":
+        return {"headline": [], "items": []}
+    return {"headline": slots.number_spans(b.get("headline") or "", ev, r.get("headline")),
+            "items": [slots.number_spans(t.get("text") or "", ev, got.get("text"))
+                      for t, got in zip(b.get("items") or [], r.get("items") or [])]}

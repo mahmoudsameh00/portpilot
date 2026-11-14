@@ -4,13 +4,17 @@ Commands (from the project root):
     uv run python pipelines/scripts/agents/Weekly_pack.py run --week 23 --as 12
         start a new attempt of week 23 as employee 12 (a Finance manager: the pack's run identity); it stops at the
         approval (prints the draft with bullet numbers and the path of the PPTX preview in reports/_drafts/) or at a
-        stated stop status; on approval reports/2025-W23/ gets deck.pptx + deck_draft.json + approval.json + run.json
+        stated stop status; approval saves an immutable four-file pack under reports/2025-W23/_publications/ and
+        atomically selects it with publication.json. The CLI/API expose its resolved download path.
     uv run python pipelines/scripts/agents/Weekly_pack.py show --thread weekly_pack:live:2025-W23:1
         where a thread stands, and the draft waiting for a decision
     uv run python pipelines/scripts/agents/Weekly_pack.py resume --thread weekly_pack:live:2025-W23:1 --as 12 \
-        --decision approve | reject | edit [--edits edits.json] [--comment "…"]
+        --decision approve | reject | edit --draft-sha <version-from-show> [--edits edits.json] [--comment "…"]
         decide as employee 12 (a Finance manager or the CEO, checked in PostgreSQL); edits.json =
         [{"bullet": 3, "text": "…"}] — an edit goes back through the Validator and waits again
+    uv run python pipelines/scripts/agents/Weekly_pack.py resume --thread … --as 12 --request "<words>" [--yes]
+        the manager's request in words (approver-request plan): prints what it understood and the steps; --yes
+        applies them (a revise first, then the wording on the new draft), then the pack waits again
     uv run python pipelines/scripts/agents/Weekly_pack.py list [--week 23]
         the threads in agent_state
     uv run python pipelines/scripts/agents/Weekly_pack.py scheduled [--as 12]
@@ -34,6 +38,7 @@ Exit:    0 done (including "wait" / "done"); 1 the pack raised (the thread waits
 """
 import argparse
 import json
+import logging
 import os
 import sys
 import time
@@ -44,7 +49,7 @@ ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / "pyproject.toml
 sys.path.insert(0, str(ROOT))
 from langgraph.types import Command  # noqa: E402
 
-from pipelines.agents import checkpointer, monitoring, roles, scheduling, tracing  # noqa: E402
+from pipelines.agents import approver_request, checkpointer, locks, monitoring, publications, roles, scheduling, tracing  # noqa: E402
 from pipelines.agents.graphs import weekly_pack as wp  # noqa: E402
 from pipelines.agents.tools import context, db  # noqa: E402
 from pipelines.lib.common import load_env, redact  # noqa: E402
@@ -111,6 +116,11 @@ def scheduled(employee: int | None) -> int:
         rec["run_as"] = run_as
         rec.update(scheduling.fire(graph(), checkpointer.saver(), checkpointer.pool(), user, REPORTS,
                                    tracer=scheduled_tracer, route_graph=route_graph(), ask_graph=ask_graph()))
+        rec["operational"] = scheduling.operational_outcome(rec, "weekly_pack")
+        code = rec["operational"]["exit"]
+        if code:
+            logging.getLogger(__name__).warning("Scheduled weekly pack needs attention: %s (%s)",
+                                                rec["operational"]["reason"], rec.get("result"))
     except Exception as exc:  # noqa: BLE001 — logged for the owner; the thread (if any) waits at its checkpoint
         rec["error"], code = redact(f"{type(exc).__name__}: {exc}")[:600], 1
         rec["trace"] = redact(traceback.format_exc(limit=3))[-1200:]
@@ -162,12 +172,33 @@ def show(g, cfg) -> None:
               f"{deg['code_slides']}, slide titles by code {deg['code_slide_titles']} — read it before approving")
     draft = st.get("draft")
     if draft:                     # the slots filled: what the deck says (Phase 6); edits are written in this form
+        print(f"  review version (--draft-sha): {approver_request.draft_sha(st)}")
         draft = wp.v2.render_draft(draft, st.get("evidence") or {})
         print(f"  {draft['title']}")
         titles = {t["slide"]: t["title"] for t in draft["slide_titles"]}
         for i, b in enumerate(draft["bullets"]):
             print(f"  [{i:2d}] slide {b['slide']:2d} ({titles.get(b['slide'], '')[:30]}): {b['text']}  "
                   f"<{', '.join(b['evidence_ids'])}>")
+    ins = st.get("insight")
+    if ins:                       # the analysis behind the deck: what a revise changes (indexes for --analysis)
+        mark = {True: " [approver]", False: ""}
+        for i, c in enumerate(ins.get("summary") or []):
+            print(f"  note summary[{i}]{mark[c.get('origin') == 'approver']}: {c['text']}")
+        for i, d in enumerate(ins.get("drivers") or []):
+            print(f"  note driver[{i}] {d['vessel_category']}{mark[d.get('origin') == 'approver']}: {d['explanation']}")
+        for i, c in enumerate(ins.get("context") or []):
+            print(f"  note context[{i}]{mark[c.get('origin') == 'approver']}: {c['text']}")
+        for i, c in enumerate(ins.get("caveats") or []):
+            print(f"  note caveat[{i}]: {c}")
+    if st.get("charts"):
+        print(f"  chart variants: {json.dumps(st['charts'], ensure_ascii=False)}")
+    if st.get("redrafted"):
+        print("  re-drafted after a revise: earlier edits and additions are not in this draft (D2)")
+    rev = st.get("revision") or {}
+    if rev.get("failed"):
+        print(f"  the last revise could not be shown and was undone: {rev['failed']}")
+    if rev.get("edits_skipped"):
+        print(f"  analysis edits not applied to the steered notes: {rev['edits_skipped']}")
     if st.get("preview"):
         print(f"  preview (open it before deciding): {st['preview']['path']}")
     if snap.interrupts:
@@ -181,6 +212,38 @@ def show(g, cfg) -> None:
         print(f"  published: {st['published']['folder']}")
 
 
+def request(g, cfg, ctx, a, run_as) -> None:
+    """The manager's request in words (approver-request plan, R2): read it on the waiting draft and print what was
+    understood; only with --yes is it applied (the same request on the same draft is read from the reply cache, so the
+    confirmed run applies exactly what was shown)."""
+    ok, why = wp.approver_check(a.employee)
+    if not ok:
+        raise SystemExit(f"employee {a.employee} may not decide: {why}")
+    waiting, st = approver_request.waiting(g, cfg)
+    if not waiting:
+        raise SystemExit(f"thread {a.thread} is not waiting for a decision (status {st.get('status')})")
+    models = roles.Roles()
+    p = approver_request.propose(a.request, st, models)
+    print(f"  understood: {p.understood or '—'}")
+    if p.ask_back:
+        print(f"  ask back: {p.ask_back}")
+        return
+    for i, s in enumerate(p.steps, 1):
+        print(f"  step {i}: {json.dumps(s, ensure_ascii=False)}")
+    if p.reread_text:
+        print("  after the revise, the wording part is read again on the new draft (D-AR-1)")
+    if not a.yes:
+        print("  nothing applied: re-run with --yes to apply it")
+        return
+    monitoring.tag(thread_id=a.thread, run_as=run_as)
+    with locks.thread_lock(a.thread), tracing.trace(a.thread, entry="resume:request", run_as=run_as) as traced:
+        out = approver_request.apply(g, cfg, ctx, p, a.request, a.employee, models, comment=a.comment,
+                                     on_update=lambda nodes: print("  done:", ", ".join(nodes) or "interrupt"))
+    print(f"  result: {json.dumps(out, ensure_ascii=False)}")
+    print(f"  LangSmith: {tracing.describe(traced)}")
+    show(g, cfg)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -192,13 +255,28 @@ def main() -> None:
     d = sub.add_parser("resume")
     d.add_argument("--thread", required=True)
     d.add_argument("--as", dest="employee", type=int, required=True)
-    d.add_argument("--decision", required=True, choices=["approve", "edit", "reject"])
-    d.add_argument("--edits", type=Path)
+    d.add_argument("--decision", choices=["approve", "edit", "revise", "reject"])
+    d.add_argument("--draft-sha", help="direct decision: the review version printed by show")
+    d.add_argument("--request", help="the manager's request in words (approver-request plan): prints what it "
+                                     "understood; add --yes to apply it")
+    d.add_argument("--yes", action="store_true", help="--request: apply what was understood (R2: confirm first)")
+    d.add_argument("--edits", type=Path, help="edit: a JSON file [{bullet, text}]")
+    d.add_argument("--add", action="append", default=[], metavar="SLIDE: TEXT",
+                   help="edit: a new bullet on a free-text slide 3–9 (repeatable), e.g. --add \"4: Finance will …\"")
+    d.add_argument("--chart", action="append", default=[], metavar="JSON",
+                   help="edit / revise: a chart variant (repeatable), "
+                        "e.g. --chart '{\"chart\": \"trend\", \"weeks\": 8}'")
+    d.add_argument("--analysis", type=Path, help="revise: a JSON file of analysis edits [{target, op, index, text, "
+                                                 "evidence_ids}]")
+    d.add_argument("--steer", help="revise: what the Insight agent should look at again (≤ 300 characters)")
     d.add_argument("--comment")
     lst = sub.add_parser("list")
     lst.add_argument("--week", type=int)
     sch = sub.add_parser("scheduled")
     sch.add_argument("--as", dest="employee", type=int)
+    sync = sub.add_parser("reconcile", help="retry database sync of the current immutable approved pack; no model call")
+    sync.add_argument("--week", type=int, required=True, choices=range(1, 53), metavar="1..52")
+    sync.add_argument("--as", dest="employee", type=int, required=True)
     pr = sub.add_parser("prune")
     pr.add_argument("--dry-run", action="store_true")
     sub.add_parser("report")
@@ -212,6 +290,12 @@ def main() -> None:
         with monitoring.cron(monitoring.CRON_WEEKLY_PACK) as result:
             result["exit"] = scheduled(a.employee)
         raise SystemExit(result["exit"])
+    if a.cmd == "reconcile":
+        if not wp.approver_check(a.employee)[0]:
+            raise SystemExit("reconciliation requires a Finance manager or CEO")
+        manifest = publications.reconcile(REPORTS / f"{wp.REPORT_YEAR}-W{a.week:02d}", wp.store_publication)
+        print(json.dumps({"week": a.week, "thread_id": manifest["thread_id"], "db_sync": manifest["db_sync"]}, indent=1))
+        raise SystemExit(0 if manifest["db_sync"]["status"] == "synced" else 5)
     g = graph()
     if a.cmd in ("prune", "report"):
         infos = scheduling.describe_all(g, checkpointer.pool(), PREFIX)
@@ -236,7 +320,10 @@ def main() -> None:
         cfg = {"configurable": {"thread_id": next_attempt(a.week)}, "metadata": {"run_as": a.employee}}
         print(f"running week {a.week} as employee {a.employee} ({user.role} / {user.department})")
         monitoring.tag(thread_id=cfg["configurable"]["thread_id"], run_as=a.employee)
-        with tracing.trace(cfg["configurable"]["thread_id"], entry="run", run_as=a.employee) as traced:
+        with locks.thread_lock(cfg["configurable"]["thread_id"]), tracing.trace(
+                cfg["configurable"]["thread_id"], entry="run", run_as=a.employee) as traced:
+            if g.get_state(cfg).values:
+                raise SystemExit("this attempt was started by another process; run again for a new attempt")
             for upd in g.stream({"report_week": a.week}, cfg, context=context.RunContext(user),
                                 stream_mode="updates", durability="sync"):
                 print("  done:", ", ".join(k for k in upd if not k.startswith("__")) or "interrupt")
@@ -248,11 +335,30 @@ def main() -> None:
         if run_as is None:
             raise SystemExit(f"thread {a.thread}: no run identity in its checkpoints (not started by this CLI)")
         ctx = context.RunContext(context.load_user(run_as))
+        if a.request:
+            request(g, cfg, ctx, a, run_as)
+            return
+        if not a.decision:
+            raise SystemExit("resume: give --decision or --request")
+        if not a.draft_sha:
+            raise SystemExit("resume --decision requires --draft-sha from the pack you reviewed with show")
         decision = {"decision": a.decision, "approver_employee_id": a.employee, "comment": a.comment}
         if a.edits:
             decision["edits"] = json.loads(a.edits.read_text(encoding="utf-8"))
+        if a.add:                 # "4: text" → {slide, text}
+            decision["additions"] = [{"slide": int(x.split(":", 1)[0]), "text": x.split(":", 1)[1].strip()}
+                                     for x in a.add]
+        if a.chart:
+            decision["charts"] = [json.loads(x) for x in a.chart]
+        if a.analysis:
+            decision["analysis_edits"] = json.loads(a.analysis.read_text(encoding="utf-8"))
+        if a.steer:
+            decision["steer"] = a.steer
         monitoring.tag(thread_id=a.thread, run_as=run_as)
-        with tracing.trace(a.thread, entry="resume", run_as=run_as) as traced:
+        with locks.thread_lock(a.thread), tracing.trace(a.thread, entry="resume", run_as=run_as) as traced:
+            snap = g.get_state(cfg)
+            if not snap.interrupts or approver_request.draft_sha(snap.values) != a.draft_sha:
+                raise SystemExit("this pack changed; show and review it again before deciding")
             for upd in g.stream(Command(resume=decision), cfg, context=ctx, stream_mode="updates",
                                 durability="sync"):
                 print("  done:", ", ".join(k for k in upd if not k.startswith("__")) or "interrupt")

@@ -16,6 +16,10 @@
   free models; Groq: 1,000 / day per model); a daily-quota 429 marks the model exhausted until the provider's day
   ends (no retry loop); a per-minute 429 or a transient error gets one wait (<= MAX_RATE_WAIT_S) and one retry, then
   the model stops for this run.
+- Several processes at once (FastAPI plan C1–C4, 2026-11-04): the daily count is reserved before each attempt in
+  PostgreSQL and the per-minute budget is shared there (`shared_quota`, when the checkpointer login is configured;
+  else the files, under a lock); cache lines are appended under a file lock and other processes' new lines are read
+  on a miss; the same request at the same moment is sent once (single-flight), the others read its cached reply.
 - Secrets: keys go only into the client objects or request headers, never into a URL, a cache key or a log line;
   every error text passes through `redact()`.
 """
@@ -23,6 +27,7 @@ import hashlib
 import json
 import os
 import re
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -35,6 +40,8 @@ from langchain_core.messages import AIMessage, BaseMessage, message_to_dict, mes
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from pydantic import BaseModel
 
+from pipelines.agents import shared_quota
+from pipelines.lib import shared_files
 from pipelines.lib.common import project_root, redact
 from pipelines.lib.embeddings import Budget, est_tokens
 
@@ -192,54 +199,104 @@ def classify(exc: BaseException) -> tuple[str, float | None]:
 
 # --- persisted quota state (shared by every model of the run) -------------------------------------------------------
 
-class QuotaState:
-    """Daily request counts and exhausted models, persisted so the rules hold across runs and days."""
+_AUTO = object()
 
-    def __init__(self, folder: Path = CACHE_DIR):
+
+class QuotaState:
+    """Daily request counts and exhausted models, persisted so the rules hold across runs, days and processes.
+
+    FastAPI plan C1: with the checkpointer login configured, the daily count is reserved atomically in PostgreSQL
+    before each request (`shared_quota`), so the API and the scheduled CLIs count together; `usage.json` stays as the
+    export the reports read. Without it (the CI) the count lives in `usage.json` alone, now read-modify-written under a
+    file lock. The exhausted marks and the server-failure runs are re-read from disk on every use (under the lock), so
+    a model one process found exhausted is skipped by the others at once."""
+
+    def __init__(self, folder: Path = CACHE_DIR, counters=_AUTO):
         self.folder = folder
         folder.mkdir(parents=True, exist_ok=True)
         self.usage_file, self.state_file = folder / "usage.json", folder / "quota_state.json"
         self.fail_file = folder / "server_failures.json"
-        self.usage = json.loads(self.usage_file.read_text(encoding="utf-8")) if self.usage_file.exists() else {}
-        self.state = json.loads(self.state_file.read_text(encoding="utf-8")) if self.state_file.exists() else {}
-        self.failures = json.loads(self.fail_file.read_text(encoding="utf-8")) if self.fail_file.exists() else {}
+        self.counters = cast(shared_quota.SharedCounters | None,
+                             shared_quota.shared() if counters is _AUTO else counters)
+
+    @property
+    def usage(self) -> dict:
+        return shared_files.read_json(self.usage_file)
+
+    @property
+    def state(self) -> dict:
+        return shared_files.read_json(self.state_file)
+
+    @property
+    def failures(self) -> dict:
+        return shared_files.read_json(self.fail_file)
 
     def server_failure(self, key: str, model: str, why: str) -> int:
         """Count one run in which this exact request (cache key) still failed with a server error after its retry;
         returns how many runs that is (owner 2026-10-11: the second run turns it into a deterministic failure)."""
-        f = self.failures.setdefault(key, {"model": model, "runs": 0})
-        f["runs"] += 1
-        f["last"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
-        f["why"] = why[:300]
-        self._save(self.fail_file, self.failures)
-        return f["runs"]
+        def change(failures: dict) -> int:
+            f = failures.setdefault(key, {"model": model, "runs": 0})
+            f["runs"] += 1
+            f["last"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            f["why"] = why[:300]
+            return f["runs"]
+        return cast(int, shared_files.update_json(self.fail_file, change)[1])
 
     @staticmethod
     def scope(provider: str, model: str) -> str:
         return provider if PROVIDERS[provider]["scope"] == "provider" else f"{provider}/{model}"
 
     def count(self, provider: str, model: str) -> int:
-        return self.usage.get(provider_day(provider), {}).get(self.scope(provider, model), 0)
+        day, scope = provider_day(provider), self.scope(provider, model)
+        if self.counters is not None:
+            return self.counters.day_count(scope, day)
+        return self.usage.get(day, {}).get(scope, 0)
 
     def check(self, provider: str, model: str) -> None:
+        """Refuse a model that is exhausted today (no reservation: `reserve` takes the slot just before sending)."""
         name, day = f"{provider}/{model}", provider_day(provider)
-        if self.state.get(name, {}).get("day") == day:
-            raise Exhausted(f"{name}: daily quota exhausted on {day} ({self.state[name]['why'][:120]})")
+        state = self.state
+        if state.get(name, {}).get("day") == day:
+            raise Exhausted(f"{name}: daily quota exhausted on {day} ({state[name]['why'][:120]})")
         rpd = PROVIDERS[provider]["rpd"]
         if rpd is not None and self.count(provider, model) >= rpd:
             raise Exhausted(f"{self.scope(provider, model)}: {rpd} requests already sent on {day} (daily limit)")
 
-    def record(self, provider: str, model: str) -> None:
-        day = self.usage.setdefault(provider_day(provider), {})
-        day[self.scope(provider, model)] = day.get(self.scope(provider, model), 0) + 1
-        self._save(self.usage_file, self.usage)
+    def reserve(self, provider: str, model: str) -> int:
+        """Take one request of today's quota before sending it (every attempt, as `record` counted each one before);
+        the day's count after it, or `Exhausted` when the limit is already reached."""
+        day, scope, rpd = provider_day(provider), self.scope(provider, model), PROVIDERS[provider]["rpd"]
+        if self.counters is not None:
+            seed = self.usage.get(day, {}).get(scope, 0)
+            n = self.counters.reserve_day(scope, day, rpd, seed=seed)
+            if n is None:
+                raise Exhausted(f"{scope}: {rpd} requests already sent on {day} (daily limit, shared counter)")
+
+            def export(usage: dict) -> None:                 # the reports' copy follows the shared number
+                d = usage.setdefault(day, {})
+                d[scope] = max(d.get(scope, 0), n)
+            shared_files.update_json(self.usage_file, export)
+            return n
+
+        def take(usage: dict) -> int | None:
+            d = usage.setdefault(day, {})
+            if rpd is not None and d.get(scope, 0) >= rpd:
+                return None
+            d[scope] = d.get(scope, 0) + 1
+            return d[scope]
+        n = shared_files.update_json(self.usage_file, take)[1]
+        if n is None:
+            raise Exhausted(f"{scope}: {rpd} requests already sent on {day} (daily limit)")
+        return cast(int, n)
 
     def exhaust(self, provider: str, model: str, why: str) -> None:
         m = re.search(r"limit:\s*(\d+)", why)          # Gemini names the free daily limit in its 429 text
-        self.state[f"{provider}/{model}"] = {"day": provider_day(provider), "why": why,
-                                             "limit": int(m.group(1)) if m else None,
-                                             "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
-        self._save(self.state_file, self.state)
+
+        def change(state: dict) -> None:
+            state[f"{provider}/{model}"] = {"day": provider_day(provider), "why": why,
+                                            "limit": int(m.group(1)) if m else None,
+                                            "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        shared_files.update_json(self.state_file, change)
 
     def daily_limit(self, provider: str, model: str) -> tuple[int | None, int]:
         """(known daily request limit, most requests seen in one provider day): the registry value, else the limit a
@@ -249,12 +306,6 @@ class QuotaState:
         known = PROVIDERS[provider]["rpd"] or st.get("limit") or (int(m.group(1)) if m else None)
         seen = max((d.get(self.scope(provider, model), 0) for d in self.usage.values()), default=0)
         return known, seen
-
-    @staticmethod
-    def _save(path: Path, obj: dict) -> None:
-        tmp = path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(obj, indent=1, sort_keys=True), encoding="utf-8", newline="\n")
-        tmp.replace(path)
 
 
 # --- the cached model -----------------------------------------------------------------------------------------------
@@ -273,7 +324,30 @@ class Reply:
         return self.message is not None
 
 
-_BUDGETS: dict[str, Budget] = {}
+_BUDGETS: dict[str, Budget | shared_quota.SharedBudget] = {}
+
+
+class _SharedCache:
+    """The records of one cache file in this process + the tail that reads other processes' new lines (C3)."""
+
+    def __init__(self, path: Path):
+        self.records: dict[str, dict] = {}
+        self._tail = shared_files.Tail(path)
+        self._lock = threading.Lock()
+
+    def refresh(self) -> None:
+        with self._lock:                            # one thread advances the tail at a time
+            for rec in self._tail.read():
+                self.records[rec["key"]] = rec
+
+
+_CACHES: dict[Path, _SharedCache] = {}
+_CACHES_LOCK = threading.Lock()
+
+
+def _cache_for(path: Path) -> _SharedCache:
+    with _CACHES_LOCK:
+        return _CACHES.setdefault(path, _SharedCache(path))
 
 
 def message_text(m: BaseMessage) -> str:
@@ -300,16 +374,19 @@ class LLM:
         self.provider, self.model, self.params = provider, model, params or {}
         self.name = f"{provider}/{model}"
         self.cache_file = cache_dir / provider / f"{slug(model)}.jsonl"
-        self.cache: dict[str, dict] = {}
-        if self.cache_file.exists():
-            for line in self.cache_file.read_text(encoding="utf-8").splitlines():
-                if line.strip():
-                    rec = json.loads(line)
-                    self.cache[rec["key"]] = rec
+        # one in-memory copy per cache file and process, shared by every LLM object of that model (the API builds
+        # its roles per question: a new object must not re-read the file, and one run's `stopped` must not outlive it)
+        self._shared = _cache_for(self.cache_file)
+        self.cache = self._shared.records
+        self._refresh()
         self.quota = quota or QuotaState(cache_dir)
         scope = QuotaState.scope(provider, model)
         p = PROVIDERS[provider]
-        self.budget = _BUDGETS.setdefault(scope, Budget(p["rpm"], p["tpm"]))
+        if self.quota.counters is not None:      # C2: one per-minute budget for every process
+            self.budget = _BUDGETS.setdefault(f"shared:{scope}", shared_quota.SharedBudget(
+                self.quota.counters, scope, p["rpm"], p["tpm"]))
+        else:
+            self.budget = _BUDGETS.setdefault(scope, Budget(p["rpm"], p["tpm"]))
         self.stopped: str | None = None
         self.calls = self.hits = 0
         self._chat = None
@@ -329,11 +406,30 @@ class LLM:
         `parse_structured` (the same parser for fresh and cached replies)."""
         assert not (tools and schema), "tools and a structured-output schema are separate requests"
         key = self.key(messages, tools, schema, method)
+        if (hit := self._cached(key)) is not None:
+            return hit
+        if self.stopped:
+            raise Exhausted(f"{self.name}: stopped for this run ({self.stopped})")
+        # C4 single-flight: the same request at the same moment (two threads, or the API and a CLI) is sent once;
+        # the others wait here, then find the reply in the cache
+        with shared_files.flight(self.cache_file.parent, key):
+            if (hit := self._cached(key)) is not None:
+                return hit
+            return self._send(key, messages, tools, schema, method)
+
+    def _refresh(self) -> None:
+        self._shared.refresh()
+
+    def _cached(self, key: str) -> Reply | None:
+        if key not in self.cache:
+            self._refresh()
         if key in self.cache:
             self.hits += 1
             return self._reply(self.cache[key], cached=True)
-        if self.stopped:
-            raise Exhausted(f"{self.name}: stopped for this run ({self.stopped})")
+        return None
+
+    def _send(self, key: str, messages: list[BaseMessage], tools, schema: type[BaseModel] | None,
+              method: str | None) -> Reply:
         self.quota.check(self.provider, self.model)
 
         if self._chat is None:
@@ -349,13 +445,13 @@ class LLM:
         est = min(est, self.budget.tpm)  # a larger estimate would wait forever; the provider decides
 
         for attempt in range(2):
+            self.quota.reserve(self.provider, self.model)        # C1: the day's slot, before sending (every attempt)
             self.budget.wait(est)
             t0 = time.perf_counter()
             try:
                 out = runnable.invoke(messages)
             except Exception as e:  # noqa: BLE001 — classified below, never swallowed silently
                 self.budget.record(est)
-                self.quota.record(self.provider, self.model)
                 kind, wait = classify(e)
                 text = redact(" | ".join(f"{type(x).__name__}: {x}" for x in _chain(e)))[:600]
                 if kind == "quota_day":
@@ -382,7 +478,6 @@ class LLM:
             msg = o["raw"] if schema else o
             usage = dict(msg.usage_metadata) if getattr(msg, "usage_metadata", None) else None
             self.budget.record((usage or {}).get("total_tokens", est))
-            self.quota.record(self.provider, self.model)
             self.calls += 1
             return self._store(key, msg, None, ms, usage)
         raise AssertionError("unreachable")
@@ -392,9 +487,7 @@ class LLM:
         rec = {"key": key, "model": self.name, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                "latency_ms": round(ms, 1) if ms is not None else None, "usage": usage,
                "message": message_to_dict(msg) if msg is not None else None, "error": error}
-        self.cache_file.parent.mkdir(parents=True, exist_ok=True)
-        with self.cache_file.open("a", encoding="utf-8", newline="\n") as f:
-            f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
+        shared_files.append_line(self.cache_file, json.dumps(rec, ensure_ascii=False, default=str))   # C3
         self.cache[key] = json.loads(json.dumps(rec, default=str))
         return self._reply(self.cache[key], cached=False)
 

@@ -1,5 +1,5 @@
 """The finance Q&A agent (Agents plan Phase 7, §5d P7-1; on LangChain `create_agent` since 2026-10-22, plan §5f F2 /
-D-P7-6): one question from a NileGate employee → a checked answer.
+D-P7-6): one question from a PortPilot employee → a checked answer.
 
 `create_agent` on the `tools` role (ADR-045) through `RoleChatModel`, a chat-model adapter over `roles.py` — so the
 llm.py cache, quota and fallback rules still hold for every call. The agent's tools are `STAGE1_TOOLS` (its tool node
@@ -9,11 +9,11 @@ tool call (`ToolStrategy`); when the model answers in plain text instead, the ad
 - `QaTurn.wrap_model_call` adds the answer brief (the question's language, the evidence ids so far, the slot rules)
   to every model request — not to the stored history — and removes the Stage 1 tools after `MAX_TOOL_ROUNDS`;
 - `QaTurn.after_model` checks a returned answer in code (`check_answer`, also used by the evaluation harness: an
-  unknown evidence id, a slot that does not resolve, a NileGate number typed as a literal, a refusal that holds a
+  unknown evidence id, a slot that does not resolve, a PortPilot number typed as a literal, a refusal that holds a
   number, an "answered" when every structured tool refused access, a direction word against its value) → one patch
   (`jump_to` the model with the problems), then the status `validation_failed`;
 - `ModelCallLimitMiddleware` caps the model calls of one question.
-The answer writes every NileGate number as a slot (`deck/slots.py`): code fills it from the tool result kept in the
+The answer writes every PortPilot number as a slot (`deck/slots.py`): code fills it from the tool result kept in the
 state, so a number is bound to its (result, row, field) by construction. Phase 12 grows this agent into the
 Supervisor. Evidence ids: `insight.<tool_call_id>` (the pack's convention, so the slot syntax is the same).
 """
@@ -30,7 +30,7 @@ from langchain_core.utils.function_calling import convert_to_openai_tool
 from pydantic import ConfigDict, Field, ValidationError
 from typing_extensions import NotRequired
 
-from pipelines.agents import skill_loader
+from pipelines.agents import skill_loader, traffic_claims
 from pipelines.agents.deck import slots
 from pipelines.agents.graphs import models as m
 from pipelines.agents.graphs.weekly_pack import _cap_search, _evidence_id, _tool_evidence, _tool_rounds, evidence_index
@@ -68,11 +68,16 @@ class QaState(AgentState):
     llm_usage: NotRequired[Annotated[list[dict], _append]]
 
 
-QA_TASK = """You answer one finance question from a NileGate employee. Call the tool that holds the answer (one or two
+QA_TASK = """You answer one finance question from a PortPilot employee. Call the tool that holds the answer (one or two
 calls are enough), then return the QaAnswer. The user's identity and access are handled by the system; never ask for
-them.
+them. {former_name}
 
 {skills}"""
+
+# ADR-068 / D-TL-13: older decks, reports and habits carry the company's earlier name. Without this line the model
+# read "NileGate" as a customer ("NileGate … is not among the top-10 customers", tl2qa q01, both runs).
+FORMER_NAME = ("PortPilot was called NileGate until November 2026: a question that says NileGate means the company "
+               "itself, never a customer; answer with the name PortPilot.")
 
 ANSWER_TASK = """When the evidence holds what you need, return the QaAnswer (call the QaAnswer tool) for the question:
 {question}
@@ -86,7 +91,7 @@ PATCH_TASK = """Your answer had these problems (code checked it):
 {problems}
 Return the QaAnswer again with these fixed; keep what was right."""
 
-SLOT_RULES = ("Every NileGate number is a slot: {<id>:<field>|<format>} for a one-row result, {<id>[<row key>]:<field>|"
+SLOT_RULES = ("Every PortPilot number is a slot: {<id>:<field>|<format>} for a one-row result, {<id>[<row key>]:<field>|"
               "<format>} for lists (row key = category, customer name or invoice number). Formats: money M / k / sdr, "
               "percent %1 / %2, days and counts none; |dir after a change field writes the direction. A slot writes "
               "its own unit and direction. Literal numbers only for the week, year, invoice numbers, dates, numbers "
@@ -144,6 +149,10 @@ def check_answer(answer: dict, evidence: dict, question: str, lang: str = "en",
     unknown = [e for e in answer.get("evidence_ids") or [] if e not in evidence]
     if unknown:
         problems.append(f"unknown evidence ids {unknown}: cite only ids from the evidence list")
+    used: list[str] = list(dict.fromkeys([*cast(list[str], answer.get("evidence_ids") or []),
+                                         *(s.eid for s in slots.find_slots(text))]))
+    problems += [f"V10 {kind}: {message}" for kind, message in traffic_claims.problems(
+        text, used, evidence, finance_context=bool(traffic_claims.FINANCE.search(traffic_claims.normal(asked or question))))]
     rendered, bound, errors = slots.render_text(text, evidence, lang)
     problems += [f"slot {e.raw}: {e.message}" for e in errors]
     # literal numbers: identifiers and dates first, then what is left must be allowed
@@ -156,9 +165,14 @@ def check_answer(answer: dict, evidence: dict, question: str, lang: str = "en",
     # digits inside a tool's own text values are names, not figures: "Liquefied Voyager 165", a band "first 5,000
     # tons", a citation's page 82 (c3, D-P7-15) — the deck Validator blanks them the same way (`validator._strings`)
     quoted += " " + " ".join(s for res in evidence.values() for s in _strings(res.get("rows") or []))
+    # the citation's page is a number field, so `_strings` never saw it: "(…highlights.pdf, pages 12 and 82)" was
+    # refused as a typed figure (tl2qa r04, D-TL-13) although the rule above names it
+    quoted += " " + " ".join(str(c["page"]) for res in evidence.values() for r in res.get("rows") or []
+                             if isinstance(r, dict) and isinstance(c := r.get("citation"), dict)
+                             and c.get("page") is not None)
     typed = [n for n in _plain_numbers(rest) if not _allowed_number(n, question, quoted)]
     if typed:
-        problems.append(f"numbers typed as text {typed[:5]}: write each NileGate number as a slot (or quote a cited "
+        problems.append(f"numbers typed as text {typed[:5]}: write each PortPilot number as a slot (or quote a cited "
                         "document)")
     status = answer["status"]
     if status != "answered" and (bound or typed):
@@ -167,7 +181,7 @@ def check_answer(answer: dict, evidence: dict, question: str, lang: str = "en",
     # (dp127 run 2, a01: "week 12 of 2024" answered with 2025-W12's billing); other tools keep their own years
     other = sorted({y for y in YEAR_RE.findall((asked or question).translate(ARABIC_DIGITS)) if int(y) != FINANCE_YEAR})
     if other and any((evidence.get(b.slot.eid) or {}).get("tool") in FINANCE_TOOLS for b in bound):
-        problems.append(f"the question asks about {', '.join(other)}: NileGate's finance data holds {FINANCE_YEAR} "
+        problems.append(f"the question asks about {', '.join(other)}: PortPilot's finance data holds {FINANCE_YEAR} "
                         "only — status not_in_data without figures; never answer with another year's numbers")
     structured = [r for r in evidence.values() if r.get("tool") in slots.NUMERIC_TOOLS]
     if status == "answered" and structured and all(r.get("status") == "not_permitted" for r in structured):
@@ -298,7 +312,7 @@ def build_graph(roles, checkpointer=None):
     """The compiled Q&A agent. Invoke with {"messages", "question", "lang"} and `context=RunContext(user, dataset)`
     (`ask` does it)."""
     skills = "\n\n".join(skill_loader.load(s) for s in ("finance-qa", "untrusted-content"))
-    return create_agent(RoleChatModel(roles=roles), STAGE1_TOOLS, system_prompt=QA_TASK.format(skills=skills),
+    return create_agent(RoleChatModel(roles=roles), STAGE1_TOOLS, system_prompt=QA_TASK.format(skills=skills, former_name=FORMER_NAME),
                         # an invalid QaAnswer call goes back to the model with the error (counted by the call limit)
                         response_format=ToolStrategy(m.QaAnswer, handle_errors=True),
                         middleware=cast(Any, [QaTurn(), ModelCallLimitMiddleware(run_limit=MAX_MODEL_CALLS, exit_behavior="end")]),

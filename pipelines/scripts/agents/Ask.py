@@ -1,4 +1,4 @@
-"""Ask NileGate's supervisor one question — finance, operations or both (Agents plan Phase 12, §6d S4; the agent:
+"""Ask PortPilot's supervisor one question — finance, operations or both (Agents plan Phase 12, §6d S4; the agent:
 `pipelines/agents/graphs/supervisor.py`). Replaces the Stage 1 CLI `Finance_qa.py` (owner, 2026-10-29).
 
 Commands (from the project root):
@@ -32,7 +32,7 @@ from pathlib import Path
 
 ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / "pyproject.toml").exists() and (p / "Data").is_dir())
 sys.path.insert(0, str(ROOT))
-from pipelines.agents import checkpointer, monitoring, scheduling, tracing  # noqa: E402
+from pipelines.agents import checkpointer, locks, monitoring, scheduling, tracing  # noqa: E402
 from pipelines.agents import roles as roles_mod  # noqa: E402
 from pipelines.agents.graphs import supervisor as sv  # noqa: E402
 from pipelines.agents.tools import context  # noqa: E402
@@ -57,32 +57,16 @@ def answer(question: str, employee: int, lang: str | None = None, as_of: datetim
     # `refused` alone lets one LangSmith rule filter (has(tags, "refused")) find every partial answer (Observability S3)
     tags = ("graph:supervisor", f"lang:{lang}", *(["refused"] if r.refused else []), *[f"refused:{t}" for t in r.refused])
     monitoring.tag(thread_id=tid, run_as=employee)
-    with tracing.trace(tid, entry="ask", run_as=employee, launched_by=launched_by, extra_tags=tags) as traced:
+    with locks.thread_lock(tid), tracing.trace(tid, entry="ask", run_as=employee,
+                                              launched_by=launched_by, extra_tags=tags) as traced:
+        if g.get_state({"configurable": {"thread_id": tid}}).values:
+            raise RuntimeError("this question thread was started by another process; retry for a new thread")
         st = sv.ask(g, question, user, lang, as_of, thread=tid, metadata={"trigger": launched_by})
     return st, traced
 
 
-def summary(st: dict) -> dict:
-    usage = st.get("llm_usage") or []
-    status = st.get("status")
-    return {"thread": st.get("thread_id"), "status": "output_invalid" if status in (None, "running") else status,
-            "answer": st.get("rendered"),
-            "not_permitted": [sv.REFUSED_PART.get(t, t) for t in st.get("refused") or []],
-            "evidence": {eid: {"tool": r.get("tool"), "status": r.get("status"),
-                               "source": (r.get("source") or {}).get("name")}
-                         for eid, r in sorted((st.get("evidence") or {}).items())},
-            "problems": st.get("problems") or [], "stop_reason": st.get("stop_reason"),
-            "model_calls": len(usage), "cached": sum(bool(c.get("cached")) for c in usage)}
-
-
-def owner_of(thread_id: str) -> int | None:
-    head = thread_id.removeprefix(sv.THREAD_PREFIX).split(":", 1)[0]
-    return int(head) if thread_id.startswith(sv.THREAD_PREFIX) and head.isdigit() else None
-
-
-def can_read(viewer, thread_id: str) -> bool:
-    """A stored answer may hold the asker's finance figures: the asker and the CEO only (S4 decision 4)."""
-    return viewer.role == "ceo" or owner_of(thread_id) == viewer.employee_id
+# shared with the API since FastAPI plan P4 (one copy of what a caller sees and who may read a thread)
+summary, owner_of, can_read = sv.answer_summary, sv.thread_owner, sv.can_read_thread
 
 
 def show(thread_id: str, viewer, g=None) -> dict:

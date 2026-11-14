@@ -35,6 +35,7 @@ Qdrant filter (conceptual): `sensitivity_level <= role_level OR (department == u
 | `departments` | 1 | HR | organisational structure |
 | `vessel_performance` | 1 | Operations | fuel and speed parameters per vessel category and size band, from a public study (migration 020, ADR-055) |
 | `bunker_prices` | 1 | Operations | the dated public VLSFO price + USD-per-SDR rate set by the owner: a market price, not company finance (migration 020) |
+| `external.suez_transits_daily` | 1 | Operations | IMF PortWatch daily Suez Canal transits 2024-12-23 … 2025-12-28: public data, the same source as the `suez_transits` tool; read by the finance link view (migration 025, traffic-billing link plan) |
 | `vessels` | 1 | Operations | daily operational data |
 | `containers` | 1 | Operations | operational shipment data |
 | `documents` | 1 | IT | RAG document registry |
@@ -49,8 +50,12 @@ Qdrant filter (conceptual): `sensitivity_level <= role_level OR (department == u
 | `vessels.customer_id` | 1 | Operations | an id only (the vessels table stays level 1); the customer's details are level 2 |
 | `finance.invoice_audit` / `finance_test.invoice_audit` (views, migration 015) | 2 | Finance | invoice audit findings (ADR-049); covered by the `finance.*` / `finance_test.*` rows; only the first is readable by `finance_bi` |
 | `finance_test.kpi_weekly` / `finance_test.kpi_weekly_category` (views, migration 017) | 2 | Finance | twin KPI views of the evaluation copy (Agents plan Phase 7); covered by the `finance_test.*` row; not readable by `finance_bi` |
+| `finance_scenario.*` (migration 026) | 2 | Finance | a labelled scenario (planted α = 1.6): the 2025 invoices re-dated to follow Suez traffic, payments with their delays kept, and twins of 8 finance views; for the traffic-billing link measure and its check; not readable by `finance_bi`; never shown as PortPilot's billing |
 | `agent_state.*` (LangGraph checkpoints, migration 016) | 2 | Finance | the tool results of each pack run at rest (KPI rows, audit findings, drafts); no employee reads it directly: only the runtime login `ports_agent` (group role `agent_writer`, DML on this schema only) and the owner; `ports_readonly` and `finance_bi` get nothing (ADR-050). The pack itself runs as a Finance manager and the tools check RBAC on every call |
-| `audit_log` (planned, API phase) | 3 | IT | security audit trail, CEO only |
+| `agent_state.llm_daily_usage` / `llm_minute_usage` (migration 023) | 1 | IT | shared LLM request / token counters (FastAPI plan C1 / C2): counts per model and day / minute, no content; written by `ports_agent` (llm.py) |
+| `api.logins` / `api.tokens` (migration 023) | 3 | IT | password hashes (scrypt) and token hashes; no employee reads them: the runtime login `ports_api` (group role `api_writer`) reads a hash but never writes one; logins are created by the owner (`Api_admin.py`); `ports_readonly` and `finance_bi` get nothing |
+| `api.conversations` / `api.conversation_turns` (migration 023) | as the answers' data (≤ 2) | the asker | conversation memory (§6a of the FastAPI plan): questions, masked answers (no numbers), entity frames; the owner of the conversation and the CEO only, through the API |
+| `api.audit_log` (migration 023; ADR-014 redesign) | 3 | IT | security audit trail (who did / was refused what), append-only for `api_writer`; CEO only (and the owner) |
 
 ## 3. Semi-structured (MongoDB, implemented 2026-09-27)
 
@@ -67,7 +72,7 @@ Every document carries `sensitivity_level` and `department` (as the chunks do), 
 
 ## 4. Documents (RAG corpus)
 
-External, publicly published sources are level 1. Their owner department is the NileGate department that would use them.
+External, publicly published sources are level 1. Their owner department is the PortPilot department that would use them.
 
 | Document | Level | Owner department |
 |---|---:|---|

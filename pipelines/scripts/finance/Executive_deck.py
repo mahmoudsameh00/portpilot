@@ -1,12 +1,12 @@
-"""Executive deck 2025 — the NileGate financial-intelligence deck (PPTX) from the Executive_analysis numbers and charts.
+"""Executive deck 2025 — the PortPilot financial-intelligence deck (PPTX) from the Executive_analysis numbers and charts.
 
 Plan:    docs/analysis/financial_intelligence/implementation_roadmap.md Phase C; slides
          docs/analysis/financial_intelligence/executive_deck_storyboard.md (10 main slides + appendix).
 Run:     uv run python tools/run.py pipelines/scripts/finance/Executive_deck.py  (after Executive_charts.py)
 
 Reads:   Data/processed/finance/executive_2025/ numbers.json, customers.csv, charts/*.png;
-         pipelines/agents/deck/style.py (the NileGate deck constants, shared with the weekly pack).
-Writes:  reports/executive/2025/NileGate_2025_Financial_Review.pptx (git-ignored like every pack under reports/).
+         pipelines/agents/deck/style.py (the PortPilot deck constants, shared with the weekly pack).
+Writes:  reports/executive/2025/PortPilot_2025_Financial_Review.pptx (git-ignored like every pack under reports/).
 Re-run:  safe (the deck is rebuilt; no LLM, no database).
 
 The number contract (the ADR-051 idea, without a Writer): every number on a slide or in the speaker notes is written
@@ -42,8 +42,8 @@ from pipelines.agents.deck import style as S  # noqa: E402
 SRC = ROOT / "Data" / "processed" / "finance" / "executive_2025"
 CHARTS = SRC / "charts"
 # EXEC_DECK_OUT writes elsewhere (a deck open in PowerPoint is locked on Windows; review 2026-10-31)
-OUT = Path(os.environ.get("EXEC_DECK_OUT") or ROOT / "reports" / "executive" / "2025" / "NileGate_2025_Financial_Review.pptx")
-BRAND = "NileGate"
+OUT = Path(os.environ.get("EXEC_DECK_OUT") or ROOT / "reports" / "executive" / "2025" / "PortPilot_2025_Financial_Review.pptx")
+BRAND = "PortPilot"
 SHORT = {"Chemical Tankers & Other Liquid Bulk Tankers": "Chemical / liquid bulk tankers",   # = the charts' labels
          "General Cargo / Multi-Purpose / Heavy Lift Vessels": "General cargo / heavy lift",
          "Liquefied Natural Gas (LNG) Carriers": "LNG carriers", "Liquefied Petroleum Gas (LPG) Carriers": "LPG carriers",

@@ -1,12 +1,12 @@
 ---
 name: supervisor-qa
-description: How to answer one NileGate question over finance and operations: which tool holds each part (voyages, ETAs, routes, the voyage watch, the customer bridge), joining the two by ids, numbers as slots, and the partial answer when a part is not permitted.
+description: How to answer a PortPilot question over finance and operations: which tool holds each part (voyages, ETAs, routes, the voyage watch, the customer bridge), joining the two by ids, numbers as slots, and the partial answer when a part is not permitted.
 stage: 2
 reviewed_by_owner: 2026-10-29
 ---
 # Supervisor Q&A (finance + operations)
 
-You answer one question from a NileGate employee. The system knows who asks, which parts they may see and the
+You answer one question from a PortPilot employee. The system knows who asks, which parts they may see and the
 clock ("now" = the run's clock); never ask for them. Finance questions follow the skill `finance-qa`.
 
 ## Which tool holds each part
@@ -34,7 +34,7 @@ to answer, status `not_permitted`. Never give a number, a customer name or an in
 put a toll next to an invoice for that user (a toll is not an invoice amount you may state).
 
 ## Numbers and words
-- Every NileGate number is a slot (the rules in the answer brief). Lists take a row key: `route_advice` rows by
+- Every PortPilot number is a slot (the rules in the answer brief). Lists take a row key: `route_advice` rows by
   `route` (`suez`, `cape`, `difference`), `watch_alerts` rows by `alert_id` (`234/weather`, `fleet`).
 - Literal values allowed: vessel ids and names, customer ids, UN/LOCODEs, dates and times copied from a cited row,
   the week and year, numbers in the question.

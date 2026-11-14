@@ -215,7 +215,7 @@ for ds, (view, cols, _) in finance.DATASETS.items():
 assert not col_mismatch, col_mismatch
 
 ORDER_KEY = {"weekly": None, "category": "vessel_category", "customers": "rank_13w", "overdue": "rank_by_amount",
-             "trend": "trend_week"}
+             "trend": "trend_week", "traffic_link": None}   # traffic_link (M17, migration 027): one row a week
 row_mismatch, rows_compared = [], 0
 for w in range(1, 53):
     for ds, (view, cols, _) in finance.DATASETS.items():

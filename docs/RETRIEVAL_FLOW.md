@@ -1,4 +1,4 @@
-# Retrieval flow — how a question travels through the NileGate system
+# Retrieval flow — how a question travels through the PortPilot system
 
 Design reference for the RAG phase (`docs/archive/2026-10-08_RAG_Embeddings_Qdrant_plan.md`) and the agents phase after it.
 Status: the document tool (§2, §2.1) is **IMPLEMENTED** (2026-10-08, RAG plan closed: ADR-037 – ADR-044); the

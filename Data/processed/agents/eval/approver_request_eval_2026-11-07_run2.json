@@ -1,0 +1,1482 @@
+{
+ "ask_back_recall": 1.0,
+ "date": "2026-11-07",
+ "exact": 0.9,
+ "exact_ar": 0.8667,
+ "exact_en": 0.9333,
+ "frozen": {
+  "draft": "a16be270c9678135",
+  "golden": "2ddd0d07c4415147"
+ },
+ "gate": {
+  "ar_ge_en_minus_0_10": true,
+  "exact_ge_0_90": true,
+  "invented_0": true
+ },
+ "invented": [],
+ "model_calls": 36,
+ "rows": [
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "billed_sdr",
+       "collected_sdr"
+      ],
+      "weeks": 8
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "billed_sdr",
+       "collected_sdr"
+      ],
+      "weeks": 8
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r01",
+   "invented": [],
+   "lang": "en",
+   "request": "Show billed and collected on the trend chart over 8 weeks.",
+   "right": true,
+   "steps": [
+    {
+     "additions": [],
+     "charts": [
+      {
+       "chart": "trend",
+       "series": [
+        "billed_sdr",
+        "collected_sdr"
+       ],
+       "weeks": 8
+      }
+     ],
+     "decision": "edit",
+     "edits": []
+    }
+   ],
+   "understood": "Show billed and collected on the trend chart over 8 weeks"
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "dso_days"
+      ]
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "dso_days"
+      ],
+      "weeks": 13
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r02",
+   "invented": [],
+   "lang": "en",
+   "request": "Make the trend chart show DSO only.",
+   "right": true,
+   "steps": [
+    {
+     "additions": [],
+     "charts": [
+      {
+       "chart": "trend",
+       "series": [
+        "dso_days"
+       ],
+       "weeks": 13
+      }
+     ],
+     "decision": "edit",
+     "edits": []
+    }
+   ],
+   "understood": "I will update the trend chart to show DSO only."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "variance",
+      "rows": "bottom5"
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "variance",
+      "measure": "budget_variance_sdr",
+      "rows": "bottom5"
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r03",
+   "invented": [],
+   "lang": "en",
+   "request": "On the variance chart show only the bottom five categories.",
+   "right": true,
+   "steps": [
+    {
+     "additions": [],
+     "charts": [
+      {
+       "chart": "variance",
+       "measure": "budget_variance_sdr",
+       "rows": "bottom5"
+      }
+     ],
+     "decision": "edit",
+     "edits": []
+    }
+   ],
+   "understood": "Show only the bottom five categories on the variance chart (slide 5)."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "variance",
+      "measure": "budget_variance_pct"
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "variance",
+      "measure": "budget_variance_pct",
+      "rows": "all"
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r04",
+   "invented": [],
+   "lang": "en",
+   "request": "Switch the variance chart to billed vs budget in percent.",
+   "right": true,
+   "steps": [
+    {
+     "additions": [],
+     "charts": [
+      {
+       "chart": "variance",
+       "measure": "budget_variance_pct",
+       "rows": "all"
+      }
+     ],
+     "decision": "edit",
+     "edits": []
+    }
+   ],
+   "understood": "Switch the variance chart to budget variance in percent."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [
+     6
+    ],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [
+     6
+    ],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r05",
+   "invented": [],
+   "lang": "en",
+   "request": "Add a note on slide 6: Finance will chase the four watchlist customers this week.",
+   "right": true,
+   "steps": [
+    {
+     "additions": [
+      {
+       "slide": 6,
+       "text": "Finance will chase the four watchlist customers this week."
+      }
+     ],
+     "charts": [],
+     "decision": "edit",
+     "edits": []
+    }
+   ],
+   "understood": "Adding a new bullet to slide 6 regarding chasing the four watchlist customers."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [
+     21
+    ],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [
+     21
+    ],
+    "steer": false
+   },
+   "id": "r06",
+   "invented": [],
+   "lang": "en",
+   "request": "Rewrite bullet 21 to say that no corrective action is needed this week.",
+   "right": true,
+   "steps": [
+    {
+     "additions": [],
+     "charts": [],
+     "decision": "edit",
+     "edits": [
+      {
+       "bullet": 21,
+       "text": "No corrective actions were required for week 14 following zero audit findings across all billed items"
+      }
+     ]
+    }
+   ],
+   "understood": "Rewrite bullet 21 to state that no corrective actions are needed this week"
+  },
+  {
+   "ask_back": "I could not tell what to change. Which slide, bullet or chart do you mean?",
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": true
+   },
+   "got": {
+    "action": "ask_back",
+    "additions": [],
+    "analysis": [],
+    "ask_back": true,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r07",
+   "invented": [],
+   "lang": "en",
+   "request": "Look again at why payments received rose so much while the collection rate stayed low.",
+   "right": false,
+   "steps": [],
+   "understood": ""
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [
+     [
+      "caveat",
+      "remove",
+      0
+     ]
+    ],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [
+     [
+      "caveat",
+      "remove",
+      0
+     ]
+    ],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r08",
+   "invented": [],
+   "lang": "en",
+   "request": "Remove the caveat about the warm-up week.",
+   "right": true,
+   "steps": [
+    {
+     "analysis_edits": [
+      {
+       "evidence_ids": [],
+       "index": 0,
+       "op": "remove",
+       "target": "caveat"
+      }
+     ],
+     "charts": [],
+     "decision": "revise"
+    }
+   ],
+   "understood": "Remove the caveat about the warm-up week from the analysis notes."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [
+     [
+      "caveat",
+      "add",
+      null
+     ]
+    ],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [
+     [
+      "caveat",
+      "add",
+      null
+     ]
+    ],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r09",
+   "invented": [],
+   "lang": "en",
+   "request": "Add a caveat that the week 14 budget was set before the new tariff.",
+   "right": true,
+   "steps": [
+    {
+     "analysis_edits": [
+      {
+       "evidence_ids": [],
+       "op": "add",
+       "target": "caveat",
+       "text": "Week 14 budget was set before the new tariff."
+      }
+     ],
+     "charts": [],
+     "decision": "revise"
+    }
+   ],
+   "understood": "Adding a caveat that the week 14 budget was set before the new tariff, without evidence ids."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "approve",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "approve",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r10",
+   "invented": [],
+   "lang": "en",
+   "request": "Looks good, approve it.",
+   "right": true,
+   "steps": [
+    {
+     "decision": "approve"
+    }
+   ],
+   "understood": "Approving the weekly finance pack as it looks good."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "reject",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "reject",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r11",
+   "invented": [],
+   "lang": "en",
+   "request": "Reject this pack, the numbers look off.",
+   "right": true,
+   "steps": [
+    {
+     "decision": "reject"
+    }
+   ],
+   "understood": "Reject the draft pack as requested by the manager."
+  },
+  {
+   "ask_back": "the trend chart: a 26-week window needs report week 26 or later (the data start in 2025-W01); week 14 has 14",
+   "expected": {
+    "action": "ask_back",
+    "additions": [],
+    "analysis": [],
+    "ask_back": true,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "ask_back",
+    "additions": [],
+    "analysis": [],
+    "ask_back": true,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r12",
+   "invented": [],
+   "lang": "en",
+   "request": "Show the trend over the last 26 weeks.",
+   "right": true,
+   "steps": [],
+   "understood": "Show the trend chart over 26 weeks instead of 13."
+  },
+  {
+   "ask_back": "Which chart would you like to change, and what should it show?",
+   "expected": {
+    "action": "ask_back",
+    "additions": [],
+    "analysis": [],
+    "ask_back": true,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "ask_back",
+    "additions": [],
+    "analysis": [],
+    "ask_back": true,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r13",
+   "invented": [],
+   "lang": "en",
+   "request": "Change the chart.",
+   "right": true,
+   "steps": [],
+   "understood": "Asking the manager for clarification on which chart to change."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [
+     4
+    ],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "ar_sdr",
+       "overdue_sdr"
+      ],
+      "weeks": 4
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [
+     4
+    ],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "ar_sdr",
+       "overdue_sdr"
+      ],
+      "weeks": 4
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r14",
+   "invented": [],
+   "lang": "en",
+   "request": "Show receivables and overdue over 4 weeks on the trend, and add a comment on slide 4 that billing stayed below budget.",
+   "right": true,
+   "steps": [
+    {
+     "additions": [
+      {
+       "slide": 4,
+       "text": "Weekly billing of 4.13 M SDR remained below the budget target of 5.60 M SDR, continuing the period's negative variance trend"
+      }
+     ],
+     "charts": [
+      {
+       "chart": "trend",
+       "series": [
+        "ar_sdr",
+        "overdue_sdr"
+       ],
+       "weeks": 4
+      }
+     ],
+     "decision": "edit",
+     "edits": []
+    }
+   ],
+   "understood": "Updating trend chart to show receivables and overdue over 4 weeks and adding a comment on slide 4 about billing staying below budget."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [
+     5
+    ],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": true
+   },
+   "got": {
+    "action": "change",
+    "additions": [
+     5
+    ],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": true
+   },
+   "id": "r15",
+   "invented": [],
+   "lang": "en",
+   "request": "Investigate the Containerships budget miss again, and add on slide 5 that the commercial team will follow up.",
+   "right": true,
+   "steps": [
+    {
+     "analysis_edits": [],
+     "charts": [],
+     "decision": "revise",
+     "steer": "Investigate the Containerships budget miss again"
+    },
+    {
+     "additions": [
+      {
+       "slide": 5,
+       "text": "The commercial team will follow up on the Containerships budget miss."
+      }
+     ],
+     "decision": "edit"
+    }
+   ],
+   "understood": "Investigating the Containerships budget miss and adding a bullet on slide 5 about the commercial team following up."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "billed_sdr",
+       "collected_sdr"
+      ],
+      "weeks": 8
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "billed_sdr",
+       "collected_sdr"
+      ],
+      "weeks": 8
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r16",
+   "invented": [],
+   "lang": "ar",
+   "request": "اعرض المفوتر والمحصّل في رسمة الـ trend على 8 أسابيع",
+   "right": true,
+   "steps": [
+    {
+     "additions": [],
+     "charts": [
+      {
+       "chart": "trend",
+       "series": [
+        "billed_sdr",
+        "collected_sdr"
+       ],
+       "weeks": 8
+      }
+     ],
+     "decision": "edit",
+     "edits": []
+    }
+   ],
+   "understood": "Show billed and collected in the trend chart over 8 weeks"
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "dso_days"
+      ]
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "dso_days"
+      ],
+      "weeks": 13
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r17",
+   "invented": [],
+   "lang": "ar",
+   "request": "خلّي رسمة الـ trend تعرض الـ DSO بس",
+   "right": true,
+   "steps": [
+    {
+     "additions": [],
+     "charts": [
+      {
+       "chart": "trend",
+       "series": [
+        "dso_days"
+       ],
+       "weeks": 13
+      }
+     ],
+     "decision": "edit",
+     "edits": []
+    }
+   ],
+   "understood": "خلي رسمة الـ trend تعرض الـ DSO بس"
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "variance",
+      "rows": "top5"
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "variance",
+      "measure": "budget_variance_sdr",
+      "rows": "top5"
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r18",
+   "invented": [],
+   "lang": "ar",
+   "request": "رسمة الـ variance تعرض أعلى 5 فئات بس",
+   "right": true,
+   "steps": [
+    {
+     "additions": [],
+     "charts": [
+      {
+       "chart": "variance",
+       "measure": "budget_variance_sdr",
+       "rows": "top5"
+      }
+     ],
+     "decision": "edit",
+     "edits": []
+    }
+   ],
+   "understood": "سيتم تعديل رسمة الـ variance لعرض أعلى 5 فئات فقط."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "variance",
+      "measure": "billed_wow_change_sdr"
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "variance",
+      "measure": "billed_wow_change_sdr",
+      "rows": "all"
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r19",
+   "invented": [],
+   "lang": "ar",
+   "request": "غيّر رسمة الـ variance تعرض التغيير عن الأسبوع اللي فات",
+   "right": true,
+   "steps": [
+    {
+     "additions": [],
+     "charts": [
+      {
+       "chart": "variance",
+       "measure": "billed_wow_change_sdr",
+       "rows": "all"
+      }
+     ],
+     "decision": "edit",
+     "edits": []
+    }
+   ],
+   "understood": "Changing the variance chart to display week-over-week billing changes (billed_wow_change_sdr)."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [
+     7
+    ],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [
+     7
+    ],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r20",
+   "invented": [],
+   "lang": "ar",
+   "request": "زوّد نقطة في slide 7 إن فريق الائتمان هيراجع العملاء اللي على الـ watchlist",
+   "right": true,
+   "steps": [
+    {
+     "additions": [
+      {
+       "slide": 7,
+       "text": "Credit team will review all customers currently placed on the credit watchlist"
+      }
+     ],
+     "charts": [],
+     "decision": "edit",
+     "edits": []
+    }
+   ],
+   "understood": "Adding a bullet on slide 7 about the credit team reviewing customers on the watchlist."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [
+     22
+    ],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [
+     22
+    ],
+    "steer": false
+   },
+   "id": "r21",
+   "invented": [],
+   "lang": "ar",
+   "request": "عدّل النقطة رقم 22 تقول إن السياق الخارجي هيتضاف الأسبوع الجاي",
+   "right": true,
+   "steps": [
+    {
+     "additions": [],
+     "charts": [],
+     "decision": "edit",
+     "edits": [
+      {
+       "bullet": 22,
+       "text": "slide 9 (External context unavailable): External context will be added next week"
+      }
+     ]
+    }
+   ],
+   "understood": "تعديل النقطة 22 لتوضيح أن السياق الخارجي سيتم إضافته الأسبوع القادم"
+  },
+  {
+   "ask_back": "مش واضح أعدّل إيه بالظبط. تقصد أنهي slide أو نقطة أو chart؟",
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": true
+   },
+   "got": {
+    "action": "ask_back",
+    "additions": [],
+    "analysis": [],
+    "ask_back": true,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r22",
+   "invented": [],
+   "lang": "ar",
+   "request": "بص تاني على سبب زيادة المتأخرات رغم إن التحصيل زاد",
+   "right": false,
+   "steps": [],
+   "understood": ""
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [
+     [
+      "caveat",
+      "remove",
+      1
+     ]
+    ],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [
+     [
+      "caveat",
+      "remove",
+      1
+     ]
+    ],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r23",
+   "invented": [],
+   "lang": "ar",
+   "request": "شيل الـ caveat بتاع الفواتير المعلّمة",
+   "right": true,
+   "steps": [
+    {
+     "analysis_edits": [
+      {
+       "evidence_ids": [],
+       "index": 1,
+       "op": "remove",
+       "target": "caveat"
+      }
+     ],
+     "charts": [],
+     "decision": "revise"
+    }
+   ],
+   "understood": "Removal of the flagged invoices caveat from the analysis notes."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "approve",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "approve",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r24",
+   "invented": [],
+   "lang": "ar",
+   "request": "تمام، اعتمده",
+   "right": true,
+   "steps": [
+    {
+     "decision": "approve"
+    }
+   ],
+   "understood": "Approved the weekly finance pack as requested."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "reject",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "reject",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r25",
+   "invented": [],
+   "lang": "ar",
+   "request": "ارفضه، الأرقام مش مظبوطة",
+   "right": true,
+   "steps": [
+    {
+     "decision": "reject"
+    }
+   ],
+   "understood": "رفض التقرير لعدم دقة الأرقام"
+  },
+  {
+   "ask_back": "the trend chart: a 26-week window needs report week 26 or later (the data start in 2025-W01); week 14 has 14",
+   "expected": {
+    "action": "ask_back",
+    "additions": [],
+    "analysis": [],
+    "ask_back": true,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "ask_back",
+    "additions": [],
+    "analysis": [],
+    "ask_back": true,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r26",
+   "invented": [],
+   "lang": "ar",
+   "request": "اعرض الـ trend على 26 أسبوع",
+   "right": true,
+   "steps": [],
+   "understood": "عرض الـ trend لـ 26 أسبوعاً"
+  },
+  {
+   "ask_back": "Which chart would you like to change, and what would you like to change it to?",
+   "expected": {
+    "action": "ask_back",
+    "additions": [],
+    "analysis": [],
+    "ask_back": true,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "ask_back",
+    "additions": [],
+    "analysis": [],
+    "ask_back": true,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r27",
+   "invented": [],
+   "lang": "ar",
+   "request": "غيّر حاجة في الرسمة",
+   "right": true,
+   "steps": [],
+   "understood": "The manager wants to change a chart, but didn't specify which one or how."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [
+     4
+    ],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "ar_sdr",
+       "overdue_sdr"
+      ],
+      "weeks": 4
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "overdue_sdr"
+      ],
+      "weeks": 4
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r28",
+   "invented": [],
+   "lang": "ar",
+   "request": "اعرض المستحقات والمتأخرات على 4 أسابيع، وزوّد في slide 4 إن الفوترة فضلت تحت الميزانية",
+   "right": false,
+   "steps": [
+    {
+     "additions": [],
+     "charts": [
+      {
+       "chart": "trend",
+       "series": [
+        "overdue_sdr"
+       ],
+       "weeks": 4
+      }
+     ],
+     "decision": "edit",
+     "edits": []
+    }
+   ],
+   "understood": "عرض المستحقات والمتأخرات على 4 أسابيع، وإضافة نقطة في slide 4 أن الفوترة ظلت تحت الميزانية"
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [
+     [
+      "summary",
+      "replace",
+      0
+     ]
+    ],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [
+     [
+      "summary",
+      "replace",
+      0
+     ]
+    ],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r29",
+   "invented": [],
+   "lang": "ar",
+   "request": "عدّل أول نقطة في ملخص التحليل تقول إن الفوترة زادت 7.28% بس فضلت تحت الميزانية",
+   "right": true,
+   "steps": [
+    {
+     "analysis_edits": [
+      {
+       "evidence_ids": [
+        "kpi.weekly"
+       ],
+       "index": 0,
+       "op": "replace",
+       "target": "summary",
+       "text": "In week 14 of 2025, billing reached 4,132,083.68 SDR across 15 invoices with a WoW change of 7.28 percent, staying below the budget."
+      }
+     ],
+     "charts": [],
+     "decision": "revise"
+    }
+   ],
+   "understood": "سيتم تعديل نقطة الملخص الأولى لتوضيح أن الفوترة زادت بنسبة 7.28% ولكنها ظلت أقل من الميزانية."
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [
+     [
+      "caveat",
+      "add",
+      null
+     ]
+    ],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [
+     [
+      "caveat",
+      "add",
+      null
+     ]
+    ],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r30",
+   "invented": [],
+   "lang": "ar",
+   "request": "زوّد caveat إن ميزانية الأسبوع ده اتحطت قبل التعريفة الجديدة",
+   "right": true,
+   "steps": [
+    {
+     "analysis_edits": [
+      {
+       "evidence_ids": [],
+       "op": "add",
+       "target": "caveat",
+       "text": "ميزانية الأسبوع ده اتحطت قبل التعريفة الجديدة"
+      }
+     ],
+     "charts": [],
+     "decision": "revise"
+    }
+   ],
+   "understood": "Adding a caveat about the budget being set before the new tariff."
+  }
+ ],
+ "wrong": [
+  {
+   "ask_back": "I could not tell what to change. Which slide, bullet or chart do you mean?",
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": true
+   },
+   "got": {
+    "action": "ask_back",
+    "additions": [],
+    "analysis": [],
+    "ask_back": true,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r07",
+   "request": "Look again at why payments received rose so much while the collection rate stayed low.",
+   "understood": ""
+  },
+  {
+   "ask_back": "مش واضح أعدّل إيه بالظبط. تقصد أنهي slide أو نقطة أو chart؟",
+   "expected": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [],
+    "edits": [],
+    "steer": true
+   },
+   "got": {
+    "action": "ask_back",
+    "additions": [],
+    "analysis": [],
+    "ask_back": true,
+    "charts": [],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r22",
+   "request": "بص تاني على سبب زيادة المتأخرات رغم إن التحصيل زاد",
+   "understood": ""
+  },
+  {
+   "ask_back": null,
+   "expected": {
+    "action": "change",
+    "additions": [
+     4
+    ],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "ar_sdr",
+       "overdue_sdr"
+      ],
+      "weeks": 4
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "got": {
+    "action": "change",
+    "additions": [],
+    "analysis": [],
+    "ask_back": false,
+    "charts": [
+     {
+      "chart": "trend",
+      "series": [
+       "overdue_sdr"
+      ],
+      "weeks": 4
+     }
+    ],
+    "edits": [],
+    "steer": false
+   },
+   "id": "r28",
+   "request": "اعرض المستحقات والمتأخرات على 4 أسابيع، وزوّد في slide 4 إن الفوترة فضلت تحت الميزانية",
+   "understood": "عرض المستحقات والمتأخرات على 4 أسابيع، وإضافة نقطة في slide 4 أن الفوترة ظلت تحت الميزانية"
+  }
+ ]
+}

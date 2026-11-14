@@ -16,6 +16,7 @@ Statuses (S2 decision 3): ok / no_suez_on_route / suez_only → `ok` with the ro
 marked with that status and no recommendation (the numbers are the code's; only the words failed); not_permitted /
 no_data → the same status, no rows. Access is checked by the graph's tools before any model call (level 1).
 """
+import re
 from datetime import datetime
 
 from langchain.tools import ToolRuntime, tool
@@ -23,6 +24,7 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import Field
 
 from pipelines.agents import checkpointer as cp
+from pipelines.agents import locks
 from pipelines.agents.graphs import route_advice as ra
 from pipelines.agents.graphs.models import RouteRequest
 from pipelines.agents.tools import context
@@ -30,10 +32,11 @@ from pipelines.agents.tools.schemas import Source, ToolResult
 
 CODE_ROWS = ("route.compare", "route.difference", "route.traffic")
 WORDS_FAILED = ("validation_failed", "output_invalid")
+MAX_THREAD_TRIES = 50                 # route thread numbers tried before giving up (one per earlier same-day question)
 
 
 class RouteAdviceArgs(RouteRequest):
-    vessel_id: int | None = Field(default=None, ge=1, description="one of NileGate's vessels (or give vessel_type + "
+    vessel_id: int | None = Field(default=None, ge=1, description="one of PortPilot's vessels (or give vessel_type + "
                                                                   "condition + scnt_tons for a hypothetical vessel)")
     vessel_type: str | None = Field(default=None, description="tariff vessel category of a hypothetical vessel")
     condition: str | None = Field(default=None, description="Laden or Ballast (a hypothetical vessel)")
@@ -56,9 +59,20 @@ def run_route_advice(user, roles, as_of: datetime | None = None, saver=None, poo
     pool = pool or cp.pool()
     g = ra.build_graph(roles, saver or cp.saver())
     tid = ra.new_thread_id(pool, user.employee_id, ctx.as_of, req.origin, req.destination)
-    cfg: RunnableConfig = {"configurable": {"thread_id": tid},
-                           "metadata": {"run_as": user.employee_id, "trigger": "supervisor"}}
-    g.invoke({"request": req.model_dump(mode="json")}, cfg, context=ctx, durability="sync")
+    # The number comes from PostgreSQL's checkpoints; the thread itself lives in `saver`. A thread that already
+    # holds a state — another process took the number first, or the saver is not the PostgreSQL one (the
+    # evaluations run on InMemorySaver, where the same route asked twice got the same number and the whole
+    # question failed, 2026-11-13) — is never written into: the next free number is taken, under its own lock.
+    for _ in range(MAX_THREAD_TRIES):
+        cfg: RunnableConfig = {"configurable": {"thread_id": tid},
+                               "metadata": {"run_as": user.employee_id, "trigger": "supervisor"}}
+        with locks.thread_lock(tid):
+            if not g.get_state(cfg).values:
+                g.invoke({"request": req.model_dump(mode="json")}, cfg, context=ctx, durability="sync")
+                break
+        tid = re.sub(r"(\d+)$", lambda m: str(int(m.group(1)) + 1), tid)
+    else:
+        raise RuntimeError(f"no free route thread after {MAX_THREAD_TRIES} numbers; retry")
     st = g.get_state(cfg).values
     res, status, ev = st.get("result") or {}, st.get("status") or "ok", st.get("evidence") or {}
     if status in ("not_permitted", "no_data"):
@@ -91,7 +105,7 @@ def make_route_advice_tool(roles, saver=None, pool=None):
     @tool("route_advice", args_schema=RouteAdviceArgs)
     def route_advice_tool(runtime: ToolRuntime, **args) -> dict:
         """Suez Canal or the Cape of Good Hope for one voyage: distance, sea days, fuel and its cost in SDR, the Suez
-        dues, the Cape − Suez difference and the cheaper route, with a validated recommendation (one of NileGate's
+        dues, the Cape − Suez difference and the cheaper route, with a validated recommendation (one of PortPilot's
         vessels, or a hypothetical one). Rows by `route`: the Suez dues = the `suez` row's suez_dues_sdr; the saving
         or extra of the Cape = the `difference` row's change_* fields (change_total_sdr, change_sea_days)."""
         return run_route_advice(context.user_of(runtime), roles, as_of=context.as_of_of(runtime), saver=saver,

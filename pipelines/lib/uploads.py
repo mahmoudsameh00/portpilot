@@ -1,5 +1,5 @@
-"""Documents uploaded at inference time: the company document shape "NileGate Document v1" and its validator
-(RAG plan Phase 8 §a; spec for people: docs/templates/NileGate_document_v1.md).
+"""Documents uploaded at inference time: the company document shape "PortPilot Document v1" and its validator
+(RAG plan Phase 8 §a; spec for people: docs/templates/PortPilot_document_v1.md).
 
 `validate_upload(data, filename, uploader)` takes the raw bytes of a PDF or DOCX and returns a `ValidationReport`:
 - G0 hard gates (stop at the first): supported type by magic bytes, size;
@@ -30,21 +30,22 @@ from pipelines.lib import chunks, screening
 from pipelines.lib.common import project_root
 from pipelines.lib.retrieval import User, allowed
 
-TEMPLATE_TAG = "NILEGATE-DOC v1"
+TEMPLATE_TAG = "PORTPILOT-DOC v1"
+TEMPLATE_TAGS = {TEMPLATE_TAG, "NILEGATE-DOC v1"}  # old approved documents remain valid
 END_TAG = "END-METADATA"
 MAX_BYTES = 5 * 1024 * 1024
 MAX_BODY_CHARS = 60_000
 PARSE_TIMEOUT_S = 30.0
 MAX_CHARS = chunks.MAX_CHARS      # 2,000: the corpus safety cap
-SOURCE = "NileGate"               # every company document is synthetic in this project (fictional company)
+SOURCE = "PortPilot"               # every company document is synthetic in this project (fictional company)
 
 DEPT_CODES = {"OPS": "Operations", "CUS": "Customs", "FIN": "Finance", "HR": "HR", "IT": "IT"}
 TYPE_CODES = {"POL": "policy", "PRC": "procedure", "CIR": "circular", "RPT": "report", "MIN": "minutes",
               "GDL": "guideline"}
 FIELDS = ("document_code", "title", "document_type", "department", "sensitivity_level", "version_date", "language",
           "data_origin", "personal_data")
-CODE_RE = re.compile(r"NG-(" + "|".join(DEPT_CODES) + r")-(" + "|".join(TYPE_CODES) + r")-(\d{4})")
-FOOTER_RE = re.compile(r"NileGate · (\S+) · page (\S+) of (\S+) · level (\S+)")
+CODE_RE = re.compile(r"(?:PP|NG)-(" + "|".join(DEPT_CODES) + r")-(" + "|".join(TYPE_CODES) + r")-(\d{4})")
+FOOTER_RE = re.compile(r"(?:PortPilot|NileGate) · (\S+) · page (\S+) of (\S+) · level (\S+)")
 HEADING_RE = re.compile(r"(\d{1,2}(?:\.\d{1,2}){0,2})\.?\s+(\S.{0,150})")
 REQUIRED_SECTIONS = {"1": ("purpose", "الغرض"), "2": ("scope", "النطاق")}
 
@@ -118,7 +119,7 @@ def parse_metadata(lines: list[dict]) -> tuple[dict, int, list[Reason]]:
     """The key: value block between TEMPLATE_TAG and END_TAG at the start of the body. Returns (fields, index of the
     first body line after the block, reasons). A line without 'key:' continues the previous value (a wrapped title)."""
     reasons: list[Reason] = []
-    if not lines or _clean(lines[0]["text"]) != TEMPLATE_TAG:
+    if not lines or _clean(lines[0]["text"]) not in TEMPLATE_TAGS:
         return {}, 0, [Reason("E_NO_METADATA_BLOCK", "first line",
                               f"the document must start with '{TEMPLATE_TAG}' (use the company template)")]
     meta, last = {}, None
@@ -151,7 +152,7 @@ def check_metadata(meta: dict, uploader: User) -> list[Reason]:
     code = meta.get("document_code", "")
     m = CODE_RE.fullmatch(code)
     if code and not m:
-        r.append(Reason("E_BAD_FIELD", "document_code", f"{code!r} is not NG-<DEPT>-<TYPE>-<NNNN> "
+        r.append(Reason("E_BAD_FIELD", "document_code", f"{code!r} is not PP-<DEPT>-<TYPE>-<NNNN> (legacy NG also accepted) "
                                                        f"(DEPT {'/'.join(DEPT_CODES)}, TYPE {'/'.join(TYPE_CODES)})"))
     title = meta.get("title", "")
     if title and not 10 <= len(title) <= 200:
@@ -413,13 +414,13 @@ def validate_upload(data: bytes, filename: str, uploader: User, timeout: float =
         pages_with = {ln["page"] for ln, m in zip(footers, parsed) if m}
         missing = sorted(set(range(1, doc["pages"] + 1)) - pages_with)
         if missing:
-            rep.reasons.append(Reason("E_FOOTER_MISMATCH", f"pages {missing}", "no 'NileGate · <code> · page N of M "
+            rep.reasons.append(Reason("E_FOOTER_MISMATCH", f"pages {missing}", "no 'PortPilot · <code> · page N of M "
                                                                               "· level L' footer"))
         for ln, m in zip(footers, parsed):
             if m and (m.group(2) != str(ln["page"]) or m.group(3) != str(doc["pages"])):
                 rep.reasons.append(Reason("E_FOOTER_MISMATCH", f"page {ln['page']}", "wrong page numbers in the footer"))
     elif fmt == "docx" and not any(parsed):
-        rep.reasons.append(Reason("E_FOOTER_MISMATCH", "footer", "no 'NileGate · <code> · page N of M · level L' "
+        rep.reasons.append(Reason("E_FOOTER_MISMATCH", "footer", "no 'PortPilot · <code> · page N of M · level L' "
                                                                  "footer"))
     for ln, m in zip(footers, parsed):
         if m and code and lvl and (m.group(1) != code or m.group(4) != lvl):
