@@ -77,6 +77,9 @@ TRACE = os.environ.get("EVAL_TRACE") == "1"     # LangSmith for the real runs (P
 # so the role moves to the next candidate exactly as it did when the main model was down; a request in no cache
 # stops the replay. Results go to stage1_eval_<date>_<tag>_rescored.json (the original file is never overwritten).
 REPLAY = os.environ.get("EVAL_REPLAY") == "1"
+# EVAL_REPLAY_LABEL (slide-9 plan, 2026-11-14): a second replay of the same run on the same day names its own file
+# (…_<tag>_rescored_<label>.json); a replay never overwrites an existing results file.
+REPLAY_LABEL = re.sub(r"[^A-Za-z0-9-]", "", os.environ.get("EVAL_REPLAY_LABEL", ""))
 # D-P12-7: EVAL_SCOPE=qa runs the finance Q&A alone (no packs) — a change that reaches only the Q&A agent is compared
 # with the baseline on the Q&A primaries and the gates the Q&A can fail; c4: EVAL_SCOPE=packs runs the 11 golden
 # weeks alone (a change of the pack only); the default `all` is the full evaluation
@@ -860,7 +863,9 @@ print(f"✅ Phase 4 validation passed: {len(fake_answers)} questions through the
 # EVAL_SCOPE=qa (D-P12-7): the packs are skipped, a run's gates are QA_GATES and its primaries QA_PRIMARIES, and
 # ADR-052 compares only what the candidate measured.
 results_path = EVAL / (f"stage1_eval_{date.today().isoformat()}{'_' + TAG if TAG else ''}"
-                       f"{'_rescored' if REPLAY else ''}.json")
+                       f"{'_rescored' if REPLAY else ''}{'_' + REPLAY_LABEL if REPLAY and REPLAY_LABEL else ''}.json")
+if REPLAY and REAL and results_path.exists():
+    raise SystemExit(f"{results_path.name} exists: a replay never overwrites a results file — set EVAL_REPLAY_LABEL")
 
 
 class ReplayQuota(llm.QuotaState):

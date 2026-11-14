@@ -1088,6 +1088,18 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
     the code-drawn line and the title, but the refused bullet costs rewrites. A brief / skill question for a later
     plan. Rejected: reverting the notes-stage check (the Writer would again receive unsafe notes), an LLM judge.
 
+- **Amendment 12 (2026-11-14, `docs/archive/2026-11-14_Slide9_link_bullet_plan.md`; owner L1 "code drop only"):
+  a slide-9 Writer bullet built on `context.link` is dropped by code before the Validator.** The slide → evidence
+  table the Writer brief prints says slide 9 may cite `context.*`, so `context.link` looks allowed there; V5's
+  second check refuses it (PortPilot data on the context slide, amendment 8 (1)). The table cannot simply drop
+  `context.link`: the slide-9 title may name the verdict and V10 needs that citation. `weekly_pack.
+  drop_context_link_bullets` (end of `normalize_draft`) removes such a Writer bullet when another slide-9 Writer
+  line remains, one `normalized` line each; as the slide's only line it is kept and V5 decides (V4 needs one
+  context line). No prompt, V5, V10 or `traffic_claims.py` change. Measured: the Writer wrote the bullet in 20 of
+  23 `tl2` drafts and 23 of 27 `s9` drafts; patch fixes about it 11 of 340 (`tl2`) → 0 of 299 (`s9`). The rewrite
+  count is unchanged (two per pack: the patches' other problems); the case it removes is W16:5's, where the bullet
+  was one of the last four problems and a rewrite invented a field. `Weekly_pack_check` Phase 3 `link_bullet`.
+
 ## ADR-052 — Acceptance rule for a change to the agents (prompt, model, skill)
 - **Status:** Accepted (2026-10-19, owner: §8a G6 "margin 0.03 + two runs", Agents plan §5d). Written in Phase 7
   step S1, **before** the first comparison, like ADR-040's rule before RAG Phase 7.
@@ -1193,6 +1205,11 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
     same family stopped the 2026-11-03 run, before the rename).
   - Baselines after this use: packs **ec2** (tl2 is "keep", not promoted), Q&A **dp127b**, Stage 2 **c1**. The rule
     is not changed. The three evaluations were replayed on the final tree on 2026-11-14 (0 fresh calls each).
+- **Eighth use (2026-11-14, slide-9 plan, ADR-051 amendment 12) — a code change the replay cannot score.** The
+  replay of `tl2` stopped at its first pack: the dropped bullet changes the patch request, which no cache holds.
+  `Stage1_eval.py` gained `EVAL_REPLAY_LABEL` and a guard (a replay never overwrites a results file). Real run
+  `stage1_eval_2026-11-14_s9.json` (packs, × 2) vs ec2: **"tie: keep"** — every gate in both runs, 22 / 22
+  published, planted 6 / 6, narrative recall 0.9655 vs 0.9483, 0 fallbacks. Baselines unchanged (packs ec2).
 
 ## ADR-053 — Stage 1 evaluation: golden weeks, a finance Q&A agent, twin KPI views of the evaluation copy
 - **Status:** Accepted (2026-10-20, Agents plan Phase 7 closed by the owner with D7 not met: "close Phase 7 and keep

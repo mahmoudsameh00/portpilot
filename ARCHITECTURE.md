@@ -47,8 +47,9 @@ packs `tl2` "keep (better)" vs ec2, finance Q&A `tl3qa` "tie" vs dp127b, Stage 2
 the baseline), and the live pack `weekly_pack:live:2025-W16:5` approved and published with `traffic_link` =
 `no_link` in `run.json` and slide 9's code-drawn line "No measurable link". The two Q&A briefs name the company's
 former name (ADR-068 note); the supervisor's answers have two more slot-form fixes (ADR-059 note). Known limit:
-the notes guard is a bounded pattern policy, and a link sentence the Writer repeats as a slide-9 bullet is
-refused by V5 and costs rewrites (the verdict reaches the slide through the code-drawn line).
+the notes guard is a bounded pattern policy. A link sentence the Writer repeats as a slide-9 bullet is dropped by
+code in `normalize_draft` before the Validator when another context line remains (ADR-051 amendment 12, 2026-11-14;
+`s9` "tie: keep" vs ec2); the verdict reaches the slide through the code-drawn line and the title.
 
 **Operational reliability (2026-11-11, stabilization R8/R9):** scheduled product outcomes map to exit/log/cron
 status (stopped/incomplete = 4, saved but degraded = 5). Approved packs are staged as complete immutable versions

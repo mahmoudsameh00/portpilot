@@ -14,14 +14,17 @@ ran on the committed tree (Validator passed; degraded — three bullets dropped 
 fallback rewrites), the owner approved it through the web UI, and the publication is verified
 (`reports/2025-W16/_publications/9f145f3119d44e6a903736a7c6913ba7/`, hashes = `publication.json`, `traffic_link`
 = `no_link`, database sync `synced`). ADR-051 amendment 11, ADR-052 seventh use, notes on ADR-059 and ADR-068.
-**Open (owner):** the commit of the close; `/graphify . --update` after it. **Follow-up noted, not planned:** the
-Writer repeats the notes' link sentence as a slide-9 bullet that V5 refuses (costs rewrites).
+**Open (owner):** the commit of the close; `/graphify . --update` after it. **Follow-up closed the same day**
+(`docs/archive/2026-11-14_Slide9_link_bullet_plan.md`, ADR-051 amendment 12, ADR-052 eighth use): the Writer's
+slide-9 bullet on `context.link` is dropped by code before the Validator; real run `s9` = "tie: keep" vs ec2
+(22 / 22 published, planted 6 / 6, recall 0.9655, 0 fallbacks); patch fixes about the link 11 → 0, rewrites
+still two per pack (the patches' other problems, not planned).
 **Next:** `docs/plans/Model_flexibility_plan.md` (APPROVED 2026-11-13) starts after the commit; the stabilization
 plan's owner gates (full-data `Api_check`, Power BI parity, pushed CI) and the frontend / JIT plans stay as they
 are. The 2026-11-14 checkpoint text below is kept as written (its "Open: the live pack" is now closed).
 
 **Update 2026-11-14 — Git checkpoint point.** Traffic-link Phase 6 measured on the real models
-(`docs/plans/Traffic_billing_link_plan.md`, D-TL-10 … D-TL-15): packs `tl2` = ADR-052 "keep (better)" vs ec2
+(now `docs/archive/2026-11-14_Traffic_billing_link_plan.md`, D-TL-10 … D-TL-15): packs `tl2` = ADR-052 "keep (better)" vs ec2
 (22 / 22 published, planted 6 / 6, narrative recall 0.9828); finance Q&A `tl3qa` = "tie" vs dp127b (EN / AR 1.0);
 the supervisor's Stage 2 run `tl3s2` meets its done-when and is closed on it, c1 stays the baseline (EN 0.9448
 vs 0.9816 from answers that omit one asked element). Fixed on the way: three scripts without the project-root
@@ -79,7 +82,7 @@ builds **W16**.
 `docs/archive/2026-11-07_Pack_approver_additions_plan.md` (live check on W14; its commit C4 the owner's).
 **Closed 2026-11-09: the external-context plan**, archived as `docs/archive/2026-11-09_Pack_external_context_plan.md`
 (a code node fetches the week's Suez transits + news; ec2 kept; live W16 slide 9 from code; D-EC-5 / D-EC-6 fixes;
-ADR-050 am. 4, ADR-051 am. 7). **Open (owner):** reject W16:3, review W16:4; the commit.
+ADR-050 am. 4, ADR-051 am. 7). **Open (owner):** reject W16:3, review W16:4; the commit. (Done 2026-11-14: both rejected, W16:5 approved and published.)
 **Closed 2026-11-14 (see the top of this section):** the traffic-billing link plan, now
 `docs/archive/2026-11-14_Traffic_billing_link_plan.md`. The state of 2026-11-09, kept as written: Phases 1–3 are done: migrations 025
 (PortWatch), 026 (the labelled scenario, α = 1.6) and 027 (M17 `kpi_traffic_link`) are applied, plus 028 (comments on
@@ -91,7 +94,13 @@ decisions J1–J7 open).
 as an entry, limits / temperature / timeout per model, a capability probe and a swap procedure; owner decisions
 M1–M7 taken; starts after traffic Phase 6 because it edits `llm.py` / `roles.py`).
 **In parallel: the frontend plan** —
-`docs/plans/Frontend_plan.md` (APPROVED in its own session 2026-11-06).
+`docs/plans/Frontend_plan.md` (APPROVED in its own session 2026-11-06). D-FE-11 (2026-11-14, owner request): the
+Ask composer's "+" attaches documents from a conversation's first message (web-only, the API's upload checks
+unchanged) and the "Today" tab is removed (the wordmark opens `/`); mock-API browser suite 130 passed; the real-API
+the web container is rebuilt with it; the real-API smoke `web/scripts/attach-smoke.mjs` 12 / 12 (the answer comes
+from the attached document, EN + AR). That smoke found a server defect, fixed: the upload reader's child wrote its
+JSON in the console code page, so every upload failed with `E_PARSE` when the API ran without `PYTHONIOENCODING`
+(`pipelines/lib/upload_reader.py` now writes UTF-8 bytes; guard in `Upload_validation.py` Phase 4).
 
 **Agents Stage 2 walk-through — DONE 2026-11-05:** `docs/CHECKPOINT_agents_stage2.md` (Phases 9–12 in plain Egyptian
 Arabic, like the Stage 1 one; the 2026-11-01 close had not included it — an omission the owner pointed out).

@@ -73,3 +73,10 @@ after a days slot), max 12.4K tokens per call.
   expectation (`validation_failed`, the wrong token, no next node). 6 / 7 ✅ (Phase 5 = real models), 0 files changed.
 - `Scheduler_check.py` tests the scheduler's handling of a stopped pack, which c4 makes rarer but not impossible (V8,
   a failing fallback): its graph is built with `use_fallback=False`; its report gained `degraded`. 6 / 6 ✅.
+
+## Slide-9 update (2026-11-14, ADR-051 amendment 12, `docs/plans/Slide9_link_bullet_plan.md`)
+- Phase 3 gains the mode `link_bullet`: the first draft also carries the M17 verdict as a slide-9 bullet citing
+  `context.link` (as the Writer did in the live pack W16:5, where V5 refused it in all three rounds). Expected and
+  met: one Writer call, one Validator pass, zero rewrites, the bullet gone from the draft, one `normalized` line for
+  the drop, not degraded. A unit case keeps the bullet when it is slide 9's only context line (V4 needs one) and
+  shows V5 still refusing it there.

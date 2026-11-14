@@ -260,7 +260,13 @@ class PackScript:
             d["bullets"][0]["text"] = wrong_text
         if self.mode == "shape_once" and first:          # four summary bullets: a deck shape a patch cannot fix
             d["bullets"].pop(1)
+        if self.mode == "link_bullet":                   # W16:5: the M17 verdict written as a slide-9 bullet
+            d["bullets"].append({"slide": 9, "text": LINK_SENTENCE, "evidence_ids": ["context.link"]})
         return m.DeckDraft.model_validate(d)
+
+
+LINK_SENTENCE = ("No measurable link was found between the weekly invoice count and Suez transits over the observed "
+                 "weeks.")
 
 
 script = PackScript()
@@ -566,12 +572,36 @@ assert actual == expected, actual
 d = degraded["always_wrong"]
 assert d and len(d["replaced_bullets"]) + len(d["dropped_bullets"]) == 1 and d["problems_before"] >= 1, d
 assert degraded["wrong_once"] is None and degraded["always_wrong_no_fallback"] is None, degraded
+# slide-9 follow-up (ADR-051 amendment 12, live pack W16:5): a slide-9 bullet built on context.link is dropped by
+# code before the Validator, so it costs no rewrite; as the slide's only context line it is kept and V5 refuses it.
+sc = PackScript("link_bullet")
+g = wp.build_graph(roles.FakeRoles(sc), InMemorySaver(), REPORTS / "link_bullet")
+visited, st, cfg = run(fin_mgr, W, g=g, sc=sc)
+link_case = (visited.count("writer"), visited.count("validator"), st["status"], st.get("rewrites"),
+             st["verdict"]["passed"], tuple(g.get_state(cfg).next), [s for s, _ in sc.prompts])
+assert link_case == (1, 1, "awaiting_approval", 0, True, ("approval",), ["DeckDraft"]), link_case
+assert not any("context.link" in (b.get("evidence_ids") or []) for b in st["draft"]["bullets"] if b["slide"] == 9)
+drops = [n for n in st.get("normalized") or [] if "context.link" in n and "dropped" in n]
+assert len(drops) == 1 and st.get("degraded") is None, (drops, st.get("degraded"))
+ev_w = {**wp.kpi_evidence(fin_mgr, W, "live"), **wp.audit_evidence(fin_mgr, W, "live"),
+        **wp.link_evidence(fin_mgr, W, "live")}
+assert (ev_w.get("context.link") or {}).get("status") == "ok", ev_w.get("context.link")
+only = sample.slot_draft(W, ev_w)
+only["bullets"] = [b for b in only["bullets"] if b["slide"] != 9] + [
+    {"slide": 9, "text": LINK_SENTENCE, "evidence_ids": ["context.link"]}]
+kept, kept_fixes = wp.normalize_draft(only, ev_w)
+assert sum(b["slide"] == 9 for b in kept["bullets"]) == 1 and not any("dropped" in f for f in kept_fixes), kept_fixes
+v5 = [p for p in wp.v2.validate(kept, ev_w, W).problems if p.rule == "V5" and p.slide == 9]
+assert v5 and "external context only" in v5[0].message, v5
+print(f"Phase 3: slide-9 context.link bullet: {link_case[:4]}, dropped by code ({drops[0][:70]}…); as the only "
+      f"context line it is kept and V5 refuses it")
 print(f"Phase 3: loop {loop['wrong_once'][:4]} / {loop['always_wrong'][:4]} / {loop['shape_once'][:4]}; prompt "
       f"characters: first draft {full:,}, patch {patch:,} ({patch / full:.0%})")
 print("✅ Phase 3 validation passed: a planted wrong number fixed by one patch of its bullet; a patch that keeps it "
       f"goes, after two rewrites, to the code fallback (its bullet replaced: {d['replaced_bullets'] or d['dropped_bullets']}) "
       "and reaches the approval marked degraded (without the fallback it stops as before); a wrong deck shape gets "
-      f"the whole deck again; a V8 fault stops with no preview; the "
+      "the whole deck again; a V8 fault stops with no preview; a slide-9 bullet on context.link is dropped by code "
+      "with zero rewrites (kept and refused by V5 when it is the only context line); the "
       f"patch prompt is {patch / full:.0%} of the first draft's")
 DONE.append(3)
 

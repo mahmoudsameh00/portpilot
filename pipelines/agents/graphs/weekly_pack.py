@@ -627,7 +627,30 @@ def normalize_draft(draft: dict, evidence: dict) -> tuple[dict, list[str]]:
     for t in d["slide_titles"]:
         t["title"], f = slots.normalize_text(t["title"], evidence)
         fixed += f
+    fixed += drop_context_link_bullets(d)
     return d, fixed
+
+
+LINK_EVIDENCE = "context.link"
+
+
+def drop_context_link_bullets(draft: dict) -> list[str]:
+    """Slide-9 follow-up of the traffic-billing link plan (live pack W16:5, ADR-051 amendment 12): the M17 verdict is
+    drawn by code on slide 9 (the link line), and a Writer bullet built on `context.link` is PortPilot data, which V5
+    refuses on slide 9 in every round — W16:5 spent both rewrites on one such bullet. Code drops it here, before the
+    Validator, unless it is the slide's only Writer context line (V4 needs one; V5 then decides as before). The
+    slide title may still name the verdict. Changes `draft` in place; returns one line per bullet dropped."""
+    bullets = draft["bullets"]
+    ctx = [i for i, b in enumerate(bullets) if b["slide"] == v2.CONTEXT_SLIDE and b.get("origin") != v2.APPROVER]
+    link = [i for i in ctx if LINK_EVIDENCE in (bullets[i].get("evidence_ids") or [])]
+    if not link or len(link) == len(ctx):
+        return []
+    out = []
+    for i in reversed(link):
+        b = bullets.pop(i)
+        out.insert(0, f"slide 9 bullet {b['text'][:40]!r}: cites {LINK_EVIDENCE}, which code draws on slide 9 (the "
+                      "link line); bullet dropped")
+    return out
 
 
 # --- 6 Validator (Phase 6, §5c: V1–V7 on the draft, V8 on the rendered file) --------------------------------------
