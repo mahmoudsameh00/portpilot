@@ -1058,6 +1058,36 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   but are not silently migrated or declared synchronized. No new schema, queue or database ownership is added.
   Five offline recovery phases and desktop/mobile notices verified; live DB/Power BI acceptance remains open.
 
+- **Amendment 11 (2026-11-14, traffic-billing link plan Phase 6, `docs/archive/2026-11-14_Traffic_billing_link_plan.md`;
+  owner D-TL-11 "fix the check in code", D-TL-12 "widen the scorer rules") — supersedes amendment 9's "invalid
+  generated notes stop before the Writer":**
+  - (1) **A refused traffic sentence in the Insight notes is repaired, not fatal.** The first real-model run of the
+    amendment-9 guard (`tl1`, 2026-11-12) stopped 7 of 11 golden packs at `insight_notes V10`, almost all on *true
+    denials* ("no statistical link", "is not claimed to move with", "not measurable yet"). `traffic_claims.classify`
+    now reads those denial and "too few weeks" forms (a fixed list of qualifiers), a threshold week is not the
+    claim's week, and in a "…, but …" sentence only the clause that states a relation carries both domains.
+    Caveats (plain strings without evidence ids) are judged against the run's own M17 results, found by provenance.
+    `repair_notes` replaces a still-refused sentence with the **fixed M17 wording of the run's own verdict** (code,
+    no model call, the M17 evidence id added) and records one line per repair in `normalized` (`run.json`). With no
+    single measured verdict in the run nothing is repaired and the run stops `output_invalid` as before. The deck
+    Validator's V10 and both Q&A checks are unchanged and stay the final gate.
+  - (2) Proof without a model: `Traffic_claims_check.py` 5 phases — the 66 pinned adversarial cases unchanged plus
+    `fixtures/traffic_claims_real.json` (53 sentences the real models wrote, labelled by hand, SHA-256 pinned);
+    a replay of the 37 cached real note sets: 34 pass as written, 3 repaired, 0 stop (before: 7 of 11 stopped).
+    On the real models: `tl2`, 22 / 22 packs published, no pack lost to V10, no unsafe traffic sentence published.
+  - (3) **Two scorer rules widened** (`Stage1_eval.py`, D-TL-12; both scored sentences were true by hand, the
+    family of D-C4-1): `claims` reads a direction word only inside the slot's own clause (the 40 characters before
+    a slot are cut at `,` `;` or a contrast word); `false_alarms` reads "a duplicate / copy of INV-X" as naming X
+    the original, only when X is the original of one of the week's flagged invoices. Each has a planted case that
+    must still count as wrong. **`EVAL_REPLAY=1`** scores a finished run again from its caches (a request in no
+    cache stops the replay; results go to `…_rescored.json`, the run's own file is never overwritten).
+  - (4) **Limit, stated:** the notes guard is a bounded pattern policy; a new paraphrase can be refused again, at
+    the cost of one sentence replaced by fixed wording. **Observed on the live pack W16:5 (not changed):** the
+    notes hand the Writer the "no measurable link" sentence, the Writer repeats it as a slide-9 bullet citing
+    `context.link`, and V5 (amendment 8 (1)) refuses it in every round — the verdict still reaches slide 9 through
+    the code-drawn line and the title, but the refused bullet costs rewrites. A brief / skill question for a later
+    plan. Rejected: reverting the notes-stage check (the Writer would again receive unsafe notes), an LLM judge.
+
 ## ADR-052 — Acceptance rule for a change to the agents (prompt, model, skill)
 - **Status:** Accepted (2026-10-19, owner: §8a G6 "margin 0.03 + two runs", Agents plan §5d). Written in Phase 7
   step S1, **before** the first comparison, like ADR-040's rule before RAG Phase 7.
@@ -1142,6 +1172,27 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   non-finance item (o16_ar → 0.0; without it the gap is 0.02); the 15 items that read `finance_kpi` had every finance
   number right. The owner closed without a re-run; the baselines stay (Stage 2 c1, Q&A dp127b); the partial file is
   `stage2_eval_2026-11-03_c5_partial.json`. The rule is not changed.
+- **Seventh use (2026-11-12 → 14, traffic-billing link plan Phase 6, D-TL-10 … D-TL-15) — three scopes on the tree
+  that added `context.link`, V10, the shared claim guard and the PortPilot rename.**
+  - **Packs, `tl2` vs ec2** (`stage1_eval_2026-11-13_tl2.json`, golden weeks × 2): scored "reject" on two gates from
+    one sentence each, both true by hand (a direction word of the neighbouring slot; "a duplicate of <the
+    original>"). The scorer rules were widened (ADR-051 amendment 11 (3)) and the run scored again from its caches
+    with 0 fresh calls (`…_tl2_rescored.json`; three values differ, every other metric identical): all five gates in
+    both runs, planted 6 / 6, narrative recall 0.9828 vs 0.9483 → **"keep (better)"**. A first run `tl1` was
+    incomplete and mostly on the fallback model (Gemini 503); it is a record of the guard's false refusals, not a
+    measurement of the candidate.
+  - **Finance Q&A, `tl3qa` vs dp127b** (`stage1_eval_2026-11-13_tl3qa.json`, 42 × 2, EN + AR): **"tie: keep"**,
+    EN / AR 1.0, every gate, 0 fallbacks. The run before it (`tl2qa`) was a true "reject" (EN 0.913): the rename
+    made the model read "NileGate" as a customer, and a cited page number was refused as a typed figure — both
+    fixed (ADR-068 note, D-TL-13), then measured again.
+  - **Stage 2, `tl3s2` vs c1** (`stage2_eval_2026-11-14_tl3s2.json`, 57 × 2): the done-when is **met** (every hard
+    gate in both runs); against c1 "reject" — EN 0.8861 as run; 0.9448 (−0.0368, limit 0.03) after two slot-form
+    rules for the supervisor (ADR-059 note) and a replay with 0 fresh calls. What remains are answers that leave
+    out one asked element, as c1's own run 2 had. **The owner closed on the done-when (D-TL-15); c1 stays the
+    Stage 2 baseline** and `…_tl3s2_rescored.json` is a record, not a baseline. Cause of the gap: uncertain (the
+    same family stopped the 2026-11-03 run, before the rename).
+  - Baselines after this use: packs **ec2** (tl2 is "keep", not promoted), Q&A **dp127b**, Stage 2 **c1**. The rule
+    is not changed. The three evaluations were replayed on the final tree on 2026-11-14 (0 fresh calls each).
 
 ## ADR-053 — Stage 1 evaluation: golden weeks, a finance Q&A agent, twin KPI views of the evaluation copy
 - **Status:** Accepted (2026-10-20, Agents plan Phase 7 closed by the owner with D7 not met: "close Phase 7 and keep
@@ -1481,6 +1532,17 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   quota), the supervisor calling the Stage 2 tools for route numbers (the route Validator bypassed), refusing a whole
   question for one refused part, changing the tools' own shapes for the model (three consumers), a separate join
   tool, a bigger-context fallback bake-off.
+- **Note (2026-11-14, traffic-billing link plan D-TL-13 / D-TL-14):** (a) the supervisor's code brief `SUP_TASK`
+  (and the finance Q&A's `QA_TASK`) gained one sentence, `finance_qa.FORMER_NAME`: the company was called NileGate
+  until November 2026, so a question that says NileGate means the company itself (ADR-068 note). No reviewed skill
+  changed. (b) `slots.normalize_text(…, answer_forms=True)` — **the supervisor's answers only** — also fixes a
+  format written with its kind (`|money sdr`, `|money_sdr` → the format alone) and a slot on a text field
+  (`{…:next_port}` → the field's own text); the number is never touched and each fix is listed in the run record.
+  Applied to every caller, the two rules changed the pack Writer's and the finance Q&A's cached patch requests, so
+  the pack Writer, the finance Q&A graph, route advice and the voyage watch keep D-P7-14's set; each would need
+  its own run to adopt them. (c) The `route_advice` product tool takes the next free thread number instead of
+  raising when the same route is asked twice on one saver. `Supervisor_check` 9 / 9 (+ 5 cases). Measured by
+  `tl3s2` (ADR-052 seventh use): the done-when met, c1 kept as the baseline.
 
 ## ADR-060 — The web frontend is React / Next.js, behind the FastAPI layer
 - **Status:** Accepted (2026-10-30, owner) — the framework only; the design (pages, auth flow, hosting, versions) is
@@ -1909,6 +1971,15 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 - **Evidence / limits:** Production browser 100 passed / 50 intentional skips, screenshots reviewed; upload and
   Power BI/skill compatibility 4/4 phases. Runtime Power BI parity and scheduler migration remain owner tasks.
   `docs/brand/README.md` is the ongoing compatibility inventory. Historical ADR text is not rewritten.
+- **Note (2026-11-14, traffic-billing link plan D-TL-10 / D-TL-13) — two effects of the rename found by the
+  first real-model runs after it:** (a) **frozen evaluation evidence** holds the old name in text values
+  ("not NileGate's invoices"), the tools now write the new one: `Stage1_eval.holds_frozen` reads the two product
+  names as equal in text; every other character and every number must still match, and the frozen files, their
+  hashes and the baselines are unchanged. (b) **Users still say NileGate** (older decks and reports carry it):
+  with no brief naming the former name, the finance Q&A answered "NileGate did not bill … or is not among the
+  top-10 customers". One sentence in the two Q&A briefs (`finance_qa.FORMER_NAME`) says the old name means the
+  company itself and the answer uses PortPilot; measured by `tl3qa` (q01 answered in both runs). Reviewed
+  snapshots that still counted the old name's length were corrected (`Finance_qa_check`, `Supervisor_check`).
 
 ## Dropped (history)
 - Danish Maritime Authority AIS template (`ais_real_sample_template.csv`): dropped. AIS sources are `AISHub sample.json` (type/status diversity) and `NOAA AccessAIS.csv` (movement behaviour).

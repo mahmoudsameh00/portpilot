@@ -7,6 +7,19 @@ Labels: `DONE`, `IN PROGRESS`, `PARTIAL`, `NEXT`, `PLANNED`, `PROPOSED`, `DEFERR
 
 ## Current phase
 
+**Closed 2026-11-14: the traffic-billing link plan**, archived as
+`docs/archive/2026-11-14_Traffic_billing_link_plan.md` (implementation record at its top). The last acceptance
+item, the live pack, is done: the stale attempts `W16:3` / `W16:4` were rejected, `weekly_pack:live:2025-W16:5`
+ran on the committed tree (Validator passed; degraded — three bullets dropped by code; 3 Gemini calls + 2
+fallback rewrites), the owner approved it through the web UI, and the publication is verified
+(`reports/2025-W16/_publications/9f145f3119d44e6a903736a7c6913ba7/`, hashes = `publication.json`, `traffic_link`
+= `no_link`, database sync `synced`). ADR-051 amendment 11, ADR-052 seventh use, notes on ADR-059 and ADR-068.
+**Open (owner):** the commit of the close; `/graphify . --update` after it. **Follow-up noted, not planned:** the
+Writer repeats the notes' link sentence as a slide-9 bullet that V5 refuses (costs rewrites).
+**Next:** `docs/plans/Model_flexibility_plan.md` (APPROVED 2026-11-13) starts after the commit; the stabilization
+plan's owner gates (full-data `Api_check`, Power BI parity, pushed CI) and the frontend / JIT plans stay as they
+are. The 2026-11-14 checkpoint text below is kept as written (its "Open: the live pack" is now closed).
+
 **Update 2026-11-14 — Git checkpoint point.** Traffic-link Phase 6 measured on the real models
 (`docs/plans/Traffic_billing_link_plan.md`, D-TL-10 … D-TL-15): packs `tl2` = ADR-052 "keep (better)" vs ec2
 (22 / 22 published, planted 6 / 6, narrative recall 0.9828); finance Q&A `tl3qa` = "tie" vs dp127b (EN / AR 1.0);
@@ -67,7 +80,8 @@ builds **W16**.
 **Closed 2026-11-09: the external-context plan**, archived as `docs/archive/2026-11-09_Pack_external_context_plan.md`
 (a code node fetches the week's Suez transits + news; ec2 kept; live W16 slide 9 from code; D-EC-5 / D-EC-6 fixes;
 ADR-050 am. 4, ADR-051 am. 7). **Open (owner):** reject W16:3, review W16:4; the commit.
-**Current:** `docs/plans/Traffic_billing_link_plan.md` (APPROVED 2026-11-08). Phases 1–3 are done: migrations 025
+**Closed 2026-11-14 (see the top of this section):** the traffic-billing link plan, now
+`docs/archive/2026-11-14_Traffic_billing_link_plan.md`. The state of 2026-11-09, kept as written: Phases 1–3 are done: migrations 025
 (PortWatch), 026 (the labelled scenario, α = 1.6) and 027 (M17 `kpi_traffic_link`) are applied, plus 028 (comments on
 024's view columns, D-TL-5). Live = no link in any week; scenario = link at 52 weeks. **Next:** Phases 4–6 (the pack's
 `context.link`, Validator V10, acceptance). **Open (owner):** the snapshot refresh + the full audit.

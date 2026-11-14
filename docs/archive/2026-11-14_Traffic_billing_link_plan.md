@@ -1,6 +1,76 @@
 # Plan — measuring the link between Suez traffic and NileGate's billing (by code, not by the model)
 
-**Status: APPROVED (2026-11-08, owner: "موافق على الربط")** — written on the owner's request ("أيوه، اكتب اقتراح") after the question "do invoice
+**Status: IMPLEMENTED (2026-11-14)** — archived as `docs/archive/2026-11-14_Traffic_billing_link_plan.md`.
+Approved 2026-11-08; Phases 1–5 built 2026-11-08 → 09; Phase 6 (acceptance on the real models) 2026-11-12 → 14.
+The product was renamed PortPilot on 2026-11-11 (ADR-068); this plan keeps the name it was written with.
+
+## Implementation record (2026-11-14)
+
+**What exists now**
+- **Data:** `external.suez_transits_daily` (migration 025, IMF PortWatch, 371 days, level 1) loaded by
+  `pipelines/scripts/structured/Suez_transits_loader.py`; the labelled scenario schema `finance_scenario`
+  (migration 026, `Finance_scenario_generator.py`, planted amplification α = 1.6); the measure **M17**
+  `kpi_traffic_link` in `finance`, `finance_test` and `finance_scenario` (migration 027: year-to-date Pearson r of
+  the weekly invoice count against weekly Suez transits, lag 0 and 1, "link" when |r| ≥ the threshold, NULL
+  before week 13); migration 028 (comments on 024's view columns, D-TL-5). `docs/finance_metrics.md` M17.
+- **Tool / pack:** `finance_kpi` dataset `traffic_link`; the pack's evidence `context.link`; slide 9's code-drawn
+  line (r lag 0 / lag 1 / threshold + a fixed verdict); `run.json` records `traffic_link`.
+- **Guards:** Validator **V10** (ADR-051 amendment 8), then the shared policy `pipelines/agents/traffic_claims.py`
+  on the deck, both Q&A paths, the approver's analysis edits and the Insight notes (amendment 9, stabilization
+  R5 / R6), then the notes repair (amendment 11, D-TL-11).
+- **Checks:** `Traffic_link_check.py` 6 / 6 (the views = an independent reference; planted series; 8 / 8 planted
+  sentences refused); `Traffic_claims_check.py` 5 phases (66 pinned adversarial + 53 real-model sentences).
+
+**Results against the done-when (§1)**
+
+| # | Done-when | Result |
+|---|---|---|
+| 1 | The live answer written before the first run | Expected "no measurable link" (§4); measured: no link in any live week 13–52 (r(52) ≈ 0.02); scenario = link at 52 weeks (r 0.497) |
+| 2 | Planted series: ≥ 95 % of planted links flagged, the false rate stated | Met (`Traffic_link_check` Phase 2; the false rate reported against the expected ≈ 10 %) |
+| 3 | Planted sentences: 100 % caught | Met: V10 8 / 8; the shared policy 66 / 66 on every surface |
+| 4 | No regression: planted findings 6 / 6 | Met: `tl2` 22 / 22 packs published, planted 6 / 6 in both runs, ADR-052 "keep (better)" vs ec2 |
+
+**Phase 6 acceptance (L5 + D-TL-7), ADR-052 seventh use**
+
+| Part | Result | File |
+|---|---|---|
+| Golden weeks × 2 (packs) | keep (better): all five gates, narrative recall 0.9828 vs 0.9483 | `stage1_eval_2026-11-13_tl2.json`, `…_tl2_rescored.json` |
+| Finance Q&A EN + AR × 2 | tie: EN / AR 1.0, every gate | `stage1_eval_2026-11-13_tl3qa.json` |
+| Stage 2 (supervisor) × 2 | done-when met; "reject" vs c1 by 0.0068 after the slot-form fix; closed by the owner, c1 stays | `stage2_eval_2026-11-14_tl3s2.json`, `…_tl3s2_rescored.json` |
+| One live pack | `weekly_pack:live:2025-W16:5` **approved by the owner (web UI) and published**; publication verified, database sync `synced` | `reports/2025-W16/_publications/9f145f3119d44e6a903736a7c6913ba7/` |
+
+**Deviations (detail in §8)**
+- **D-TL-1** §0 corrected: V9 rule 1 already refused external-cause words; V10 extends it. **D-TL-3** a stronger,
+  labelled planted link (α = 1.6) instead of the natural scenario (r ≈ 0.33, found in 66 % of draws).
+  **D-TL-4** week numbers use `floor` (a truncation bug caught in a dry run). **D-TL-5** migration 028.
+  **D-TL-6** the `finance_test` twin swaps the 4 test weeks into the live series. **D-TL-7** acceptance widened
+  from L5 to golden weeks × 2 + the full Q&A × 2. **D-TL-9** three skill bodies shortened under the 1,200-token cap.
+- **D-TL-10** the evaluation reads the old / new product name as equal in frozen text. **D-TL-11** the notes-stage
+  guard repaired: true denials accepted, a refused sentence replaced by the fixed M17 wording instead of stopping
+  the pack (the first real run `tl1` lost 7 of 11 packs to it). **D-TL-12** two scorer rules widened + `EVAL_REPLAY=1`.
+  **D-TL-13** the former company name in the two Q&A briefs; a citation's page number allowed. **D-TL-14** two
+  slot-form rules, the supervisor's answers only. **D-TL-15** Stage 2 closed on its done-when.
+- Acceptance took three days, not one run: Gemini flash-lite had long 503 spells, the OpenRouter fallback has 50
+  requests a day, and two unattended overnight runners died with the machine.
+
+**Decisions kept:** ADR-051 amendments 8 / 9 / 11, ADR-052 seventh use, notes on ADR-059 and ADR-068.
+
+**Known limits and what was not verified**
+- The claim guard is a bounded pattern policy: a new paraphrase can be refused (cost: one sentence replaced).
+- The live pack was **degraded**: after two rewrites (both on the fallback model — Gemini answered 503) code
+  dropped three bullets. One was the Writer's "no measurable link" sentence as a slide-9 bullet, which V5 refuses;
+  the verdict is on the slide through the code-drawn line and the title. The notes repair of D-TL-11 did not
+  fire in the live pack (the model wrote the fixed wording itself), so it is proven by the replay and `tl2`, not
+  by this pack. Not changed here: the brief / skill does not tell the Writer to leave the link off slide 9's bullets.
+- Not opened by Claude: the published `deck.pptx` slide by slide (the preview of the same draft was), the Power BI
+  "Approved Pack" page, the web UI screens of the approval.
+- Code comments, the two manifests (`suez_transits_manifest.json`, `finance_scenario_manifest.json`), the two
+  script checkpoints and migrations 025–027 still name this plan by its old path `docs/plans/…`; they are left
+  as written (the manifests are hashed artifacts of their scripts, the migrations are applied).
+
+---
+
+**Status when approved: APPROVED (2026-11-08, owner: "موافق على الربط")** — written on the owner's request ("أيوه، اكتب اقتراح") after the question "do invoice
 prices and accounts move with Suez traffic and the news, and can the project relate that evidence?". Queued behind
 `Pack_external_context_plan.md` (APPROVED 2026-11-08, in progress): both touch `pipelines/agents/graphs/weekly_pack.py`
 and the deck Validator, so this plan starts only after that one closes. No code before the owner approves this plan.
@@ -600,3 +670,54 @@ Migrations 025 / 026 are applied by the owner (`db/README.md`), or by Claude aft
   supervisor's no-regression — closed on the done-when (D-TL-15). **Still open:** the one live pack (the owner's
   step), then the implementation record, the ADRs (ADR-051 amendment for D-TL-11 / 12, ADR-052 use, ADR-059 /
   ADR-068 notes for D-TL-13 / 14), `ARCHITECTURE.md`, ROADMAP and the archive. The plan stays in `docs/plans/`.
+- 2026-11-14 09:40 UTC — **the live pack, week 16, on the committed tree (`423b7bd`).**
+  - **Before it (read-only):** `W16:1` and `W16:2` ended `output_invalid`; `W16:3` and `W16:4` waited for a decision,
+    both DEGRADED, both titled "NileGate" and produced before D-TL-11 … D-TL-14 (W16:3's slide 9 said "External
+    context unavailable"). **Owner's choice (clickable options): reject both and start a new attempt.** Rejected as
+    employee 6 at 09:41 UTC with the comment "Stale attempt: produced before D-TL-11..D-TL-14 and the PortPilot
+    rename …" (versions `6e682ec4aa7d5725`, `5df4275b3b245f26`).
+  - **Model state before the run:** usage of the day Gemini 317 of ≈ 500, OpenRouter 0 of 50; Gemini probe 6 / 6.
+  - **`weekly_pack:live:2025-W16:5`** (`run --week 16 --as 6`): `awaiting_approval`, Validator **passed, 0
+    problems**, review version `6bfe8cc71ea849a4`, preview
+    `reports/_drafts/weekly_pack_live_2025-W16_5_6914c3480a.pptx` (10 slides, title "PortPilot Weekly Finance Pack").
+  - **Calls:** 5 answered — 3 on Gemini flash-lite (insight, notes, the Writer's draft), **2 on the OpenRouter
+    fallback** (both Writer patch rewrites: Gemini answered 503 on the first rewrite and was stopped for the run;
+    257 s and 81 s). So the draft is the primary model's; the two rewrites are the fallback model's.
+  - **DEGRADED** (`draft_origin: fallback`): 4 checks still failed after the two rewrites, so code dropped three
+    bullets and replaced none — the DSO bullet on slide 6 (V7 + V9: tiles repeated, `dso_delinquency_days` not
+    named), the audit-week bullet on slide 8 (V9: tiles repeated) and a third bullet on slide 9 (see below).
+    23 bullets remain; no slide and no title was written by code.
+  - **The traffic link, as the plan designs it (§3e):**
+    - Evidence `context.link` (view `finance.kpi_traffic_link`, week 16): `link = no_link`, r same week −0.067,
+      week before −0.114, threshold 0.5, n = 16 weeks.
+    - Notes: `context[1]` is the fixed M17 wording as the model wrote it ("No measurable link was found between
+      the weekly invoice count and Suez transits over the observed weeks."). **The D-TL-11 notes repair did not
+      fire** — no `insight_notes V10` line; the 7 `normalized` lines are all D-P7-14 slot-form fixes (`|dir`, `days`).
+    - Slide 9, read back from the preview PPTX: title "Suez transits average 35.6 per day with no measurable link
+      to weekly billing"; the code-drawn line "PortPilot billing vs Suez transits so far this year — r: same week ·
+      week before · threshold" −0.067 / −0.114 / 0.5 → **"No measurable link"**; footer "External context: public
+      data and news, not PortPilot figures". No causal word on any slide's bullets.
+    - The Writer also put the same sentence as a *bullet* on slide 9 citing `context.link`; **V5 refused it**
+      ("slide 9 is external context only: no PortPilot figure or result here") in every round, the rewrites
+      replaced it with a transit total on a field that does not exist (V2), and the fallback dropped it. The
+      verdict is still on the slide through the code-drawn line and the title. **Observed, not changed:** the
+      notes give the Writer a sentence that V5 forbids as a slide-9 bullet, which costs rewrites — a brief /
+      skill question for a later plan.
+  - **Decision (the owner, through the web UI): APPROVED** as employee 6 (manager / Finance) at 2026-11-14
+    09:59:12 UTC, no comment, no edit (23 bullets as drafted). Thread status `published`, next END.
+  - **Publication verified (read from disk):** `reports/2025-W16/_publications/9f145f3119d44e6a903736a7c6913ba7/`
+    holds the four files (`approval.json`, `deck.pptx`, `deck_draft.json`, `run.json`); their SHA-256, computed
+    again, equal the four hashes in `reports/2025-W16/publication.json` (version 1, thread `…W16:5`).
+    `run.json`: `traffic_link` = the week-16 M17 row (`no_link`, r −0.067 / −0.114, threshold 0.5, n 16);
+    `external_context` = `context.suez` ok (IMF PortWatch) and `context.news` ok, without `context.link`
+    (as D-TL Phase 5 fixed it); `degraded` and the 7 `normalized` lines are kept. **Database sync: `synced`**,
+    1 attempt, 09:59:13 UTC — no reconcile needed.
+  - **Not verified:** the published `deck.pptx` was not opened slide by slide (the preview of the same draft
+    was); the Power BI "Approved Pack" page was not opened; the web UI screens were not inspected by Claude.
+  - **Phase 6 acceptance: all three parts met** (packs `tl2`, Q&A `tl3qa`, the live pack `W16:5`). Left: the
+    implementation record, the ADRs, `ARCHITECTURE.md`, ROADMAP and the archive (owner: archive without
+    another stop).
+- 2026-11-14 — **plan closed.** Implementation record at the top; ADR-051 amendment 11, ADR-052 seventh use,
+  notes on ADR-059 and ADR-068; `ARCHITECTURE.md`, `docs/ROADMAP.md` and the project rules' current-phase line
+  updated; the file moved to `docs/archive/2026-11-14_Traffic_billing_link_plan.md` with a row in
+  `docs/archive/README.md`. The commit is the owner's.
