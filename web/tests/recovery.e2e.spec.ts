@@ -53,6 +53,15 @@ for (const kind of ["ask", "ask_ar", "route", "view", "pack_request", "pack_deci
       },
     };
     if (kind.startsWith("pack_")) {
+      // The mock holds one pack and packs.e2e decides it in another worker: this spec reads the view of a pack that
+      // still waits (a read-only mock hook), so it neither depends on that state nor changes it.
+      await page.route("**/bff/packs/weekly_pack*", async (route) => {
+        const token = (await page.context().cookies()).find((c) => c.name === "ng_session")?.value ?? "";
+        const fresh = await page.request.get("http://127.0.0.1:8765/__mock/pack-fresh", {
+          params: { token },
+        });
+        await route.fulfill({ json: await fresh.json() });
+      });
       await page.route(`**/bff/packs/*/${kind === "pack_request" ? "request" : "decision"}`, (route) =>
         route.fulfill({
           status: 202,

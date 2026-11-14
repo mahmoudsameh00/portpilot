@@ -67,6 +67,15 @@ test("signing in shows the shell built from /me; the token never reaches JavaScr
   await expect(nav.getByText("Voyages")).toHaveCount(0);
   await expect(page.getByRole("status")).toHaveText("API ready");
 
+  // D-FE-11: no "Today" tab; home is the page the PortPilot wordmark opens, from anywhere
+  await expect(page.getByRole("link", { name: "Today" })).toHaveCount(0);
+  await nav.getByRole("link", { name: "Finance" }).click();
+  await expect(page).toHaveURL(/\/finance/);
+  await expect(page.getByRole("link", { name: "Today" })).toHaveCount(0);
+  await page.getByRole("link", { name: "PortPilot", exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { name: "Your services" })).toBeVisible();
+
   const session = (await context.cookies()).find((c) => c.name === "ng_session");
   expect(session?.httpOnly).toBe(true);
   expect(session?.sameSite).toBe("Strict");
@@ -141,4 +150,5 @@ test("an unknown page is a calm 404", async ({ page }) => {
   const res = await page.goto("/no-such-page");
   expect(res?.status()).toBe(404);
   await expect(page.getByRole("heading", { name: "This page is not on the chart." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Back to home" })).toHaveAttribute("href", "/");
 });

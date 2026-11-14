@@ -1,4 +1,5 @@
-// Today (plan §6.0 (1), MASTER v2): the night-ops band with the lanes, then the asker's services from /me.
+// Home (plan §6.0 (1), MASTER v2; "Today" until D-FE-11 removed its tab — the wordmark opens it): the night-ops
+// band with the lanes, then the asker's services from /me.
 // F2 builds the shell; each tile names the phase that brings its page (live lines come with F3–F6 and F0b).
 import { ChartColumnBig, FileCheck2, MessageSquareText, Radar, Route, ShieldCheck } from "lucide-react";
 import Link from "next/link";
@@ -39,11 +40,11 @@ function greeting(): string {
   return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 }
 
-export default async function TodayPage() {
+export default async function HomePage() {
   const session = await getSession();
   if (session.kind !== "signed-in") return null; // the layout already sent the user to sign in
   const { me } = session;
-  const services = NAV.filter((item) => item.href !== "/" && item.show(me));
+  const services = NAV.filter((item) => item.show(me));
 
   return (
     <>

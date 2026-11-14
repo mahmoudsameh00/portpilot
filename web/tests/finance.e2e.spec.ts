@@ -15,7 +15,11 @@ async function signedIn(page: Page, u: { email: string; password: string }, next
   await page.getByLabel("Password").fill(u.password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL((url) => url.pathname === next.split("?")[0]);
-  await expect(page.getByRole("status", { includeHidden: true })).toHaveText(/API (ready|degraded|offline)/);
+  // hydrated: the API badge left "Checking API". By its text, not by the role alone — Recharts' tooltip is a
+  // hidden role="status" too, and the chart can draw before the badge settles (a strict-mode clash under load).
+  await expect(
+    page.locator('[role="status"]').filter({ hasText: /API (ready|degraded|offline)/ }),
+  ).toHaveCount(1);
 }
 
 test("Overview: old Smart View bookmarks fall back to KPIs with receipts and the 13-week trend", async ({

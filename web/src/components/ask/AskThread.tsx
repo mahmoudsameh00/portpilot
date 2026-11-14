@@ -12,9 +12,19 @@ import {
   type AppendMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import { ArrowUp, Sparkles } from "lucide-react";
+import { ArrowUp, FileText, Loader2, Paperclip, Plus, ShieldAlert, Sparkles, X } from "lucide-react";
+import { useRef } from "react";
+import { cn } from "@/lib/utils";
 import { AnswerCard } from "./AnswerCard";
 import type { Turn } from "./useAskThread";
+import { UPLOAD_ACCEPT, UPLOAD_HINT, type Attachment } from "./useAttachments";
+
+/** The composer's "+" (D-FE-11): absent when the asker has no uploads product. */
+export type Attach = {
+  items: Attachment[];
+  onPick: (files: File[]) => void;
+  onRemove: (id: string) => void;
+};
 
 type Msg = { id: string; role: "user" | "assistant"; text: string; turn: Turn };
 
@@ -37,15 +47,80 @@ const convertMessage = (m: Msg): ThreadMessageLike => ({
 });
 
 function UserMessage() {
-  const text = useAuiState((s) => (s.message.metadata.custom?.["turn"] as Turn | undefined)?.question ?? "");
+  const turn = useAuiState((s) => s.message.metadata.custom?.["turn"] as Turn | undefined);
+  const attached = turn?.attachments ?? [];
   return (
     <MessagePrimitive.Root className="flex justify-end">
       <div className="max-w-[85%] rounded-2xl rounded-ee-sm bg-navy px-5 py-3.5 text-on-navy">
+        {attached.length ? (
+          <ul aria-label="Documents attached with this question" className="mb-2 flex flex-wrap gap-1.5">
+            {attached.map((name, i) => (
+              <li
+                key={`${i}:${name}`}
+                className="flex max-w-full items-center gap-1 rounded-md bg-white/12 px-2 py-1 text-xs"
+              >
+                <Paperclip className="size-3 shrink-0" aria-hidden />
+                <bdi className="truncate">{name}</bdi>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <p dir="auto" className="text-[0.95rem] whitespace-pre-line">
-          {text}
+          {turn?.question ?? ""}
         </p>
       </div>
     </MessagePrimitive.Root>
+  );
+}
+
+function AttachmentChips({ attach }: { attach: Attach }) {
+  return (
+    <div className="flex flex-col gap-1.5 px-1.5 pt-1">
+      <ul aria-label="Attached documents" aria-live="polite" className="flex flex-wrap gap-1.5">
+        {attach.items.map((a) => (
+          <li
+            key={a.id}
+            data-state={a.state}
+            className={cn(
+              "flex max-w-full items-start gap-2 rounded-lg border px-2.5 py-1.5 text-xs",
+              a.state === "accepted" && "bg-approved-wash/50",
+              a.state === "refused" && "bg-alert-wash/60",
+            )}
+          >
+            {a.state === "uploading" ? (
+              <Loader2 className="mt-0.5 size-3.5 shrink-0 animate-spin text-muted-foreground" aria-hidden />
+            ) : a.state === "accepted" ? (
+              <FileText className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
+            ) : (
+              <ShieldAlert className="mt-0.5 size-3.5 shrink-0 text-alert-ink" aria-hidden />
+            )}
+            <span className="flex min-w-0 flex-col">
+              <bdi className="truncate font-medium">{a.name}</bdi>
+              <span className={a.state === "refused" ? "text-alert-ink" : "text-muted-foreground"}>
+                {a.state === "uploading"
+                  ? "Checking the document…"
+                  : a.state === "accepted"
+                    ? a.removed
+                      ? `Accepted — ${a.removed} section(s) removed by the screening`
+                      : "Accepted"
+                    : `Not accepted — ${a.message ?? "the document was refused."}`}
+              </span>
+            </span>
+            {a.state === "uploading" ? null : (
+              <button
+                type="button"
+                aria-label={`Remove ${a.name}`}
+                onClick={() => attach.onRemove(a.id)}
+                className="-me-1 grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <X className="size-3.5" aria-hidden />
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-muted-foreground">{UPLOAD_HINT}</p>
+    </div>
   );
 }
 
@@ -60,13 +135,16 @@ export function AskThread({
   onAsk,
   starters,
   disabled,
+  attach,
 }: {
   turns: Turn[];
   running: boolean;
   onAsk: (question: string) => Promise<void>;
   starters: string[];
   disabled?: boolean;
+  attach?: Attach;
 }) {
+  const picker = useRef<HTMLInputElement>(null);
   const runtime = useExternalStoreRuntime<Msg>({
     messages: toMessages(turns),
     convertMessage,
@@ -110,21 +188,57 @@ export function AskThread({
           <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
         </ThreadPrimitive.Viewport>
 
-        <ComposerPrimitive.Root className="flex items-end gap-2 rounded-xl border bg-card p-1.5 shadow-float">
-          <ComposerPrimitive.Input
-            dir="auto"
-            rows={1}
-            maxLength={2000}
-            aria-label="Ask PortPilot"
-            placeholder="Ask a question, in English or Arabic"
-            className="max-h-40 min-h-11 flex-1 resize-none bg-transparent px-3 py-3 text-sm outline-none"
-          />
-          <ComposerPrimitive.Send
-            aria-label="Ask"
-            className="grid size-11 place-items-center rounded-lg bg-primary text-primary-foreground transition-opacity disabled:opacity-40"
-          >
-            <ArrowUp className="size-5" aria-hidden />
-          </ComposerPrimitive.Send>
+        <ComposerPrimitive.Root className="flex flex-col gap-1 rounded-xl border bg-card p-1.5 shadow-float">
+          {attach && attach.items.length ? <AttachmentChips attach={attach} /> : null}
+          {/* "+" first, Send last: the interface is English (D-FE-6), so "+" stays at the left even when the
+              question is Arabic — only the text inside the box turns (owner 2026-11-14). */}
+          <div className="flex items-end gap-2">
+            {attach ? (
+              <>
+                <input
+                  ref={picker}
+                  type="file"
+                  multiple
+                  hidden
+                  tabIndex={-1}
+                  accept={UPLOAD_ACCEPT}
+                  onChange={(e) => {
+                    const files = [...(e.target.files ?? [])];
+                    e.target.value = "";
+                    if (files.length) attach.onPick(files);
+                  }}
+                />
+                <button
+                  type="button"
+                  aria-label="Attach documents"
+                  title={UPLOAD_HINT}
+                  disabled={running}
+                  onClick={() => picker.current?.click()}
+                  className="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
+                >
+                  <Plus className="size-5" aria-hidden />
+                </button>
+              </>
+            ) : null}
+            <ComposerPrimitive.Input
+              dir="auto"
+              rows={1}
+              maxLength={2000}
+              aria-label="Ask PortPilot"
+              placeholder={
+                attach
+                  ? "Ask a question, or attach a document with +"
+                  : "Ask a question, in English or Arabic"
+              }
+              className="max-h-40 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-3 py-3 text-sm outline-none"
+            />
+            <ComposerPrimitive.Send
+              aria-label="Ask"
+              className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-opacity disabled:opacity-40"
+            >
+              <ArrowUp className="size-5" aria-hidden />
+            </ComposerPrimitive.Send>
+          </div>
         </ComposerPrimitive.Root>
       </ThreadPrimitive.Root>
     </AssistantRuntimeProvider>

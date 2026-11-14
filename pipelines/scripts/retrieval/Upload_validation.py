@@ -15,12 +15,14 @@ Phases
 3. Parity and contract: the same document as PDF and as DOCX gives the same chunks; every accepted upload passes the
    corpus chunk contract and concatenates with the corpus (unique chunk ids, same dtypes).
 4. Isolation of the reader: a parse that exceeds its time limit is refused (E_PARSE_TIMEOUT), a crashing reader is
-   refused (E_PARSE), and the caller survives both.
+   refused (E_PARSE), and the caller survives both; the child's JSON is UTF-8 under a cp1252 console too.
 5. Latency of validation per fixture (p50 / p95) and the report.
 """
 # %% Setup
 import json
+import os
 import statistics
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -129,6 +131,15 @@ try:  # an unknown format makes the child exit non-zero: the caller gets an exce
     raise AssertionError("an unknown reader format must fail")
 except RuntimeError:
     pass
+# The child's JSON is UTF-8 bytes whatever the console code page. A text write once used the locale: started without
+# PYTHONIOENCODING on Windows (cp1252), the reader died on a ligature and every upload was refused with E_PARSE — the
+# checks never saw it because their runners set PYTHONIOENCODING (found 2026-11-14 through the web's real-API smoke).
+legacy = subprocess.run([sys.executable, "-s", "-m", "pipelines.lib.upload_reader", "pdf"], input=clean,
+                        capture_output=True, timeout=uploads.PARSE_TIMEOUT_S, cwd=ROOT,
+                        env={**os.environ, "PYTHONIOENCODING": "cp1252", "PYTHONUTF8": "0"})
+assert legacy.returncode == 0, legacy.stderr[-300:]
+assert json.loads(legacy.stdout.decode("utf-8"))["format"] == "pdf"
+print("reader output under a cp1252 console: UTF-8 JSON, exit 0")
 print("✅ Phase 4 validation passed.")
 
 

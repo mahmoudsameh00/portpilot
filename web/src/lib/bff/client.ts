@@ -8,6 +8,8 @@ export class BffError extends Error {
     public status: number,
     public title: string,
     public retryAfter: number | null,
+    /** The API's problem body (RFC 9457 members beyond the title, e.g. a refused upload's `upload`). */
+    public problem: Record<string, unknown> = {},
   ) {
     super(title);
   }
@@ -37,9 +39,11 @@ export async function bffFetch<T>(path: string, init: RequestInit = {}): Promise
     window.location.assign(`/login?next=${encodeURIComponent(here)}`);
   }
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { title?: string };
+    const raw: unknown = await res.json().catch(() => ({}));
+    const body = (raw !== null && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+    const title = typeof body.title === "string" ? body.title : res.statusText;
     const retry = Number(res.headers.get("retry-after"));
-    throw new BffError(res.status, body.title ?? res.statusText, Number.isFinite(retry) ? retry : null);
+    throw new BffError(res.status, title, Number.isFinite(retry) ? retry : null, body);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }

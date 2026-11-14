@@ -18,6 +18,8 @@ export type ToolMark = { name: string; state: "called" | "refused"; part?: strin
 export type Turn = {
   id: string;
   question: string;
+  /** Names of the documents attached with this question (this session only: the API keeps no such link). */
+  attachments?: string[];
   state: "running" | "done" | "failed";
   queued?: number;
   understood?: { text: string; by: string };
@@ -124,19 +126,31 @@ export function useAskThread(conversationId: string | null, onCreated: (id: stri
 
   useEffect(() => () => abort.current?.abort(), []);
 
+  // The conversation is opened by whatever needs it first — an attached document or the first question (D-FE-11).
+  // One request even when both arrive together: the second caller waits for the first one's promise.
+  const opening = useRef<Promise<string> | null>(null);
+  const ensureConversation = useCallback((): Promise<string> => {
+    if (idRef.current !== null) return Promise.resolve(idRef.current);
+    opening.current ??= openConversation()
+      .then((c) => {
+        idRef.current = c.conversation_id;
+        onCreated(c.conversation_id);
+        return c.conversation_id;
+      })
+      .finally(() => {
+        opening.current = null;
+      });
+    return opening.current;
+  }, [onCreated]);
+
   const ask = useCallback(
-    async (question: string) => {
-      const turn = newTurn(question);
+    async (question: string, attachments: string[] = []) => {
+      const turn: Turn = { ...newTurn(question), ...(attachments.length ? { attachments } : {}) };
       setTurns((all) => [...all, turn]);
       const update = (fn: (t: Turn) => Turn) =>
         setTurns((all) => all.map((t) => (t.id === turn.id ? fn(t) : t)));
       try {
-        let id = idRef.current;
-        if (id === null) {
-          id = (await openConversation()).conversation_id;
-          idRef.current = id;
-          onCreated(id);
-        }
+        const id = await ensureConversation();
         const accepted = await askQuestion(id, { question });
         abort.current = new AbortController();
         await streamRun(accepted.run_id, {
@@ -147,8 +161,15 @@ export function useAskThread(conversationId: string | null, onCreated: (id: stri
         update((t) => ({ ...t, state: "failed", error: problemText(error) }));
       }
     },
-    [onCreated],
+    [ensureConversation],
   );
 
-  return { turns, loading, loadError, ask, running: turns.some((t) => t.state === "running") };
+  return {
+    turns,
+    loading,
+    loadError,
+    ask,
+    ensureConversation,
+    running: turns.some((t) => t.state === "running"),
+  };
 }

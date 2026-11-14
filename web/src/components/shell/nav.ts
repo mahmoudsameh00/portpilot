@@ -4,8 +4,8 @@ import type { Me } from "@/lib/api-types";
 export type NavItem = { href: string; label: string; phase: string | null; show: (me: Me) => boolean };
 
 // `phase` = the plan phase that builds the page; null = built. Unbuilt pages show as "soon", never as a dead link.
+// Home (`/`) has no entry: the PortPilot wordmark opens it (owner 2026-11-14, D-FE-11 — the "Today" tab removed).
 export const NAV: NavItem[] = [
-  { href: "/", label: "Today", phase: null, show: () => true },
   { href: "/ask", label: "Ask", phase: null, show: (me) => me.products.ask },
   { href: "/packs", label: "Weekly pack", phase: null, show: (me) => me.products.packs_read },
   { href: "/views", label: "Charts", phase: null, show: (me) => me.tools.includes("finance_kpi") },

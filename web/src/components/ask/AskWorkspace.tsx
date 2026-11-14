@@ -1,25 +1,23 @@
 "use client";
 // The Ask page (plan §6.3): conversations on the start side, the thread in the middle, the conversation's documents
 // on the end side (uploads = untrusted, labelled as such by the API; promotion = a request a person reviews).
+// Documents are attached from the composer's "+", from the first message on (D-FE-11).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileUp, FileText, Loader2, MessageSquarePlus, ShieldAlert, Upload } from "lucide-react";
+import { FileUp, FileText, Loader2, MessageSquarePlus, ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   listConversationsApiV1ConversationsGet as listConversations,
   listUploadsApiV1ConversationsConversationIdUploadsGet as listUploads,
   promoteApiV1ConversationsConversationIdUploadsDocumentIdPromotionPost as promote,
-  uploadApiV1ConversationsConversationIdUploadsPost as uploadFile,
-  type UploadOut,
 } from "@/api/generated/client";
 import { Button } from "@/components/ui/button";
 import type { Me } from "@/lib/api-types";
 import { BffError } from "@/lib/bff/client";
 import { cn } from "@/lib/utils";
-import { AskThread } from "./AskThread";
+import { AskThread, type Attach } from "./AskThread";
 import { useAskThread } from "./useAskThread";
-
-const MAX_UPLOAD = 5 * 1024 * 1024;
+import { UPLOAD_HINT, useAttachments } from "./useAttachments";
 
 function startersFor(me: Me): string[] {
   const out: string[] = [];
@@ -82,82 +80,34 @@ function Conversations({ current }: { current: string | null }) {
   );
 }
 
-function Documents({ conversationId, me }: { conversationId: string; me: Me }) {
-  const qc = useQueryClient();
-  const input = useRef<HTMLInputElement>(null);
-  const [verdict, setVerdict] = useState<UploadOut | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
+// The conversation's documents (D-FE-11): the list, what the screening removed, the promotion request. Attaching
+// is the composer's "+" (one way in); this panel only reads the API's list.
+function Documents({ conversationId, me }: { conversationId: string | null; me: Me }) {
   const docs = useQuery({
     queryKey: ["uploads", conversationId],
-    queryFn: () => listUploads(conversationId),
-  });
-  const send = useMutation({
-    mutationFn: (file: File) => uploadFile(conversationId, { file }),
-    onSuccess: (out) => {
-      setVerdict(out);
-      setProblem(null);
-      void qc.invalidateQueries({ queryKey: ["uploads", conversationId] });
-    },
-    onError: (error) => setProblem(error instanceof BffError ? error.title : "The upload failed."),
+    queryFn: () => listUploads(conversationId as string),
+    enabled: conversationId !== null,
   });
   const ask = useMutation({
-    mutationFn: (documentId: string) => promote(conversationId, documentId, { note: "" }),
+    mutationFn: (documentId: string) => promote(conversationId as string, documentId, { note: "" }),
   });
   const canPromote = me.role === "manager" || me.role === "ceo";
+  const items = docs.data ?? [];
 
   return (
     <section aria-label="Documents in this conversation" className="flex flex-col gap-3">
       <h2 className="text-sm font-semibold">Documents</h2>
       <p className="text-xs text-muted-foreground">
-        PDF or Word, up to 5 MB. Uploaded text is treated as untrusted and labelled so in answers.
+        Attach with <span className="font-semibold">+</span> beside your question. {UPLOAD_HINT}
       </p>
-      <input
-        ref={input}
-        type="file"
-        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        className="sr-only"
-        aria-label="Upload a document"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = "";
-          if (!file) return;
-          if (file.size > MAX_UPLOAD) {
-            setProblem("This file is larger than 5 MB.");
-            return;
-          }
-          send.mutate(file);
-        }}
-      />
-      <Button variant="outline" size="sm" disabled={send.isPending} onClick={() => input.current?.click()}>
-        {send.isPending ? <Loader2 className="animate-spin" aria-hidden /> : <Upload aria-hidden />} Upload
-      </Button>
-      {problem ? (
-        <p role="alert" className="text-xs text-alert-ink">
-          {problem}
-        </p>
-      ) : null}
-      {verdict ? (
-        <div
-          className={cn(
-            "rounded-lg border p-3 text-xs",
-            verdict.accepted ? "bg-approved-wash/50" : "bg-alert-wash/60",
-          )}
-        >
-          <p className="font-semibold">{verdict.accepted ? "Accepted" : "Not accepted"}</p>
-          <p className="mt-1 text-muted-foreground">{verdict.message}</p>
-          {verdict.removed.length ? (
-            <p className="mt-1 flex items-start gap-1 text-waiting-ink">
-              <ShieldAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {verdict.removed.length}{" "}
-              section(s) removed by the screening.
-            </p>
-          ) : null}
-        </div>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No document in this conversation yet.</p>
       ) : null}
       <ul className="flex flex-col gap-2">
-        {(docs.data ?? []).map((d) => (
+        {items.map((d) => (
           <li key={d.document_id} className="rounded-lg border bg-card p-3 text-xs">
             <p className="flex items-center gap-1.5 font-medium">
-              <FileText className="size-3.5 text-primary" aria-hidden />
+              <FileText className="size-3.5 shrink-0 text-primary" aria-hidden />
               <span dir="auto" className="truncate">
                 {d.title || d.filename}
               </span>
@@ -165,6 +115,12 @@ function Documents({ conversationId, me }: { conversationId: string; me: Me }) {
             <p className="mt-1 font-mono text-muted-foreground">
               {d.document_code} · {d.chunks} chunks
             </p>
+            {d.removed ? (
+              <p className="mt-1 flex items-start gap-1 text-waiting-ink">
+                <ShieldAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {d.removed} section(s)
+                removed by the screening.
+              </p>
+            ) : null}
             {canPromote ? (
               <Button
                 variant="ghost"
@@ -200,7 +156,17 @@ export function AskWorkspace({ me, conversationId }: { me: Me; conversationId: s
     },
     [qc],
   );
-  const { turns, loading, loadError, ask, running } = useAskThread(conversationId, onCreated);
+  const { turns, loading, loadError, ask, ensureConversation, running } = useAskThread(
+    conversationId,
+    onCreated,
+  );
+  const attachments = useAttachments(me.products.uploads ? current : null, ensureConversation);
+  const { takeSent } = attachments;
+  // the documents accepted so far go with this question; their chips leave the composer
+  const send = useCallback((question: string) => ask(question, takeSent()), [ask, takeSent]);
+  const attach: Attach | undefined = me.products.uploads
+    ? { items: attachments.items, onPick: attachments.add, onRemove: (id) => void attachments.remove(id) }
+    : undefined;
 
   return (
     <main className="mx-auto grid h-[calc(100dvh-4rem)] max-w-7xl grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[15rem_minmax(0,1fr)_16rem]">
@@ -218,17 +184,18 @@ export function AskWorkspace({ me, conversationId }: { me: Me; conversationId: s
             <Loader2 className="size-4 animate-spin" aria-hidden /> Loading the conversation…
           </p>
         ) : (
-          <AskThread turns={turns} running={running} onAsk={ask} starters={startersFor(me)} />
+          <AskThread
+            turns={turns}
+            running={running}
+            onAsk={send}
+            starters={startersFor(me)}
+            disabled={attachments.uploading}
+            attach={attach}
+          />
         )}
       </section>
       <aside className="hidden overflow-y-auto lg:block">
-        {me.products.uploads && current ? (
-          <Documents conversationId={current} me={me} />
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            {me.products.uploads ? "Ask a first question to attach documents to this conversation." : ""}
-          </p>
-        )}
+        {me.products.uploads ? <Documents conversationId={current} me={me} /> : null}
       </aside>
     </main>
   );

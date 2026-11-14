@@ -1006,3 +1006,105 @@ F3 and F6 can run in parallel after F2 (different routes, no shared files beyond
   container was not rebuilt. API port 8000 is not listening (health connection refused). Next owner rollout:
   `docker compose up -d --build web`, then start the host API and verify live branding/health. Prior Playwright
   proof tested an isolated production build, not this retained service. No restart/build performed during diagnosis.
+- 2026-11-14 — **D-FE-11 APPROVED and built the same day** (owner request, side session; written PROPOSED first,
+  the four decisions asked once as clickable choices, all taken as recommended — see the handoff below): two changes
+  to the shell and the Ask page.
+  - **(a) Attach documents from the first message.** *Why it waits today:* the upload route is
+    `POST /conversations/{id}/uploads` and the web opens the conversation (`POST /conversations`) only inside the
+    first question (`useAskThread.ask`), so `AskWorkspace` shows "Ask a first question to attach documents" until
+    then; the Documents panel is also `hidden lg:block`, so a phone cannot upload at all. `POST /conversations` is
+    its own route and an upload into a conversation with no turn is already allowed by the API
+    (`conversation_for(write=True)` + `sessions.get(create=True)`) → **web-only change, no API / OpenAPI / Python
+    change**, every server check stays as it is (validator, screening, 5 MB, PDF / DOCX, 5 documents / 300 chunks per
+    conversation, owner check, the conversation held busy during an upload).
+    *Design:* a "+" button at the start side of the composer (`AskThread`) with a hidden multi-file input; picked
+    files become chips above the input (name, state, remove). The conversation is opened when it is first needed —
+    by the first attached file or the first question, whichever comes first (one shared `ensureConversation()` in
+    `useAskThread`). Files upload one after another (the API holds the conversation busy per upload; parallel
+    uploads would meet its 409). Comfort checks in the browser before sending (type, 5 MB, 5 per conversation) —
+    the API decides. A refused file shows the API's message on its chip; the document's text is never shown. The
+    sent question's bubble lists the names of the documents attached with it. The Documents panel keeps the list,
+    the verdicts and the promotion request.
+    *Owner decisions asked once (clickable):* when the upload starts (on pick vs. with Send), where "+" sits when
+    the question is Arabic, the Documents panel's own Upload button, how the limits are shown.
+  - **(b) The "Today" tab removed.** "Today" and the PortPilot wordmark both open `/` (`nav.ts` + `AppTopBar`), so
+    the entry leaves `NAV`, `/` stays exactly the page it is, and the wordmark is the way home; no route is deleted,
+    so no redirect is needed. The 404 page's "Back to Today" becomes "Back to home". The concept screens
+    (`/concept`, their own `TopBar`) are the approved F1 gate record and stay as they are.
+  - **Tests planned:** mock API reads the uploaded filename and refuses a planted name (422 `upload_refused`);
+    `ask.e2e.spec.ts`: a new conversation's first message with two attached documents (English) and one in an Arabic
+    question (RTL text, "+" position), a refused file, the client limits, the phone width (the "+" reachable, no
+    sideways scroll, axe); `auth` / `security` specs: no "Today" link, the wordmark opens `/`. `npm run check`.
+  - **Owner decisions (2026-11-14, clickable, all "recommended"):** (1) a picked file **uploads at once** (the chip
+    shows the verdict before Send; known cost: a picked file without a question leaves an empty conversation in the
+    list); (2) "+" stays **at the left always**, also when the question is Arabic (the interface is English, D-FE-6;
+    only the text in the box turns); (3) the Documents panel's own **Upload button removed** — "+" is the one way
+    in, the panel keeps the list, what the screening removed and the promotion request; (4) only the **tab** is
+    removed, `/` stays the page it is.
+  - **Handoff (built):**
+    - `components/ask/useAttachments.ts` (new): the chips' state; comfort checks `localProblem` (PDF / DOCX,
+      5 MB, 5 per conversation); uploads one after another through the generated client; a refused file shows the
+      API's `upload.message` (never document text); removing an accepted chip calls the API's `DELETE …/uploads/{id}`;
+      `takeSent()` hands the accepted names to the question and clears the chips.
+    - `useAskThread.ts`: `ensureConversation()` (one `POST /conversations` shared by the first attached file and the
+      first question), `ask(question, attachments)`, `Turn.attachments` (names in the bubble — this session only:
+      the API keeps no link between a turn and its documents, so a reloaded history shows them in the panel, not in
+      the bubble).
+    - `AskThread.tsx`: "+" (44 px, `Attach documents`, a hidden multi-file input) before the box, Send after it;
+      chips (`data-state` uploading / accepted / refused, `aria-live`) + the limits line above the box; "+" is off
+      while an answer runs (the API holds the conversation busy) and Send is off while a file is being checked.
+    - `AskWorkspace.tsx`: the Documents panel reads the API's list (with "n section(s) removed by the screening").
+    - `lib/bff/client.ts`: `BffError.problem` = the API's problem body (to read a refusal's `upload` member).
+    - `shell/nav.ts`: no "Today" entry; `app/(app)/page.tsx` unchanged but for its name / comment;
+      `app/not-found.tsx`: "Back to home".
+    - **The feature itself needed no Python, API, OpenAPI or allow-list change**; every server check is as it was.
+      (The real-API smoke later found a defect in the upload reader's child process — fixed, see below.)
+  - **Tests:** mock API: the upload reads the file name, checks the conversation's owner, refuses a planted name
+    and the sixth document with the API's 422 shape, marks a planted name as screened, takes 300 ms, and has
+    `DELETE …/uploads/{id}`. `tests/ask.e2e.spec.ts` (+4, the old panel-upload test replaced): the first message
+    with two documents ("+" left of the box, Send off while checking, the conversation opened before any question,
+    names in the bubble, the panel, axe, reload); an Arabic first question (box `rtl`, "+" still left, Arabic file
+    name, Arabic answer RTL); refused / wrong type / too large / screened / remove; the sixth document stopped; no
+    "+" without the uploads product. `tests/ask.mobile.e2e.spec.ts` (new): a phone attaches three files (44 px
+    target, no sideways scroll with a long file name, axe) and asks in Arabic. `tests/auth.e2e.spec.ts`: no "Today"
+    link, the wordmark opens `/`, "Back to home".
+  - **Found on the way (test infrastructure, fixed because it failed the suite):** `recovery.e2e` (pack request /
+    decision) depended on the one mock pack that `packs.e2e` decides in another worker — a race that the new specs'
+    scheduling made visible (it failed in two full runs, passed alone). The recovery spec now reads a waiting
+    pack's view from a read-only mock hook (`/__mock/pack-fresh`), so it neither depends on that state nor changes it.
+  - **Checks:** `npm --prefix web run check` all ✅ (static 6 / 6; Playwright **130 passed**, 50 intentional skips)
+    and a second full Playwright run 130 passed. A third run had one failure in `finance.e2e` ("Overview: old Smart
+    View bookmarks…"): its hydration wait `getByRole("status", { includeHidden: true })` meets Recharts' tooltip
+    (`role="status"`) when the chart draws before the API badge settles — a strict-mode flake in a file this task
+    does not touch; **left as a follow-up** (filter the locator by the badge text). Screenshots (production build +
+    mock API, desktop + phone, EN + AR) in `Notebooks/_scratch/dfe11/`, inspected.
+  - **Web container rebuilt** later the same day (`docker compose up -d --build web` → `portpilot-web:local`,
+    `/login` 200 with the new code), once the owner had Docker Desktop running again.
+  - **Real API (the owner started it; real models):** `node web/scripts/attach-smoke.mjs` (new, by hand: the
+    Operations test login from `web/.env.local`, the reviewed upload fixtures, the upload golden question u01 in
+    English on desktop and u01_ar on a phone) — **12 / 12** against the rebuilt container: `clean_D1.pdf` accepted;
+    `inj_visible_en.pdf` accepted with 1 section removed by the screening; `shape_missing_purpose.docx` refused with
+    the API's own reasons (`E_LEVEL_ABOVE_UPLOADER`, `E_MISSING_SECTION`); the conversation opened by the first
+    attached file, before any question; the first question's bubble names its documents; **the answer comes from
+    the attached document** ("within 30 minutes", evidence `search_documents → qdrant:nilegate_docs + conversation
+    uploads`) in English and in Egyptian Arabic (RTL, "+" at the left, no sideways scroll on the phone). The two PDFs
+    are one document (NG-OPS-PRC-0042), so the later upload replaces the earlier and the panel lists one.
+    Screenshots in `Notebooks/_scratch/dfe11/real/`, inspected.
+  - **Server defect found by that smoke and fixed (owner's choice, clickable: "fix the reader"):** on the first
+    real run every upload was refused with `E_PARSE`. `pipelines/lib/upload_reader.py` (the isolated child of
+    `uploads.read_isolated`) wrote its JSON with a text `sys.stdout.write`, i.e. in the console code page: started
+    from a plain PowerShell (cp1252, no `PYTHONIOENCODING`) the child died on a ligature (PDF → `RuntimeError`) or
+    sent bytes the parent could not decode (DOCX → `UnicodeDecodeError`). The project's runners (`tools/run.py`,
+    `ops/tests/run_api_integration.ps1`) set `PYTHONIOENCODING=utf-8`, so no check had seen it, and the web's
+    uploads had only ever met the mock API — the old Upload button would have failed the same way. Fix: the child
+    writes UTF-8 bytes (`sys.stdout.buffer`); no validation, screening or limit changed. Guard:
+    `Upload_validation.py` Phase 4 now runs the reader under a forced cp1252 console and asserts exit 0 + UTF-8
+    JSON. Checks: `Upload_validation.py` all phases ✅ (52 cases as expected; run directly — `tools/run.py`'s
+    snapshot hit a file locked by the running API), `tools/lint_ratchet.py` ✅ (ruff 0, pyright 0). The reader is
+    spawned per upload, so the running API picked the fix up without a restart. `Api_check.py` not run (it starts
+    its own app and was not needed to prove the child's output; its upload phase goes through the same reader).
+  - **The `finance.e2e` flake fixed** (owner: "fix it here"): its hydration wait now finds the API badge by its text
+    (`[role="status"]` filtered by "API ready | degraded | offline", count 1) instead of by the role alone, which
+    Recharts' hidden tooltip shares. `finance.e2e` ×3 each: 24 / 24; then `npm --prefix web run check` all ✅ and
+    one more full Playwright run: **130 passed** twice in a row (50 intentional skips).
+  - **Open:** the owner's commit (explicit paths).

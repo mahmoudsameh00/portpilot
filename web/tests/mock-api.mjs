@@ -827,16 +827,58 @@ async function chatRoutes(req, res, url, me) {
     return true;
   }
   if (m && req.method === "POST") {
-    await new Promise((resolve) => req.resume().on("end", resolve)); // drain the multipart body
+    // the multipart body: only the file's name is read (the mock never parses a document)
+    const body = await new Promise((resolve) => {
+      const parts = [];
+      req.on("data", (c) => parts.push(c));
+      req.on("end", () => resolve(Buffer.concat(parts).toString("latin1")));
+    });
+    const c = conversations.get(m[1]);
+    if (!c || c.employee_id !== me.employee_id)
+      return (send(res, 404, { title: "no such conversation" }), true);
+    const filename = Buffer.from(/filename="([^"]*)"/.exec(body)?.[1] ?? "upload", "latin1").toString("utf8");
+    const held = uploads.get(m[1]) ?? [];
+    // the API's refusal shape (422 problem + `upload`): a planted name, or the session's document cap (ADR-043)
+    const refusedBy = /refused/i.test(filename)
+      ? { code: "E_NO_TEMPLATE", where: "header", message: "the company template header is missing" }
+      : held.length >= 5
+        ? {
+            code: "E_SESSION_FULL",
+            where: "session",
+            message: "at most 5 documents / 300 chunks per conversation",
+          }
+        : null;
+    if (refusedBy) {
+      send(res, 422, {
+        type: "about:blank",
+        title: `'${filename}' was not accepted`,
+        status: 422,
+        upload: {
+          accepted: false,
+          filename,
+          document_id: null,
+          document_code: null,
+          title: null,
+          chunks: 0,
+          reasons: [refusedBy],
+          removed: [],
+          notes: [],
+          message: `Not accepted: ${refusedBy.message}.`,
+        },
+      });
+      return true;
+    }
+    const screened = /screened/i.test(filename); // a planted name: one section removed by the screening
     const doc = {
       document_id: randomUUID(),
-      document_code: "UPL-0001",
-      title: "Berth schedule",
-      filename: "berth.pdf",
+      document_code: `UPL-${String(held.length + 1).padStart(4, "0")}`,
+      title: filename === "berth.pdf" ? "Berth schedule" : filename.replace(/\.[^.]+$/, ""),
+      filename,
       chunks: 4,
-      removed: 0,
+      removed: screened ? 1 : 0,
     };
-    uploads.set(m[1], [...(uploads.get(m[1]) ?? []), doc]);
+    await new Promise((resolve) => setTimeout(resolve, 300)); // the real reader + embedding take seconds
+    uploads.set(m[1], [...held, doc]);
     send(res, 201, {
       accepted: true,
       filename: doc.filename,
@@ -845,10 +887,25 @@ async function chatRoutes(req, res, url, me) {
       title: doc.title,
       chunks: 4,
       reasons: [],
-      removed: [],
+      removed: screened
+        ? [{ code: "S_INJECTION", where: "section 3", message: "an instruction-like passage was removed" }]
+        : [],
       notes: [],
       message: "Accepted: 4 passages are searchable in this conversation.",
     });
+    return true;
+  }
+  m = /^\/conversations\/([^/]+)\/uploads\/([^/]+)$/.exec(p);
+  if (m && req.method === "DELETE") {
+    const c = conversations.get(m[1]);
+    const held = uploads.get(m[1]) ?? [];
+    if (!c || c.employee_id !== me.employee_id || !held.some((d) => d.document_id === m[2]))
+      return (send(res, 404, { title: "no such upload in this conversation" }), true);
+    uploads.set(
+      m[1],
+      held.filter((d) => d.document_id !== m[2]),
+    );
+    res.writeHead(204).end();
     return true;
   }
   return false;
@@ -1349,6 +1406,17 @@ createServer(async (req, res) => {
   if (url.pathname === "/__mock/pack-reset" && req.method === "POST") {
     pack = freshPack();
     return send(res, 200, { ok: true });
+  }
+  if (url.pathname === "/__mock/pack-fresh") {
+    // The view of a pack still waiting for its decision, whatever another spec did to the shared one (read-only:
+    // the swap is synchronous, so no other request sees it).
+    const viewer = tokens.get(url.searchParams.get("token"));
+    if (!viewer) return send(res, 401, { title: "no such session" });
+    const held = pack;
+    pack = freshPack();
+    const view = packView(viewer);
+    pack = held;
+    return send(res, 200, view);
   }
   if (url.pathname === "/__mock/reset" && req.method === "POST") {
     failures.clear();
