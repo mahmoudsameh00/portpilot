@@ -29,7 +29,18 @@ const suites = [
         : "regenerated client differs";
     },
   ],
-  ["typecheck (tsc)", () => (run("npx tsc --noEmit").status === 0 ? null : "tsc failed")],
+  [
+    // `.next/types` (the global PageProps / LayoutProps route helpers) and next-env.d.ts are git-ignored build
+    // output: a fresh checkout (CI) has neither before `next build`, so generate them first (2026-11-15: the first
+    // pushed CI run failed here with "Cannot find name 'PageProps'" on the four dynamic pages).
+    "typecheck (tsc)",
+    () => {
+      const gen = run("npx next typegen");
+      if (gen.status !== 0) return `next typegen failed: ${(gen.stderr || gen.stdout).trim().split("\n")[0]}`;
+      const r = run("npx tsc --noEmit");
+      return r.status === 0 ? null : `tsc failed: ${r.stdout.trim().split("\n").slice(0, 3).join(" | ")}`;
+    },
+  ],
   [
     "lint (eslint, RTL + no-danger bans)",
     () => (run("npx eslint . --max-warnings 0").status === 0 ? null : "eslint failed"),

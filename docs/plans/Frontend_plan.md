@@ -1107,4 +1107,11 @@ F3 and F6 can run in parallel after F2 (different routes, no shared files beyond
     (`[role="status"]` filtered by "API ready | degraded | offline", count 1) instead of by the role alone, which
     Recharts' hidden tooltip shares. `finance.e2e` ×3 each: 24 / 24; then `npm --prefix web run check` all ✅ and
     one more full Playwright run: **130 passed** twice in a row (50 intentional skips).
-  - **Open:** the owner's commit (explicit paths).
+  - **Committed** by the owner 2026-11-14 (D-FE-11's 18 files, explicit paths).
+- 2026-11-15 — **Pushed CI, `web` job (the done-when's gate 4): first run failed, fix made by the traffic-link
+  session, not yet re-run.** As that session reports it: run 43632933137 on `feat/agents` (commit 78aaa5d) stopped
+  at "typecheck (tsc)" with `Cannot find name 'PageProps'` on the four dynamic pages — `.next/types` and
+  `next-env.d.ts` are git-ignored, so a fresh checkout has neither before `next build`. `web/scripts/check.mjs`
+  now runs `npx next typegen` before `npx tsc --noEmit` (seen in the file) and prints the first tsc errors on a
+  failure; that session verified typegen → tsc exit 0 in a clean copy. The file is the owner's own commit. Gate 4
+  stays **open** until a pushed run is green.
