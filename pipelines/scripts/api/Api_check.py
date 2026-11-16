@@ -452,7 +452,9 @@ try:
         return seen, holder[0]
 
     seen, r_ok = end_order(lambda run: {"status": "answered"})
-    assert seen == [("done", {"status": "answered"}, False, True, ["queued", "started"])], seen
+    # since stabilization R-contract the runner records the answer as the AnswerData contract fills it (defaults in)
+    full = schemas.AnswerData.model_validate({"status": "answered"}).model_dump(mode="json")
+    assert seen == [("done", full, False, True, ["queued", "started"])], seen
     assert [e.event for e in r_ok.since(0)][-2:] == ["answer", "done"]
     seen, r_err = end_order(lambda run: 1 / 0)
     assert seen[0][:4] == ("failed", None, False, True) and r_err.error and r_err.error["status"] == 500, seen
@@ -460,7 +462,10 @@ try:
     assert seen[0][:3] == ("failed", None, True) and seen[0][4][-1] == "failed", seen   # told first, recorded after
     assert "answer" not in [e.event for e in r_slow.since(0)] and r_slow.error["status"] == 504
     _, r_lost = end_order(lambda run: {"status": "answered"}, fail_record=True)
-    assert r_lost.state == "done" and [e.event for e in r_lost.since(0)][-1] == "done"   # a lost record keeps the answer
+    # since stabilization (runs.py "a lost record is a visible failure"): the run ends failed, 500 record_failed,
+    # instead of a "done" whose end nobody stored
+    assert r_lost.state == "failed" and [e.event for e in r_lost.since(0)][-1] == "failed" and \
+        r_lost.error and r_lost.error["status"] == 500 and "record_failed" in json.dumps(r_lost.error), r_lost.error
 
     lags = []
     for _ in range(4):
@@ -543,12 +548,21 @@ try:
     ans_c2 = next(d for _, e, d in ev_c2 if e == "answer")
     assert ans_c2["status"] == "clarify" and ans_c2["model_calls"] == 0 and "36" in ans_c2["answer"] and \
         "41" in ans_c2["answer"] and "tool_called" not in [e for _, e, _ in ev_c2], ev_c2
+    # the reply to the question asked back completes the pending question (2026-11-16), on a thread of its own
+    c3, _ = ask(tok_ops, "vessel 41", conversation=conv_c)
+    ev_c3 = events_of(c3.json()["events_url"], tok_ops)
+    und3 = next((d for _, e, d in ev_c3 if e == "understood"), None)
+    assert und3 and und3["by"] == "code" and und3["used_entities"].get("vessel") == [41] and \
+        und3["standalone_question"].startswith("When will it arrive?") and "41" in und3["standalone_question"], ev_c3
+    assert c3.json()["thread_id"] != c2.json()["thread_id"], (c2.json(), c3.json())
     with owner() as oc:
         rows_m = oc.execute("SELECT turn_no, resolved_by, standalone_question, frame, answer_masked, status FROM "
                             "api.conversation_turns WHERE conversation_id::text = ANY(%s) ORDER BY conversation_id, "
                             "turn_no", ([conv_m1, conv_c],)).fetchall()
     by_turn = [(r["resolved_by"], r["status"], r["frame"]) for r in rows_m]
-    assert ("code", "not_in_data", {"vessel": [36]}) in by_turn and ("clarify", "clarify", {}) in by_turn, by_turn
+    pending_c2 = {"clarify": {"kind": "vessel", "labels": {}, "options": [36, 41], "question": "When will it arrive?"}}
+    assert ("code", "not_in_data", {"vessel": [36]}) in by_turn and ("clarify", "clarify", pending_c2) in by_turn, \
+        by_turn
     assert all(r["answer_masked"] is None or "{" not in r["answer_masked"] for r in rows_m), rows_m
     DONE.append(5)
     print(f"✅ Phase 5 validation passed: POST 202 in {post_s * 1000:.0f} ms while the run takes 1.5 s (C7); one run "
@@ -667,6 +681,8 @@ try:
                                                         flagged_by_audit=False, explanation="largest change",
                                                         evidence_ids=["kpi.category"]) for c in cats[:3]],
                                       caveats=[])
+            if schema is gm.SlidesDraft:                 # a revise re-drafts its related slides only
+                return wp.slides_of(sample.slot_draft(w, self.ev), msgs)
             return gm.DeckDraft.model_validate(sample.slot_draft(w, self.ev))
 
     fm_user = ctx_mod.load_user(PEOPLE[("manager", "Finance")]["employee_id"])
@@ -715,12 +731,12 @@ try:
     app.state.roles_factory = lambda: roles.FakeRoles(pack)
     ch = client.post(dec_url, headers=bearer(tok_fm), json={
         "draft_sha": review_version(),
-        "decision": "edit", "charts": [{"chart": "trend", "weeks": 4}],
+        "decision": "edit", "charts": [{"chart": "variance", "rows": "top5"}],
         "additions": [{"slide": 6, "text": "Finance will follow these receivables this week."}]})
     ev_ch = events_of(ch.json()["events_url"], tok_fm)
     shown_ch = client.get(pack_url, headers=bearer(tok_fm)).json()
     assert ch.status_code == 202 and "approval_needed" in [e for _, e, _ in ev_ch], ev_ch
-    assert shown_ch["charts"]["trend"]["weeks"] == 4 and \
+    assert shown_ch["charts"]["variance"]["rows"] == "top5" and \
         sum(b.get("origin") == "approver" for b in shown_ch["draft"]["bullets"]) == 1, shown_ch["charts"]
     wrong = [client.post(dec_url, json={**j, "draft_sha": review_version()}, headers=bearer(tok_fm)) for j in (
         {"decision": "revise", "steer": "Look at receivables.", "edits": [{"bullet": 0, "text": "y"}]},
@@ -735,8 +751,11 @@ try:
     rv_nodes = [d["name"] for _, e, d in ev_rv if e == "node" and d["phase"] == "start"]
     shown_rv = client.get(pack_url, headers=bearer(tok_fm)).json()
     assert rv.status_code == 202 and "writer" in rv_nodes and "approval_needed" in [e for _, e, _ in ev_rv], rv_nodes
-    assert shown_rv["redrafted"] and shown_rv["charts"] == {} and shown_rv["insight"]["caveats"] == [caveat] and \
-        not any(b.get("origin") for b in shown_rv["draft"]["bullets"]), (shown_rv["redrafted"], shown_rv["charts"])
+    # targeted-revise plan: a caveat re-drafts slide 2 only; the chart variant and the slide-6 addition stay
+    assert shown_rv["redrafted"] and shown_rv["redrafted_slides"] == [2] and shown_rv["charts"]["variance"]["rows"] == "top5" \
+        and shown_rv["insight"]["caveats"] == [caveat] and \
+        [b["slide"] for b in shown_rv["draft"]["bullets"] if b.get("origin") == "approver"] == [6], \
+        (shown_rv["redrafted_slides"], shown_rv["charts"])
     # approver-request plan Phase B: the manager's request in words → a proposal (one fake call, nothing applied) →
     # confirmed → applied and waiting again; a Finance employee 403; a changed draft 409; a wrong step 422
 
@@ -760,7 +779,9 @@ try:
     assert rq.status_code == 202 and ans_rq["status"] == "proposed" and ans_rq["model_calls"] == 1 and \
         prop["steps"] == [{"decision": "edit", "edits": [], "additions": [],
                            "charts": [{"chart": "trend", "weeks": 4}]}], ans_rq
-    assert client.get(pack_url, headers=bearer(tok_fm)).json()["charts"] == {}, "a proposal changed the pack"
+    # the edit's variance variant survives the revise (targeted-revise plan T2); the trend is still the default
+    assert client.get(pack_url, headers=bearer(tok_fm)).json()["charts"] == shown_rv["charts"], \
+        "a proposal changed the pack"
     assert is_problem(client.post(req_url, json={"request": "show 8 weeks"}, headers=bearer(tok_fin)), 403)
     assert is_problem(client.post(req_url, json={"request": "x"}, headers=bearer(tok_fm)), 422)
     conf_url, conf_prop = f"{req_url}/confirm", {k: prop[k] for k in ("understood", "steps", "draft_sha",
@@ -964,7 +985,35 @@ try:
     from pipelines.agents.tools import audit as audit_tool
     au = client.get(f"{B}/finance/invoice-audit", params={"week": 23}, headers=bearer(tok_fm)).json()
     assert au["invoices_checked"] == audit_tool.invoice_audit(fm_user, report_week=23).invoices_checked, au.keys()
-    for url in (f"{B}/finance/weeks", f"{B}/finance/weekly?week=23", f"{B}/finance/invoice-audit?week=23"):
+    # web dashboards plan (migration 029, D-WD-2…4): the breakdown = the view's rows; the export = a workbook whose
+    # sheets hold the same rows, refused outside the finance_kpi rule
+    bd = client.get(f"{B}/finance/breakdown", params={"week": 23, "dimension": "priced_condition"},
+                    headers=bearer(tok_fm)).json()
+    assert bd["source"]["name"] == "finance.kpi_weekly_breakdown" and \
+        round(sum(r["billed_sdr"] for r in bd["rows"]), 2) == tool_w.rows[0]["billed_sdr"], bd
+    xl = client.get(f"{B}/finance/export", params={"week": 23, "page": "revenue"}, headers=bearer(tok_fm))
+    from openpyxl import load_workbook
+    import io as _io
+    wb_ = load_workbook(_io.BytesIO(xl.content))
+    assert xl.status_code == 200 and wb_.sheetnames[0] == "About" and "Laden vs ballast" in wb_.sheetnames, \
+        wb_.sheetnames
+    # amendment 1 (D-WD-6): one figure = its own rows (+ the compare week's), as one sheet + About or as CSV
+    fx = client.get(f"{B}/finance/export/figure", params={"week": 23, "figure": "breakdown",
+                                                          "dimension": "priced_condition", "compare": 22},
+                    headers=bearer(tok_fm))
+    wbf = load_workbook(_io.BytesIO(fx.content))
+    assert fx.status_code == 200 and wbf.sheetnames == ["About", "Laden vs ballast"] and \
+        wbf["Laden vs ballast"].max_row - 1 == 2 * len(bd["rows"]), wbf.sheetnames
+    fc = client.get(f"{B}/finance/export/figure", params={"week": 23, "figure": "category", "format": "csv"},
+                    headers=bearer(tok_fm))
+    lines = fc.content.decode("utf-8-sig").splitlines()
+    assert fc.status_code == 200 and lines[0].endswith("source_view,source_filter") and \
+        len(lines) - 1 == len(fin_tool.finance_kpi(fm_user, report_week=23, dataset="category").rows), lines[:2]
+    assert is_problem(client.get(f"{B}/finance/export/figure", params={"week": 23, "figure": "breakdown"},
+                                 headers=bearer(tok_fm)), 422)
+    for url in (f"{B}/finance/weeks", f"{B}/finance/weekly?week=23", f"{B}/finance/invoice-audit?week=23",
+                f"{B}/finance/breakdown?week=23&dimension=route", f"{B}/finance/export?week=23&page=overview",
+                f"{B}/finance/export/figure?week=23&figure=trend"):
         assert is_problem(client.get(url, headers=bearer(tok_ops)), 403), url
     assert is_problem(client.get(f"{B}/finance/nope?week=23", headers=bearer(tok_fm)), 422)
     assert is_problem(client.get(f"{B}/finance/weekly?week=60", headers=bearer(tok_fm)), 422)

@@ -470,6 +470,67 @@
     "title": "Body_upload_api_v1_conversations__conversation_id__uploads_post",
     "type": "object"
    },
+   "BreakdownRows": {
+    "description": "`finance.kpi_weekly_breakdown` (M18) for one week and one dimension, largest member first.",
+    "properties": {
+     "dimension": {
+      "enum": [
+       "vessel_category",
+       "toll_band",
+       "route",
+       "priced_condition",
+       "customer_segment",
+       "customer_country",
+       "credit_rating"
+      ],
+      "title": "Dimension",
+      "type": "string"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "rows": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Rows",
+      "type": "array"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SourceOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "status": {
+      "enum": [
+       "ok",
+       "no_data"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "dimension",
+     "status"
+    ],
+    "title": "BreakdownRows",
+    "type": "object"
+   },
    "ChartCatalogue": {
     "additionalProperties": true,
     "description": "charts.catalogue(): the pack's chart variants and the views' kinds and options (approver plan Phase F).",
@@ -741,7 +802,7 @@
    },
    "DecisionIn": {
     "additionalProperties": false,
-    "description": "approve / edit (text edits, additions, chart variants) / revise (analysis edits and / or a steer, chart\nvariants; the deck is drafted again) / reject — one kind per decision (approver-additions plan D1).",
+    "description": "approve / edit (text edits, additions, chart variants) / revise (analysis edits and / or a steer, chart\nvariants; the related slides are drafted again, the rest kept — targeted-revise plan) / reject — one kind per\ndecision (approver-additions plan D1).",
     "properties": {
      "additions": {
       "items": {
@@ -1564,12 +1625,25 @@
         "type": "null"
        }
       ],
+      "description": "the draft with its slots filled; a bullet or slide title code wrote after the Writer's rewrites failed has origin 'code', an approver's edit has edited true, and `removed` lists the Writer texts code took out ({slide, text, by: code | fallback, why}) — shown on their slide (targeted-revise plan B4)",
       "title": "Draft"
      },
      "draft_sha": {
       "description": "Review version; send unchanged with a direct decision",
       "title": "Draft Sha",
       "type": "string"
+     },
+     "fallback_share": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "of the model calls answered for this pack, the share a fallback model answered (Model flexibility plan W10)",
+      "title": "Fallback Share"
      },
      "form_fixes": {
       "title": "Form Fixes",
@@ -1623,6 +1697,14 @@
       "default": false,
       "title": "Redrafted",
       "type": "boolean"
+     },
+     "redrafted_slides": {
+      "description": "the slides the last revise re-drafted; every other slide, the additions and the chart variants were kept (targeted-revise plan A5)",
+      "items": {
+       "type": "integer"
+      },
+      "title": "Redrafted Slides",
+      "type": "array"
      },
      "revision": {
       "title": "Revision"
@@ -4357,6 +4439,342 @@
     "summary": "Promote",
     "tags": [
      "uploads"
+    ]
+   }
+  },
+  "/api/v1/finance/breakdown": {
+   "get": {
+    "description": "The week's billing by one dimension (web dashboards plan, D-WD-4): count, SDR, tons, share, rank.",
+    "operationId": "breakdown_api_v1_finance_breakdown_get",
+    "parameters": [
+     {
+      "description": "ISO week of 2025 (as of its Sunday 23:59)",
+      "in": "query",
+      "name": "week",
+      "required": true,
+      "schema": {
+       "description": "ISO week of 2025 (as of its Sunday 23:59)",
+       "maximum": 52,
+       "minimum": 1,
+       "title": "Week",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "dimension",
+      "required": true,
+      "schema": {
+       "enum": [
+        "vessel_category",
+        "toll_band",
+        "route",
+        "priced_condition",
+        "customer_segment",
+        "customer_country",
+        "credit_rating"
+       ],
+       "title": "Dimension",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BreakdownRows"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Breakdown",
+    "tags": [
+     "finance"
+    ]
+   }
+  },
+  "/api/v1/finance/export": {
+   "get": {
+    "description": "One dashboard page of one week as an Excel workbook (D-WD-2); allowed to whoever may read the dashboard\n(D-WD-3); every export is one `audit_log` row (action `export`).",
+    "operationId": "export_api_v1_finance_export_get",
+    "parameters": [
+     {
+      "description": "ISO week of 2025 (as of its Sunday 23:59)",
+      "in": "query",
+      "name": "week",
+      "required": true,
+      "schema": {
+       "description": "ISO week of 2025 (as of its Sunday 23:59)",
+       "maximum": 52,
+       "minimum": 1,
+       "title": "Week",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": true,
+      "schema": {
+       "enum": [
+        "overview",
+        "revenue",
+        "receivables",
+        "customers",
+        "exceptions",
+        "executive"
+       ],
+       "title": "Page",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+        "schema": {
+         "format": "binary",
+         "type": "string"
+        }
+       }
+      },
+      "description": "the page's Excel workbook (a sheet per visual + About)"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Export",
+    "tags": [
+     "finance"
+    ]
+   }
+  },
+  "/api/v1/finance/export/figure": {
+   "get": {
+    "description": "One figure of the dashboard (web dashboards plan amendment 1, D-WD-6): its rows exactly as the view gives them\nwith the source view and filter; the same access rule as the dashboard (D-WD-3), one `audit_log` row each.",
+    "operationId": "export_figure_api_v1_finance_export_figure_get",
+    "parameters": [
+     {
+      "description": "ISO week of 2025 (as of its Sunday 23:59)",
+      "in": "query",
+      "name": "week",
+      "required": true,
+      "schema": {
+       "description": "ISO week of 2025 (as of its Sunday 23:59)",
+       "maximum": 52,
+       "minimum": 1,
+       "title": "Week",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "figure",
+      "required": true,
+      "schema": {
+       "enum": [
+        "kpis",
+        "trend",
+        "category",
+        "overdue",
+        "customers",
+        "breakdown",
+        "audit_summary",
+        "audit_findings"
+       ],
+       "title": "Figure",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "format",
+      "required": false,
+      "schema": {
+       "default": "xlsx",
+       "enum": [
+        "xlsx",
+        "csv"
+       ],
+       "title": "Format",
+       "type": "string"
+      }
+     },
+     {
+      "description": "kpis: the page whose tiles are exported",
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "overview",
+          "revenue",
+          "receivables",
+          "customers",
+          "exceptions",
+          "executive"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "kpis: the page whose tiles are exported",
+       "title": "Page"
+      }
+     },
+     {
+      "description": "breakdown: the dimension shown",
+      "in": "query",
+      "name": "dimension",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "vessel_category",
+          "toll_band",
+          "route",
+          "priced_condition",
+          "customer_segment",
+          "customer_country",
+          "credit_rating"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "breakdown: the dimension shown",
+       "title": "Dimension"
+      }
+     },
+     {
+      "description": "breakdown: the compare week",
+      "in": "query",
+      "name": "compare",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maximum": 52,
+         "minimum": 1,
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "breakdown: the compare week",
+       "title": "Compare"
+      }
+     },
+     {
+      "description": "audit_*: the year to date",
+      "in": "query",
+      "name": "ytd",
+      "required": false,
+      "schema": {
+       "default": false,
+       "description": "audit_*: the year to date",
+       "title": "Ytd",
+       "type": "boolean"
+      }
+     },
+     {
+      "description": "ranked lists: the rows the card shows",
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maximum": 50,
+         "minimum": 1,
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "ranked lists: the rows the card shows",
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+        "schema": {
+         "format": "binary",
+         "type": "string"
+        }
+       },
+       "text/csv": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      },
+      "description": "one visual's or table's rows: a one-sheet workbook + About, or CSV"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Export Figure",
+    "tags": [
+     "finance"
     ]
    }
   },

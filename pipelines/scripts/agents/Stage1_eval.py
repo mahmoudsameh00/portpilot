@@ -49,6 +49,7 @@ from pptx import Presentation
 ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / "pyproject.toml").exists() and (p / "Data").is_dir())
 sys.path.insert(0, str(ROOT))
 from pipelines.agents import llm, roles, tracing  # noqa: E402
+EVAL_MODELS_FILE = roles.use_eval_models()   # Model flexibility plan M4: a candidate models file, or None
 from pipelines.agents.deck import render, sample, slots  # noqa: E402
 from pipelines.agents.graphs import finance_qa as qa  # noqa: E402
 from pipelines.agents.graphs import models as m  # noqa: E402
@@ -150,6 +151,8 @@ def usage_summary(usage: list[dict]) -> dict:
             "fallbacks": sum(1 for u in usage if u.get("outcome") == "ok" and u.get("role") in first
                              and u["model"] != first[u["role"]] and not u["model"].startswith("fake")),
             "failed_calls": sum(1 for u in usage if u.get("outcome") not in ("ok",)),
+            "fallback_share": roles.fallback_share(usage),
+            "cost_usd": round(sum(u.get("cost_usd") or 0 for u in usage), 6),
             "latency_ms": sum(u.get("latency_ms") or 0 for u in usage)}
 
 
@@ -341,6 +344,8 @@ def score_pack(key: str, st: dict, pptx: Path | None) -> dict:
                  and (ev[x.slot.eid].get("source") is not None))
     titles = [t["title"] for t in draft.get("slide_titles") or []]
     return {"week": key, "status": status, "stop_reason": st.get("stop_reason"), "rewrites": st.get("rewrites", 0),
+            # 2026-11-15: whether code replaced failing Writer texts (the approver sees the pack marked degraded)
+            "degraded": bool(st.get("degraded")), "draft_origin": st.get("draft_origin"),
             "published": published, "evidence_equal_frozen": ev_same, "numbers_bound": n_bound,
             "slot_errors": slot_errors, "numbers_ok": numbers_ok,
             "planted": [f["id"] for f in planted], "planted_found": planted_found,
@@ -440,8 +445,9 @@ def aggregate(packs: list[dict], answers: list[dict]) -> dict:
         "style": {k: sum(p["style"][k] for p in pub) for k in ("redundant_direction", "empty_bullets",
                                                                "title_adjectives")},
         "usage": {k: sum(x["usage"][k] for x in packs + answers) for k in ("calls", "fresh_calls", "cached_calls",
-                                                                          "tokens", "fallbacks", "failed_calls")},
-        "rewrites": sum(p["rewrites"] for p in packs)}
+                                                                          "tokens", "fallbacks", "failed_calls", "cost_usd")},
+        "rewrites": sum(p["rewrites"] for p in packs),
+        "degraded_packs": sum(bool(p.get("degraded")) for p in packs)}
 
 
 def gates(agg: dict) -> dict:
@@ -789,6 +795,7 @@ print("Phase 3:", {k: agg3[k] for k in ("packs_published", "deck_numbers", "plan
                                         "claim_accuracy", "traceability", "narrative_recall")}, agg3["usage"])
 assert all(g3.values()), g3
 assert agg3["usage"]["fresh_calls"] == 0 and agg3["packs_published"] == "11 / 11"
+assert agg3["degraded_packs"] == 0, agg3["degraded_packs"]  # the fake Writer passes: nothing replaced by code
 assert agg3["planted_found"] == f"{PLANTED} / {PLANTED}", agg3["planted_found"]
 print(f"✅ Phase 3 validation passed: 11 / 11 golden weeks published with fake models; deck numbers 100 %, planted "
       f"{PLANTED} / {PLANTED} (5 in the slide-8 table + the week-36 budget miss), false alarms 0, claims 100 %, "
@@ -824,6 +831,7 @@ print("Phase 3c: with c4", {k: on[k] for k in ("packs_published", "planted_found
 assert on["packs_published"] == "11 / 11" and on["planted_found"] == f"{PLANTED} / {PLANTED}", on
 assert on["deck_numbers"] == 1.0 and on["claim_accuracy"] == 1.0 and on["false_alarm_rate"] == 0.0, on
 assert all(d and d["replaced_bullets"] == [0] and not d["dropped_bullets"] for d in side[True][1]), side[True][1][:2]
+assert on["degraded_packs"] == 11 and all(p["degraded"] for p in side[True][2]), on["degraded_packs"]  # 2026-11-15
 assert off["packs_published"] == "0 / 11" and off["planted_found"] == f"0 / {PLANTED}", off
 assert next(p for p in side[True][2] if p["week"] == "test:36")["planted_found"] == ["t36-a", "t36-b"]
 assert on["usage"]["fresh_calls"] == 0 and off["usage"]["fresh_calls"] == 0
@@ -974,6 +982,7 @@ else:
     out = {"plan": "Agents plan §5d; ADR-052 (two runs, hard gates, primaries −0.03)", "date": date.today().isoformat(),
            "tag": TAG or "baseline", "scope": SCOPE, "c4": C4, "replay": REPLAY,
            "inputs_sha256": sha, "models": {k: [c.name for c in v] for k, v in roles.ROLES.items()},
+           "models_file": EVAL_MODELS_FILE or "pipelines/agents/models.toml",
            "runs": runs, "stopped": stopped}
     complete = [x for x in runs if x["complete"]]
     if len(complete) == REPEATS:

@@ -49,6 +49,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / "pyproject.toml").exists() and (p / "Data").is_dir())
 sys.path.insert(0, str(ROOT))
 from pipelines.agents import checkpointer, llm, roles, tracing  # noqa: E402
+EVAL_MODELS_FILE = roles.use_eval_models()   # Model flexibility plan M4: a candidate models file, or None
 from pipelines.agents.graphs import finance_qa as qa  # noqa: E402
 from pipelines.agents.graphs import supervisor as sv  # noqa: E402
 from pipelines.agents.tools import context, external, finance, watch, weather  # noqa: E402
@@ -187,6 +188,8 @@ def usage_summary(usage: list[dict]) -> dict:
             "fallbacks": sum(1 for u in usage if u.get("outcome") == "ok" and u.get("role") in first
                              and u["model"] != first[u["role"]] and not u["model"].startswith("fake")),
             "failed_calls": sum(1 for u in usage if u.get("outcome") != "ok"),
+            "fallback_share": roles.fallback_share(usage),
+            "cost_usd": round(sum(u.get("cost_usd") or 0 for u in usage), 6),
             "latency_ms": sum(u.get("latency_ms") or 0 for u in usage)}
 
 
@@ -210,7 +213,7 @@ def aggregate(scores: list[dict]) -> dict:
             "rbac_leakage": sum(bool(s.get("leak")) for s in scores),
             "typed_from_text": sum(s["typed_from_text"] for s in scores),
             "usage": {k: sum(s["usage"][k] for s in scores) for k in ("calls", "fresh_calls", "cached_calls",
-                                                                     "tokens", "fallbacks", "failed_calls")},
+                                                                     "tokens", "fallbacks", "failed_calls", "cost_usd")},
             "max_call_tokens": max(s["usage"]["max_call_tokens"] for s in scores),
             "not_ok": [s["id"] for s in scores if not s["status_ok"]
                        or s.get("completeness", 1.0) < 1.0 or s.get("leak")]}
@@ -548,7 +551,8 @@ else:
             break
     out = {"plan": "Agents plan §6d S5; the done-when fixed 2026-10-29", "date": date.today().isoformat(),
            "tag": TAG or "baseline", "replay": REPLAY, "inputs_sha256": sha,
-           "models": {k: [c.name for c in v] for k, v in roles.ROLES.items()}, "runs": runs, "stopped": stopped}
+           "models": {k: [c.name for c in v] for k, v in roles.ROLES.items()},
+           "models_file": EVAL_MODELS_FILE or "pipelines/agents/models.toml", "runs": runs, "stopped": stopped}
     complete = [x for x in runs if x["complete"]]
     for x in complete:
         print(f"run {x['repeat']}:", json.dumps({k: v for k, v in x["aggregate"].items() if k != "not_ok"},

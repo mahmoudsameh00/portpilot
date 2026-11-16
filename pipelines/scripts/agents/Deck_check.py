@@ -776,6 +776,16 @@ def claim_cases(ev, d):
         "a unit written twice after a slot (c5 W24)": _comment(
             d, 7, f"{cu} billed {slots.binding('kpi.customers', 'billed_13w_sdr', 'M', cu)} million over 13 weeks",
             ["kpi.customers"]),
+        # 2026-11-16, the live W17 draft: a budget word in a title against the week (rule 2b), a direction word before
+        # a |dir slot (rule 9), every payment compared with what fell due (rule 10) — planted true-signed elsewhere
+        "a title's budget word against the week (live W17 slide 4)": _title(
+            d, 4, f"Billed revenue {'exceeded' if (var_w or 0) < 0 else 'missed'} its budget this week"),
+        "a direction said twice before a |dir slot (live W17 slide 6)": _title(
+            d, 6, f"Overdue receivables {'declined' if (k['overdue_wow_pct'] or 0) < 0 else 'rose'} by "
+                  "{kpi.weekly:overdue_wow_pct|%1|dir} WoW"),
+        "all payments compared with what fell due (live W17 slide 3)": _comment(
+            d, 3, "Collected {kpi.weekly:collected_sdr|M}, exceeding the {kpi.weekly:due_week_sdr|M} due this week",
+            ["kpi.weekly"]),
     }
 
 
@@ -813,7 +823,7 @@ na9 = {c: [w for w, a in zip(CLAIM_WEEKS, ws) if a is None] for c, ws in v9_appl
 actual = {"classes": len(v9_applicable), "planted": len(v9_caught), "missed": missed9, "other_rules": v9_other,
           "accepted_problems": accepted_problems, "applicable_w12": sorted(c for c, ws in v9_applicable.items()
                                                                            if 12 in ws)}
-expected = {"classes": 14, "planted": 28 - sum(len(v) for v in na9.values()), "missed": [],
+expected = {"classes": 17, "planted": 34 - sum(len(v) for v in na9.values()), "missed": [],
             # reviewed 2026-11-09 (traffic-billing link plan Phase 5): V10 also refuses the two "external cause"
             # classes — they relate billing to traffic / the news with a cause word; V9 still catches them alone
             "other_rules": {(w, c): ["V10"] for w in CLAIM_WEEKS
@@ -821,6 +831,7 @@ expected = {"classes": 14, "planted": 28 - sum(len(v) for v in na9.values()), "m
             "accepted_problems": [], "applicable_w12": sorted(v9_applicable)}   # every W12 over-claim is false in W12
 # reviewed 2026-11-01: 11 classes, every one false in both W11 and W12 → 22 planted, all caught by V9 alone
 # reviewed 2026-11-02: + 3 classes of rules 6–8 (c5's real sentences) → 14 classes, 28 planted, all caught
+# reviewed 2026-11-16: + 3 classes from the live W17 draft (rule 2b budget words, rules 9–10) → 17 classes, 34 planted
 assert na9 == {}, na9
 assert actual == expected, actual
 print(f"Phase 5: {len(v9_caught)} over-claims planted ({len(v9_applicable)} classes × weeks {CLAIM_WEEKS}), "
@@ -1043,13 +1054,47 @@ print("✅ Phase 8 validation passed: every catalogue chart variant passes V8 wi
       "off, a shifted window, another measure, the wrong five)")
 DONE.append(8)
 
+# %% Phase 9 — A result total and a row named in a later clause (targeted-revise plan B2, 2026-11-16)
+# Measured on the s9 replay: 8 of the 57 problems left at the fallback were one V7 false alarm — a result total
+# ("averaged {week_mean_transits}") read as the row of a date named in a later clause ("dipping to {…} on
+# 2025-04-26"). A total is now put on a row only when the row is named right after it, in its own clause or before
+# it; a row slot keeps the rule it had. The evidence is a small fixed `context.suez` of the live W17 shape.
+SUEZ = {"tool": "suez_transits", "status": "ok", "week_mean_transits": 36.4, "prev4_mean_transits": 37.4,
+        "week_min_transits": 30, "week_min_date": "2025-04-26", "week_max_transits": 40,
+        "week_max_date": "2025-04-22",
+        "rows": [{"date": f"2025-04-{d}", "n_total": n, "n_tanker": 19} for d, n in
+                 (("21", 37), ("22", 40), ("23", 38), ("24", 36), ("25", 34), ("26", 30), ("27", 40))]}
+EV9 = {"context.suez": SUEZ}
+W17_SENTENCE = ("Suez chokepoint transits averaged {context.suez:week_mean_transits} daily calls, dipping to a low of "
+                "{context.suez[2025-04-26]:n_total} on 2025-04-26 and peaking at {context.suez[2025-04-22]:n_total} "
+                "on 2025-04-22")
+CASES9 = {   # text → whether V7 refuses it
+    "w17_live_sentence": (W17_SENTENCE, False),
+    "total_then_two_rows": ("Transits averaged {context.suez:week_mean_transits} a day, against "
+                            "{context.suez:prev4_mean_transits} in the four weeks before; the low came on 2025-04-26 "
+                            "at {context.suez[2025-04-26]:n_total}", False),
+    "total_right_after_date": ("{context.suez:week_mean_transits} transits on 2025-04-26", True),
+    "date_before_total": ("On 2025-04-26 the canal averaged {context.suez:week_mean_transits} transits", True),
+    "total_in_date_clause": ("Transits fell on 2025-04-26 to {context.suez:week_mean_transits}", True),
+    "row_slot_unchanged": ("{context.suez[2025-04-22]:n_total} transits were counted, the low came on 2025-04-26",
+                           True),
+}
+actual9 = {k: any(p[0] == "V7" for p in v2.check_text(t, EV9, ["context.suez"], 17)[1]) for k, (t, _) in CASES9.items()}
+expected9 = {k: want for k, (_, want) in CASES9.items()}
+assert actual9 == expected9, actual9
+print(f"Phase 9: {sum(not v for v in actual9.values())} sentences pass, {sum(actual9.values())} still refused by V7")
+print("✅ Phase 9 validation passed: a result total is no longer read as the row of a date named in a later clause "
+      "(the live W17 / s9 sentence passes); a total named right after, before or in its own clause with a date, and "
+      "a row slot, are refused as before")
+DONE.append(9)
+
 # %% Final Checkpoint
 # Narrative: pipelines/checkpoints/agents/Deck_check.md (written when Phase 6 closes).
 # (§5c listed a Phase 5 "real models" here: it is Weekly_pack_check.py Phase 5 — the real pack, its V1–V8 and the
 # published deck.pptx — so it is not run twice; the claim check V9 became Phase 5 on 2026-11-01)
 PHASES = {1: "slots", 2: "52 clean decks (V1–V9)", 3: "planted wrong numbers", 4: "real failures replayed",
           5: "planted over-claims (V9)", 6: "layout: long comments fit", 7: "approver additions",
-          8: "chart variants"}
+          8: "chart variants", 9: "a total and a later-clause row (V7)"}
 pending = [f"{k} {v}" for k, v in PHASES.items() if k not in DONE]
 assert DONE == sorted(DONE) and set(DONE) <= set(PHASES)
 print(f"Final Checkpoint: done {DONE}; pending: {pending}")

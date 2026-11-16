@@ -10,6 +10,7 @@ Evidence ids name a tool result kept in the state: `kpi.<dataset>`, `audit.week`
 `insight.<tool_call_id>`.
 """
 import re
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -80,6 +81,13 @@ class DeckDraft(BaseModel):
     title: str = Field(min_length=1, description='"PortPilot Weekly Finance Pack — <week> — Draft for approval"')
     slide_titles: list[SlideTitle] = Field(description="one title per slide, slides 1 to 10")
     bullets: list[Bullet] = Field(description="every bullet of slides 2 to 9, in slide order")
+
+
+class SlidesDraft(BaseModel):
+    """A revise's re-draft of the named slides only (targeted-revise plan A2): code merges it into the deck the
+    approver had, every other slide kept as it stands."""
+    slide_titles: list[SlideTitle] = Field(description="one title for each slide you were asked to write")
+    bullets: list[Bullet] = Field(description="the bullets of the slides you were asked to write, in slide order")
 
 
 class Fix(BaseModel):
@@ -377,7 +385,7 @@ class RouteAdviceResult(BaseModel):
 
 # --- Voyage watch (Agents plan Phase 11, §6c: `graphs/voyage_watch.py`) ---------------------------------------------
 
-ALERT_ID = r"^\d+/(weather|suez_traffic)$"
+ALERT_ID = r"^\d+/(weather|suez_traffic|rta_late|jit)$"
 WATCH_STATUSES = ("ok", "no_data", "not_permitted")
 BRIEF_STATUSES = ("ok", "no_alerts", "output_invalid", "validation_failed")
 
@@ -398,7 +406,7 @@ class WatchItem(BaseModel):
     def _ids(self):
         bad = [a for a in self.alert_ids if not re.match(ALERT_ID, a)]
         if bad:
-            raise ValueError(f"alert ids look like <vessel_id>/weather or <vessel_id>/suez_traffic: {bad}")
+            raise ValueError(f"alert ids look like <vessel_id>/weather, /suez_traffic, /rta_late or /jit: {bad}")
         return self
 
 
@@ -424,3 +432,65 @@ class VoyageWatchResult(BaseModel):
     sources: list[dict] = Field(default_factory=list)
     problems: list[str] = Field(default_factory=list)
     run_file: str | None = None
+
+
+# --- Arrival advice (JIT arrival plan §3, D-J1: `graphs/arrival_advice.py`) ------------------------------------------
+
+ARRIVAL_EVIDENCE_ID = r"^arrival\.[a-z_]+$"
+ARRIVAL_OPTIONS = ("keep", "jit", "floor", "catch_up", "cape")
+ARRIVAL_STATUSES = ("ok", "on_time", "late", "not_at_sea", "not_destination", "no_rta", "not_permitted", "no_data",
+                    "output_invalid", "validation_failed")
+
+
+class ArrivalRequest(BaseModel):
+    """One question: one of our vessels at sea, optionally its port (must be the voyage's destination) and an RTA
+    (else the RTA known at the clock from the port-call messages); the clock comes from the run context."""
+    vessel_id: int = Field(ge=1)
+    port: str | None = Field(default=None, pattern=r"^[A-Z]{2}[A-Z2-9]{3}$")
+    rta_utc: datetime | None = None
+    location: Literal["berth", "pilot_boarding_place"] = "berth"
+
+    @model_validator(mode="after")
+    def _utc(self):
+        if self.rta_utc is not None and (self.rta_utc.tzinfo is None or self.rta_utc.utcoffset() is None):
+            raise ValueError("rta_utc must carry its time zone (UTC, e.g. 2026-09-15T14:00Z)")
+        return self
+
+
+class ArrivalReason(BaseModel):
+    text: str = Field(min_length=1, max_length=400, description="one sentence; every number written as a slot")
+    evidence_ids: list[str] = Field(default_factory=list, description="ids of the arrival.* results it uses")
+
+    @model_validator(mode="after")
+    def _ids(self):
+        bad = [e for e in self.evidence_ids if not re.match(ARRIVAL_EVIDENCE_ID, e)]
+        if bad:
+            raise ValueError(f"evidence ids look like arrival.options / arrival.summary / arrival.weather: {bad}")
+        return self
+
+
+class ArrivalAdvice(BaseModel):
+    """What the advisor writes (skill `arrival-advice`): the option, a headline and the reasons, numbers as slots; the
+    option table, the assumptions and the sources are written by code."""
+    recommendation: Literal[ARRIVAL_OPTIONS] = Field(description="one of the computed options: keep, jit, floor, catch_up or cape")  # pyright: ignore[reportInvalidTypeForm] (Literal built from the data tuple)
+    headline: str = Field(min_length=1, max_length=300, description="one sentence: the speed to sail and its main reason")
+    reasons: list[ArrivalReason] = Field(min_length=1, max_length=5, description="time, fuel and risk reasons")
+    risks: list[ArrivalReason] = Field(default_factory=list, max_length=4,
+                                       description="weather on the next legs and Suez traffic only (arrival.weather, "
+                                                   "arrival.traffic); 'context unavailable' when a tool said so")
+
+
+class ArrivalAdviceResult(BaseModel):
+    """The answer the graph returns and keeps in its checkpoint (one thread per question)."""
+    status: Literal[ARRIVAL_STATUSES]  # pyright: ignore[reportInvalidTypeForm] (Literal built from the data tuple)
+    request: dict
+    as_of: str
+    summary: dict = Field(default_factory=dict, description="arrival.summary: the RTA, the target, the situation")
+    options: list[dict] = Field(default_factory=list, description="arrival.options rows")
+    recommendation: Literal[ARRIVAL_OPTIONS] | None = None  # pyright: ignore[reportInvalidTypeForm] (Literal built from the data tuple)
+    headline: str | None = None
+    reasons: list[str] = Field(default_factory=list, description="rendered: slots filled by code")
+    risks: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    sources: list[dict] = Field(default_factory=list)
+    problems: list[str] = Field(default_factory=list)

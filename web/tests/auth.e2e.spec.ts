@@ -62,14 +62,14 @@ test("signing in shows the shell built from /me; the token never reaches JavaScr
   await expect(page.getByText(`Employee ${finance.me.employee_id}, manager in Finance`)).toBeVisible();
 
   const nav = page.getByRole("navigation", { name: "Main" });
-  await expect(nav.getByText("Weekly pack")).toBeVisible();
-  await expect(nav.getByText("Finance")).toBeVisible();
+  await expect(nav.getByText("Reports")).toBeVisible();
+  await expect(nav.getByText("Dashboards")).toBeVisible();
   await expect(nav.getByText("Voyages")).toHaveCount(0);
   await expect(page.getByRole("status")).toHaveText("API ready");
 
   // D-FE-11: no "Today" tab; home is the page the PortPilot wordmark opens, from anywhere
   await expect(page.getByRole("link", { name: "Today" })).toHaveCount(0);
-  await nav.getByRole("link", { name: "Finance" }).click();
+  await nav.getByRole("link", { name: "Dashboards" }).click();
   await expect(page).toHaveURL(/\/finance/);
   await expect(page.getByRole("link", { name: "Today" })).toHaveCount(0);
   await page.getByRole("link", { name: "PortPilot", exact: true }).click();
@@ -100,7 +100,7 @@ test("another role sees its own products", async ({ page }) => {
   const nav = page.getByRole("navigation", { name: "Main" });
   await expect(nav.getByText("Voyages")).toBeVisible();
   await expect(nav.getByText("Routes")).toBeVisible();
-  await expect(nav.getByText("Weekly pack")).toHaveCount(0);
+  await expect(nav.getByText("Reports")).toHaveCount(0);
 });
 
 test("the BFF sends the bearer token and never the browser's cookies", async ({ page, request }) => {

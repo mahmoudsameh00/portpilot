@@ -1,9 +1,10 @@
 "use client";
 // One pack, reviewed like slides (Frontend plan §6.0 (6), §6.4; MASTER v2): the filmstrip, the current slide as a
 // replica of the PPTX (its bullets with their index and the charts the deck draws), the Validator's notes pinned to
-// their bullet, the banners (degraded, redrafted, readiness), the log, the downloads, and the decision panel.
+// their bullet, the readiness notes, the log, the downloads, and the decision panel. What code wrote or took out and
+// the slides a revise re-drafted are marked on those texts and slides, not in page banners (targeted-revise plan B4 / A6).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Download, FileClock, Info, Loader2, TriangleAlert } from "lucide-react";
+import { Download, FileClock, Info, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { getPackApiV1PacksThreadIdGet as getPack } from "@/api/generated/client";
 import { decideApiV1PacksThreadIdDecisionPostBodyAdditionsItemTextMax as MAX_ADDITION } from "@/api/generated/zod";
@@ -15,7 +16,26 @@ import { PackChart, type DrawnChart } from "./PackChart";
 import { PublicationSync } from "./PublicationSync";
 
 type Problem = { rule?: string; slide?: number | null; bullet?: number | null; message?: string };
-type Draft = { title: string; slide_titles: { slide: number; title: string }[]; bullets: Bullet[] };
+type Removed = { slide: number; text: string; by?: string; why?: string };
+type Draft = {
+  title: string;
+  slide_titles: { slide: number; title: string; origin?: string | null }[];
+  bullets: Bullet[];
+  removed?: Removed[];
+};
+
+function CodeTag({ why }: { why: string }) {
+  return (
+    <span
+      title={why}
+      className="ms-2 inline-block rounded border border-muted-foreground/30 px-1.5 py-0.5 align-middle text-[0.7rem] font-normal text-muted-foreground"
+    >
+      Written by code
+    </span>
+  );
+}
+
+const CODE_WHY = "The writer's text did not pass its checks after its rewrites, so code wrote this one.";
 
 export function PackReview({ thread }: { thread: string }) {
   const qc = useQueryClient();
@@ -44,9 +64,19 @@ export function PackReview({ thread }: { thread: string }) {
   const charts = (pack.charts_drawn?.[String(slide)] ?? []) as DrawnChart[];
   const titles = draft?.slide_titles ?? [];
   const noted = new Set(problems.map((p) => p.slide).filter((s): s is number => typeof s === "number"));
+  const redrafted = new Set(pack.redrafted_slides ?? []);
+  const current = titles.find((t) => t.slide === slide);
+  const removed = (draft?.removed ?? []).filter((r) => r.slide === slide);
   const waiting = pack.next.length > 0;
   const status = pack.published ? "approved" : pack.status === "rejected" ? "rejected" : "draft";
   const base = `/bff/packs/${encodeURIComponent(thread)}`;
+  const weekLabel = pack.week ? `2025-W${String(pack.week).padStart(2, "0")}` : undefined;
+  const limits = {
+    max_chart_changes: pack.allowed.max_chart_changes,
+    max_analysis_edits: pack.allowed.max_analysis_edits,
+    max_steer_chars: pack.allowed.max_steer_chars,
+    max_addition_chars: MAX_ADDITION,
+  };
   const log = (pack.approval_log ?? []) as {
     at?: string;
     outcome?: string;
@@ -89,16 +119,10 @@ export function PackReview({ thread }: { thread: string }) {
       </div>
 
       {pack.published ? <PublicationSync status={pack.publication_sync} /> : null}
-      {pack.redrafted ? (
-        <p className="flex gap-2 rounded-lg border border-waiting/40 bg-waiting-wash px-4 py-3 text-sm text-waiting-ink">
-          <Info className="mt-0.5 size-4 shrink-0" aria-hidden /> The deck was drafted again. Earlier edits
-          and additions were not carried over — add again what you still want.
-        </p>
-      ) : null}
-      {pack.degraded ? (
+      {pack.fallback_share ? (
         <p className="flex gap-2 rounded-lg border px-4 py-3 text-sm text-muted-foreground">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden /> Some texts were written by code
-          because the writer&apos;s text did not pass its checks.
+          <Info className="mt-0.5 size-4 shrink-0" aria-hidden /> {Math.round(pack.fallback_share * 100)}% of
+          the model calls for this pack were answered by a fallback model (the main one was unavailable).
         </p>
       ) : null}
       {pack.readiness.length ? (
@@ -107,6 +131,32 @@ export function PackReview({ thread }: { thread: string }) {
             <li key={i}>{String(r)}</li>
           ))}
         </ul>
+      ) : null}
+
+      {draft && pack.allowed.decide ? (
+        <Card aria-label="Decision for the whole pack" className="border-primary/40">
+          <CardHeader>
+            <CardTitle className="text-base">Decision for the whole pack</CardTitle>
+            <CardDescription>
+              Approve or reject the report as a whole ({titles.length} slides). To change one slide, use the
+              panel beside it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DecisionPanel
+              mode="pack"
+              thread={thread}
+              draftSha={pack.draft_sha}
+              allowed={pack.allowed}
+              bullets={draft.bullets}
+              slide={slide}
+              weekLabel={weekLabel}
+              slideCount={titles.length}
+              limits={limits}
+              onDone={() => void qc.invalidateQueries({ queryKey: ["pack", thread] })}
+            />
+          </CardContent>
+        </Card>
       ) : null}
 
       {draft ? (
@@ -130,6 +180,12 @@ export function PackReview({ thread }: { thread: string }) {
                       {t.slide}
                     </span>
                     <span className="line-clamp-3 flex-1 leading-snug">{t.title}</span>
+                    {redrafted.has(t.slide) ? (
+                      <RefreshCw
+                        className="size-3.5 shrink-0 text-primary"
+                        aria-label="Drafted again by the revise"
+                      />
+                    ) : null}
                     {noted.has(t.slide) ? (
                       <TriangleAlert className="size-4 shrink-0 text-waiting" aria-label="Validator note" />
                     ) : null}
@@ -141,7 +197,16 @@ export function PackReview({ thread }: { thread: string }) {
 
           <section className="min-w-0" aria-label={`Slide ${slide}`}>
             <div className="w-full rounded-xl border bg-white p-6 text-navy shadow-float">
-              <h2 className="text-xl font-bold">{titles.find((t) => t.slide === slide)?.title}</h2>
+              {redrafted.has(slide) ? (
+                <p className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <RefreshCw className="size-3.5" aria-hidden /> Drafted again by the last revise; the other
+                  slides, your additions and chart choices were kept.
+                </p>
+              ) : null}
+              <h2 className="text-xl font-bold">
+                {current?.title}
+                {current?.origin === "code" ? <CodeTag why={CODE_WHY} /> : null}
+              </h2>
               <ul className="mt-4 flex flex-col gap-3 text-sm">
                 {draft.bullets.map((b, i) =>
                   b.slide !== slide ? null : (
@@ -161,10 +226,29 @@ export function PackReview({ thread }: { thread: string }) {
                           Approver&apos;s addition
                         </span>
                       ) : null}
+                      {b.origin === "code" ? <CodeTag why={CODE_WHY} /> : null}
                     </li>
                   ),
                 )}
               </ul>
+              {removed.length ? (
+                <details className="mt-3 text-xs text-muted-foreground">
+                  <summary className="flex cursor-pointer items-center gap-1.5">
+                    <Info className="size-3.5" aria-hidden /> Code removed {removed.length}{" "}
+                    {removed.length === 1 ? "text" : "texts"} from this slide
+                  </summary>
+                  <ul className="mt-2 flex flex-col gap-1.5 ps-5">
+                    {removed.map((r, i) => (
+                      <li key={i}>
+                        <span dir="auto" className="line-through">
+                          {r.text}
+                        </span>{" "}
+                        — {r.why ?? "it did not pass its checks"}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
               {charts.map((c) => (
                 <div key={c.name} className="mt-5">
                   <PackChart chart={c} />
@@ -189,10 +273,12 @@ export function PackReview({ thread }: { thread: string }) {
 
           <Card className="order-3 self-start lg:order-none">
             <CardHeader>
-              <CardTitle className="text-base">{pack.allowed.decide ? "Your decision" : "Status"}</CardTitle>
+              <CardTitle className="text-base">
+                {pack.allowed.decide ? `Changes to slide ${slide}` : "Status"}
+              </CardTitle>
               <CardDescription>
                 {pack.allowed.decide
-                  ? "Every change is checked again before the deck is rebuilt."
+                  ? "Edits to this slide, a chart or a rewrite. Every change is checked again before the deck is rebuilt; the approval is above, for the whole pack."
                   : waiting
                     ? "Waiting for a Finance manager or the CEO."
                     : "This pack no longer waits for a decision."}
@@ -206,12 +292,7 @@ export function PackReview({ thread }: { thread: string }) {
                   allowed={pack.allowed}
                   bullets={draft.bullets}
                   slide={slide}
-                  limits={{
-                    max_chart_changes: pack.allowed.max_chart_changes,
-                    max_analysis_edits: pack.allowed.max_analysis_edits,
-                    max_steer_chars: pack.allowed.max_steer_chars,
-                    max_addition_chars: MAX_ADDITION,
-                  }}
+                  limits={limits}
                   insight={pack.insight as { summary?: { text: string }[]; caveats?: string[] } | null}
                   onDone={() => void qc.invalidateQueries({ queryKey: ["pack", thread] })}
                 />

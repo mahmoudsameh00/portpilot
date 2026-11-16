@@ -18,6 +18,11 @@ export function PackChart({ chart }: { chart: DrawnChart }) {
   if (!chart.categories.length || !chart.series.length) return null;
   const unit = UNIT[chart.fmt ?? ""] ?? null;
   const kind = (chart.type ?? "").includes("line") ? "line" : "bar";
+  // the deck marks the report week on its trend line (render.py `highlight` = the category index): the preview too
+  const hi =
+    kind === "line" && typeof chart.highlight === "number" && chart.categories[chart.highlight] !== undefined
+      ? chart.highlight
+      : undefined;
   return (
     <div>
       <SeriesChart
@@ -27,7 +32,14 @@ export function PackChart({ chart }: { chart: DrawnChart }) {
         kind={kind}
         label={`${chart.name}: ${chart.series.map((s) => s.name).join(", ")}`}
         height={240}
+        highlight={hi}
       />
+      {hi !== undefined ? (
+        <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="inline-block size-2.5 rounded-full bg-marker" aria-hidden />
+          {chart.categories[hi]} is the report week.
+        </p>
+      ) : null}
       <SeriesTable categories={chart.categories} series={chart.series} unit={unit} />
     </div>
   );

@@ -1,11 +1,90 @@
 # Roadmap & status
 
-Single place for project status. Current update: **2026-11-14** (see Current phase).
+Single place for project status. Current update: **2026-11-16** (see Current phase).
 
 Historical summary last updated: 2026-11-07 (**approver-request plan CLOSED** — the manager's request in words, live on W15; migration 024, Power BI Approved Pack, ADR-067; to commit; 2026-11-06: **approver-additions plan implemented** — the owner's steps open: Power BI visuals, the live pack of 2026-11-09, one commit; frontend plan APPROVED in parallel; 2026-11-05: **FastAPI plan CLOSED** — `docs/archive/2026-11-05_FastAPI_plan.md`, ADR-064 / ADR-065; Stage 2 walk-through `docs/CHECKPOINT_agents_stage2.md`; next: the approver's note in the weekly pack, then the frontend plan; 2026-11-03: **weekly-pack improvement CLOSED** — implementation record in `docs/analysis/financial_intelligence/implementation_roadmap.md`, no-regression re-run D-RR-1; next: FastAPI plan; 2026-11-02: **Observability plan CLOSED** — first real Sentry check-in ok, `docs/archive/2026-11-02_Observability_Sentry_plan.md`; **dependency upgrade DONE** — audit 63 → 0, `docs/archive/2026-11-02_Dependency_upgrade_plan.md`; weekly-pack Phases B–D in place, c5 scheduled 2026-11-03 09:30; 2026-11-01: **Agents plan CLOSED and archived** — `docs/archive/2026-11-01_Agents_plan.md`: Stage 1 candidate c4 kept, D7 `planted_all` met (D-C4-1); active plan `docs/plans/Observability_Sentry_plan.md`, Sentry S1 done on the checks, ADR-062; 2026-10-30: Agents plan Phase 12 — the supervisor — done: Stage 2 done-when MET, baseline `stage2_eval_2026-10-30_c1.json`, ADR-059 + ADR-045 amendment 3; D-P12-7 scheduled 2026-10-31, then the one Stage 2 commit; 2026-10-29: voyage-watch task registered; D-P11-2 weather pacing after the first firing; Agents plan Phase 11 CLOSED: the `voyage_watch` graph, ADR-058, autonomous session — owner reviewed and approved 2026-10-29; Phase 12 design §6d APPROVED 2026-10-29; Phase 10 CLOSED 2026-10-27: `route_advice`, ADR-057; Phase 9 CLOSED 2026-10-27: Stage 2 tools, ADR-055 / ADR-056; Agents plan §5f Phases 7–8 closure DONE: final Stage 1 baseline `stage1_eval_2026-10-23_confirm.json`, D7 not met on planted findings only; new fallback ADR-045 amendment 2; Phase 8 CLOSED: scheduled weekly pack, retention, LangSmith, ADR-054; Phase 7 CLOSED: evaluation, finance Q&A agent, migration 017, ADR-052 / ADR-053, D7 not met — owner decision; Phase 6 CLOSED: the PortPilot PPTX, number slots, Validator v2 + V8, ADR-051; Phase 5 CLOSED: the `weekly_pack` workflow + PostgresSaver + approval, ADR-050, migration 016, ADR-045 amendment 1; Phase 4 CLOSED: Stage 1 tools + skills, ADR-049; Phase 3 CLOSED 2026-10-15: Power BI dashboard, ADR-048; Phase 2 closed 2026-10-14, ADR-047; Phase 1 closed 2026-10-14, ADR-046; Phase 0 closed 2026-10-12, ADR-045).
 Labels: `DONE`, `IN PROGRESS`, `PARTIAL`, `NEXT`, `PLANNED`, `PROPOSED`, `DEFERRED`, `BLOCKED`.
 
 ## Current phase
+
+**Update 2026-11-16 — web dashboards and reports plan CLOSED; no plan is open**
+(`docs/archive/2026-11-16_Web_dashboards_and_reports_plan.md`).
+- **Parity (Phase 5):** done on **W17**, the last published pack. Power BI's measures, read by DAX on the open Desktop
+  model, = the `finance` views = the API's rows on 249 values, with 0 differences. The Dashboards page over the real
+  API shows them rounded only: new stack test `web/tests/stack/parity.stack.spec.ts`, and `run_web_stack.ps1` passes
+  16 / 16 (ADR-047 note, ADR-069 closing note).
+- **Earlier the same day:**
+  - The Reports report-week marker.
+  - W17 tested from the web, then approved and published.
+  - Three V9 rules (ADR-051 amendment 13).
+  - The ask-back answer box.
+  - Revise merged into Request.
+- **`docs/plans/` is empty.**
+- **Open (owner):**
+  - The single commit of everything on `feat/agents`, then `/graphify . --update`.
+  - The review of the skill `arrival-advice`.
+  - The W18 pack: approved and published by the owner from the web (2026-11-16, `reports/2025-W18/_publications/47d05788c12c43e39e4f0b29b6735db3`).
+  - The stabilization plan's Phase 5 (optimisation) stays DEFERRED.
+
+**Update 2026-11-16 — frontend plan and stabilization plan CLOSED** (`docs/archive/2026-11-16_Frontend_plan.md`,
+`docs/archive/2026-11-16_Project_validation_and_continuation_plan.md`; owner: "أيوه، اقفلهم").
+- **The frontend's done-when, all met:**
+  - W17 was decided through the UI.
+  - EN + Egyptian Arabic follow-ups pass on the real models, after seven memory / language fixes (ADR-065 note).
+  - Power BI parity holds for W16, and the CI `web` job is green.
+  - The new **local-stack E2E passes 15 / 15 with leakage 0**. It runs the web over the real API in test mode on the
+    full-data clone (`web/tests/stack/`, `ops/tests/run_web_stack.ps1`; ADR-060 closing note, ADR-064 note).
+- **Found the same day and fixed:**
+  - "New conversation" on `/ask`.
+  - The anchored-vessels question: `watch_alerts(anchored=true)`, ADR-059 note.
+  - Five pre-021 packs (W08, W10–W13) that answered 500.
+- **The stabilization plan:** R1–R10 are verified and every owner gate is met. Its Phase 5 (optimisation) is
+  **DEFERRED** (Missing work).
+- **Open:**
+  - `docs/plans/Web_dashboards_and_reports_plan.md` (closed the same day, above).
+  - Then the owner's single commit and `/graphify . --update`.
+  - The owner's review of the skill `arrival-advice`.
+  - The W18 pack: approved and published by the owner from the web (2026-11-16, `reports/2025-W18/_publications/47d05788c12c43e39e4f0b29b6735db3`).
+
+**Update 2026-11-16 — targeted-revise plan CLOSED** (`docs/archive/2026-11-16_Targeted_revise_plan.md`, run in a
+side session from the W17 session; owner decisions T1–T4): a revise re-drafts only the related slides (slide 2, the
+changed note's own slide, every slide citing the same evidence; one `SlidesDraft` call; other slides, the approver's
+additions and chart choices kept; edits replaced on re-drafted slides; the Validator still checks the whole deck —
+ADR-050 amendment 5). Fallbacks made rare in code (tile-repeat comments dropped before the Validator, the V7
+later-clause total false alarm fixed), and what code wrote or removed is shown inline on `/packs` instead of the two
+banners (ADR-051 amendment 14). Checks: `Deck_check` 9 / 9, `Weekly_pack_check` 10 / 11 (Phase 5 real models
+skipped), `Api_check` 12 / 12, `Approver_request_check`, lint 0, `npm --prefix web run check` ✅. Real run `tr1` vs
+ec2 **"tie: keep"** (ADR-052 ninth use): every gate, narrative recall 0.931, **degraded packs 22 / 22 → 6 / 22**,
+rewrites 44 → 37; baselines unchanged. **Open (owner):** the commit once every plan in `docs/plans/` is closed;
+`/graphify . --update` after it; uncertain: no real revise on a live pack yet.
+
+**Update 2026-11-15 — JIT arrival plan CLOSED** (`docs/archive/2026-11-15_JIT_arrival_plan.md`, ADR-070; run in its
+own session on the owner's word): Just-in-Time arrival advice, a third Operations product. The RTA is a port-call
+message — `public.port_call_messages` (migration 030, applied and audited, §29; 680 synthetic messages from each
+voyage's declared schedule by `Port_call_generator.py`; real messages later are new rows, no code change) — or given
+in the question. `tools/arrival.py` computes keep / jit / floor / catch_up / cape; the graph `arrival_advice` (one
+`writer` call with slots, a code Validator), the CLI `Arrival_advice.py`, the supervisor's tool `arrival_advice`
+(JIT words only: 0 of the 57 golden items re-routed), and `rta_late` / `jit` alerts in the voyage watch (41 at the
+clock). `Arrival_advice_check.py` Phases 1–8 ✅ (real model: 8 / 8 advices pass the Validator, = the rule; two supervisor questions EN + AR answered; the watch brief ok; D-J8 sign / RTA-label rules from the first real run). Regressions: `Supervisor_check`, `Supervisor_tools_check`
+(union 15), `Stage2_eval` Phases 1–3, `Stage2_tools_check`, `Tools_check`, `Scheduler_check`, `Voyage_watch_check`
+(fixtures and the live counts updated, D-J7), `Route_advice_check`, lint ratchet 0. No CO₂ (owner). **Open (owner):** the
+review of the skill `arrival-advice` (`reviewed_by_owner: no`); the commit once every plan in `docs/plans/` is closed;
+`/graphify . --update` after it.
+
+**Update 2026-11-15 — web dashboards and reports** (`docs/plans/Web_dashboards_and_reports_plan.md`, APPROVED the
+same day, ADR-069): migration 029 (`finance.kpi_weekly_breakdown`, M18) applied and checked (`Finance_views_check`
+Phase 8 ✅); the API's breakdown + Excel export (audit row per export; `openpyxl==3.1.5`); the web's five week pages
+gained Power BI's missing visuals, "Break down by" + measure + compare week, and "Export to Excel"; the Reports page
+has one decision bar for the whole pack; the tabs read Reports / Dashboards. `npm run check` all ✅. **Open (owner):**
+Power BI parity on week 16 (Desktop + API running), the full-data `Api_check`, the commit. Same day: pushed CI on
+`feat/agents` green (run 43690050303: checks, web with Playwright 130 / 50 skipped, api-integration) — the
+stabilization and frontend plans' "pushed CI" gates are met; `Stage1_eval.py` records `degraded` per pack.
+**Deferred by the owner (2026-11-15):** (the JIT plan — closed later the same day, above); the weekly pack's rewrite load (two Writer rewrites per pack, mostly V9) — not planned now (partly addressed 2026-11-16 by the targeted-revise plan above: rewrites 44 → 37, fallbacks 22 → 6 of 22; the rest stays deferred).
+**Closed the same day: the Model flexibility plan** (`docs/archive/2026-11-15_Model_flexibility_plan.md`, ADR-045
+amendment 4): the model per role lives in `pipelines/agents/models.toml` (swap procedure `docs/model_swap.md`, probe
+`Model_probe.py`); models unchanged, cache keys byte-equal, no-regression by replays with 0 fresh calls.
+**Next:** the owner's commit; Power BI parity of the web dashboards (week 16) and the full-data `Api_check` (owner
+gates); then the deferred JIT plan when the owner decides.
 
 **Closed 2026-11-14: the traffic-billing link plan**, archived as
 `docs/archive/2026-11-14_Traffic_billing_link_plan.md` (implementation record at its top). The last acceptance
@@ -38,7 +117,7 @@ parity, pushed CI); `docs/plans/Model_flexibility_plan.md` (APPROVED 2026-11-13)
 The dated text below is the state of 2026-11-12 and is kept as written.
 
 **IN PROGRESS 2026-11-12: engineering stabilization** — approved
-`docs/plans/Project_validation_and_continuation_plan.md`. R1–R4 execution/approval repairs are implemented;
+`docs/archive/2026-11-16_Project_validation_and_continuation_plan.md`. R1–R4 execution/approval repairs are implemented;
 R5/R6 shared EN/AR traffic-claim enforcement is implemented and deterministically verified. R8 scheduled
 business-failure reporting and R9 immutable publication/reconciliation are now implemented with offline fault
 tests and visible API/web sync status (`docs/publication_recovery.md`). R7 disconnect and reload/resume recovery
@@ -94,7 +173,7 @@ decisions J1–J7 open).
 as an entry, limits / temperature / timeout per model, a capability probe and a swap procedure; owner decisions
 M1–M7 taken; starts after traffic Phase 6 because it edits `llm.py` / `roles.py`).
 **In parallel: the frontend plan** —
-`docs/plans/Frontend_plan.md` (APPROVED in its own session 2026-11-06). D-FE-11 (2026-11-14, owner request): the
+`docs/archive/2026-11-16_Frontend_plan.md` (APPROVED in its own session 2026-11-06). D-FE-11 (2026-11-14, owner request): the
 Ask composer's "+" attaches documents from a conversation's first message (web-only, the API's upload checks
 unchanged) and the "Today" tab is removed (the wordmark opens `/`); mock-API browser suite 130 passed; the real-API
 the web container is rebuilt with it; the real-API smoke `web/scripts/attach-smoke.mjs` 12 / 12 (the answer comes
@@ -410,7 +489,7 @@ History of the RAG plan, phase by phase: **Phase 0 done 2026-10-01** (rewrite co
 | Causal consistency checks (PostgreSQL ↔ AIS ↔ incidents ↔ RAG) | PLANNED | needs a shared event timeline per vessel/shipment |
 | Agents (Supervisor + Analytics) | IN PROGRESS | Agents plan Phase 0 CLOSED 2026-10-12 (packages, `pipelines/agents/llm.py`, LLM bake-off → ADR-045); Phase 1 CLOSED 2026-10-14 (finance data, migration 012, ADR-046); Phase 2 CLOSED 2026-10-14 (`finance` views, migration 013, ADR-047); Phase 3 CLOSED 2026-10-15 (Power BI dashboard, ADR-048); Phase 4 CLOSED 2026-10-19 (Stage 1 tools + skills, ADR-049; migration 015; `Tools_check.py` 8 / 8); Phase 5 CLOSED 2026-10-19 (`weekly_pack` workflow + PostgresSaver + approval, ADR-050; migration 016; `Weekly_pack_check.py` 7 / 7); Phase 6 CLOSED 2026-10-19 (PortPilot PPTX, slots, Validator v2 + V8, ADR-051; `Deck_check.py` 4 / 4, 100 / 100 planted numbers caught); Phase 7 CLOSED 2026-10-20 (evaluation: golden weeks, finance Q&A agent, migration 017, ADR-052 / ADR-053; D7 not met, closed by the owner; c3 accepted 2026-10-22 as the baseline, tuning stopped); Phase 8 CLOSED 2026-10-22 (scheduled pack, retention, LangSmith, ADR-054; `Scheduler_check.py` 6 / 6); Stage 1 checkpoint PR merged 2026-10-27; Stage 2: Phase 9 CLOSED 2026-10-27 (tools, ADR-055 / 056), Phase 10 CLOSED 2026-10-27 (`route_advice`, ADR-057), Phase 11 CLOSED 2026-10-28 (`voyage_watch`, ADR-058), Phase 12 DONE 2026-10-30 (the supervisor, ADR-059; Stage 2 done-when met, `stage2_eval_2026-10-30_c1.json`); next D-P12-7, then the one Stage 2 commit; ADR-012; the document tool exists (`search_documents`, untrusted-upload contract in `docs/RETRIEVAL_FLOW.md` §2.1) |
 | API, auth, audit_log, guardrails | DONE (2026-11-05) | FastAPI plan archived `docs/archive/2026-11-05_FastAPI_plan.md`; ADR-064 (the API: login, runs + SSE, uploads, packs, route advice, the watch, the shared quota) and ADR-065 (conversation memory); `audit_log` in schema `api` (ADR-014 note); Redis / a queue / OpenTelemetry not needed now (ADR-018 note, triggers recorded); the event contract for the frontend is in the archived plan §5 |
-| Frontend (web UI) | IN PROGRESS — F1 closed 2026-11-06, **concept v2 approved by the owner** (D-FE-3; D-FE-6: English UI, answers in the question's language, blue / white, shadcn/ui; D-FE-7 approved: the Power BI pages in the web, phase F5b); **F2 done 2026-11-06** (sign in, the shell from `/me`, API status, sign out, 404; auth E2E on a mock API); **F0 + F0b + D-FE-1 done 2026-11-07** (every API response typed, the event union, number spans, `/finance/*` reads, `--fake-roles`; `Api_check.py` 12 / 12, ADR-064 note); **F3 done 2026-11-07** (Ask on assistant-ui: SSE runs, number receipts, history, uploads; Playwright 39); **F4 done 2026-11-07** (pack review slide by slide, the decision panel, the request box of D-FE-9, the report; Playwright 67); **F5 done 2026-11-07** (Charts on Recharts: words or catalogue, ask-back; the pack's chart variants and analysis editor; Playwright 71, real-API smoke 5 / 5); **F5b done 2026-11-07** (the six Power BI pages + Smart View + this week's pack in `/finance`; W15 live = the deck; Playwright 75, real-API smoke 7 / 7); **F6 done 2026-11-08** (`/routes` Suez | Cape decision with receipts + earlier advice, `/voyages` radar list + the run's brief + runs, the React Flow view of a pack decision run; Playwright 84, green three runs in a row, real-API smoke 13 / 13); **D-FE-10 + F7 done 2026-11-08** (watch runs: the ADR-006 identity check; the ETA board from the run's rule ETAs — no schedule ETA exists, ADR-055; `compose.yaml` web service via `host.docker.internal`, real-API smoke against the container 14 / 14; security E2E: inert markup, no request out, every page CSP + headers + axe 0; Lighthouse / timings recorded; ADR-060 amendment 3, ARCHITECTURE, THREAT_MODEL web table); **next:** the owner's checks (the real Monday pack decided through the UI 2026-11-09, real-model EN + Arabic questions + one route advice, one week vs Power BI, CI green), then archive + `/graphify . --update` + the owner's one commit | `docs/plans/Frontend_plan.md` (APPROVED 2026-11-06): `web/` scaffold (Next.js 16.4.2, pinned), BFF (cookie session, CSRF, OpenAPI allow-list), CSP with a nonce, `web/design/MASTER.md` v2, three concept screens at `/concept`, tools of §9a reviewed and installed, CI `web` job, `npm run check` ✅; next: the owner approves the look, then F0 (after the approver plan) and F2. Earlier scope: **React / Next.js + TypeScript (ADR-060)**; chat = assistant-ui on a custom runtime over our SSE, candidates Tailwind + shadcn/ui, TanStack Query + Orval, React Flow; Claude Code tooling at the phase start (reviewed first): Frontend Design skill, UI UX Pro Max (MIT edition), Vercel React skills, shadcn MCP, Context7 MCP, an ESLint / Prettier hook (ADR-060 amendment 1); after the API, free / open-source only, its design in its own plan; security from ADR-060: model text rendered as text / sanitized Markdown (no raw HTML, CSP), CORS for the UI only, CSRF if cookies, a TypeScript client generated from the API's OpenAPI; ESLint + `tsc` in the CI, Dependabot on npm. Must cover: login + the asker's role (RBAC stays in the API, never in the browser); Ask with streamed answers and partial answers shown as such; the weekly-pack approval screen (the LangGraph interrupt: approve / edit / reject, today `Weekly_pack.py resume`); route advice and voyage-watch alerts; deck (PPTX) download; Arabic RTL + English; the LangSmith link per answer for the owner. Power BI stays Desktop (embedding needs a paid licence; "publish to web" is public → not for company data); finance charts in the UI, if any, read the same `finance` views. Tests: Playwright end-to-end (free); a service in Docker Compose |
+| Frontend (web UI) | DONE 2026-11-16 (plan archived; local-stack E2E 15 / 15, leakage 0) — F1 closed 2026-11-06, **concept v2 approved by the owner** (D-FE-3; D-FE-6: English UI, answers in the question's language, blue / white, shadcn/ui; D-FE-7 approved: the Power BI pages in the web, phase F5b); **F2 done 2026-11-06** (sign in, the shell from `/me`, API status, sign out, 404; auth E2E on a mock API); **F0 + F0b + D-FE-1 done 2026-11-07** (every API response typed, the event union, number spans, `/finance/*` reads, `--fake-roles`; `Api_check.py` 12 / 12, ADR-064 note); **F3 done 2026-11-07** (Ask on assistant-ui: SSE runs, number receipts, history, uploads; Playwright 39); **F4 done 2026-11-07** (pack review slide by slide, the decision panel, the request box of D-FE-9, the report; Playwright 67); **F5 done 2026-11-07** (Charts on Recharts: words or catalogue, ask-back; the pack's chart variants and analysis editor; Playwright 71, real-API smoke 5 / 5); **F5b done 2026-11-07** (the six Power BI pages + Smart View + this week's pack in `/finance`; W15 live = the deck; Playwright 75, real-API smoke 7 / 7); **F6 done 2026-11-08** (`/routes` Suez | Cape decision with receipts + earlier advice, `/voyages` radar list + the run's brief + runs, the React Flow view of a pack decision run; Playwright 84, green three runs in a row, real-API smoke 13 / 13); **D-FE-10 + F7 done 2026-11-08** (watch runs: the ADR-006 identity check; the ETA board from the run's rule ETAs — no schedule ETA exists, ADR-055; `compose.yaml` web service via `host.docker.internal`, real-API smoke against the container 14 / 14; security E2E: inert markup, no request out, every page CSP + headers + axe 0; Lighthouse / timings recorded; ADR-060 amendment 3, ARCHITECTURE, THREAT_MODEL web table); **next:** the owner's checks (the real Monday pack decided through the UI 2026-11-09, real-model EN + Arabic questions + one route advice, one week vs Power BI, CI green), then archive + `/graphify . --update` + the owner's one commit | `docs/archive/2026-11-16_Frontend_plan.md` (APPROVED 2026-11-06): `web/` scaffold (Next.js 16.4.2, pinned), BFF (cookie session, CSRF, OpenAPI allow-list), CSP with a nonce, `web/design/MASTER.md` v2, three concept screens at `/concept`, tools of §9a reviewed and installed, CI `web` job, `npm run check` ✅; next: the owner approves the look, then F0 (after the approver plan) and F2. Earlier scope: **React / Next.js + TypeScript (ADR-060)**; chat = assistant-ui on a custom runtime over our SSE, candidates Tailwind + shadcn/ui, TanStack Query + Orval, React Flow; Claude Code tooling at the phase start (reviewed first): Frontend Design skill, UI UX Pro Max (MIT edition), Vercel React skills, shadcn MCP, Context7 MCP, an ESLint / Prettier hook (ADR-060 amendment 1); after the API, free / open-source only, its design in its own plan; security from ADR-060: model text rendered as text / sanitized Markdown (no raw HTML, CSP), CORS for the UI only, CSRF if cookies, a TypeScript client generated from the API's OpenAPI; ESLint + `tsc` in the CI, Dependabot on npm. Must cover: login + the asker's role (RBAC stays in the API, never in the browser); Ask with streamed answers and partial answers shown as such; the weekly-pack approval screen (the LangGraph interrupt: approve / edit / reject, today `Weekly_pack.py resume`); route advice and voyage-watch alerts; deck (PPTX) download; Arabic RTL + English; the LangSmith link per answer for the owner. Power BI stays Desktop (embedding needs a paid licence; "publish to web" is public → not for company data); finance charts in the UI, if any, read the same `finance` views. Tests: Playwright end-to-end (free); a service in Docker Compose |
 | Evaluation (golden tasks), observability (trace IDs) | PARTIAL | Stage 1 evaluation DONE 2026-10-20 (ADR-053: golden weeks + finance Q&A, `Stage1_eval.py`; D7 not met, owner closed); observability for the agents DONE 2026-10-22 (LangSmith, ADR-054); API trace ids with the API |
 | Scheduled weekly pack + checkpoint retention | DONE | 2026-10-22, Agents plan Phase 8 (ADR-054): Task Scheduler (Monday 10:30), `Weekly_pack.py scheduled / prune / report`, `Scheduler_check.py` 6 / 6 |
 | Power BI integration | DONE (2026-10-15) | ADR-048: `powerbi/PortPilot_Finance.pbip` (Desktop, PBIP in git), DirectQuery on the `finance` views via the read-only login `ports_bi`; 5 pages (Exceptions = placeholder until the Auditor tool, Phase 4 / 7); numbers = `kpi_weekly` for weeks 5 / 23 / 49 |
@@ -431,6 +510,9 @@ RAG ingestion order (do not skip ahead): inventory → metadata → extraction �
 **Recommended (PROPOSED)** — the former list (CHECK constraints, toll band UNIQUE, FK and GIST indexes, read-only role, vessel type ↔ category link) was applied on 2026-09-27 (migrations 006–007, ADR-033 / ADR-034). Nothing is pending on the PostgreSQL schema.
 
 **Deferred (ADR-018): check at the start of each phase**
+- Stabilization Phase 5 (2026-11-16, from the closed stabilization plan): profile the measured bottlenecks (API
+  latency per route, pool sizes, the heaviest SQL views, large modules), tune only with before / after numbers, and
+  drill a rebuild / restore of the three stores. No trigger yet.
 - Agents phase → decide on DuckDB as the analysis sandbox.
 - Agents / API phase → Redis as a shared cache (query vectors, reranker results, sessions) if several workers or agents must share it; measured 2026-10-08: Redis GET 0.57 ms vs in-process 0.2 µs (ADR-038; owner: use it later if needed).
 - API / Docker Compose phase → decide on a job queue (Redis or other) and on object storage for raw files (MinIO).

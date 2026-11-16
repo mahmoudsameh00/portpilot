@@ -1,0 +1,104 @@
+# The models of the agents (Model flexibility plan, approved 2026-11-13; ADR-045 = which model per role).
+#
+# Changing the main model or a fallback of a role = editing [roles] below — no code change. Before a new model
+# serves anything, follow docs/model_swap.md (probe → fake-model checks → a small real run → ADR-052).
+# Loaded once by pipelines/agents/model_config.py (validated at start-up: an unknown provider, adapter, method or
+# model name fails with one message naming the entry). The evaluation scripts alone may read another file through
+# EVAL_MODELS=<path> (plan decision M4); the API, the CLIs and the scheduler always read this one.
+#
+# [providers.<name>]  one block per provider (a new provider = a new block, no code — plan decision M2)
+#   adapter   gemini | groq | openai_compatible | langchain
+#   key_env   the .env variable holding the key (never the key itself)
+#   base_url  openai_compatible (and groq's model list): the OpenAI-style endpoint
+#   lc_provider  langchain adapter only: the `model_provider` of init_chat_model (its package installed with uv add)
+#   day_tz    the provider's quota day (Gemini resets at midnight Pacific time)
+#   limits    the defaults for a model of this provider without its own limits (bake-off candidates):
+#             rpm / tpm = per-minute requests / tokens; rpd = requests per day (absent = the provider's own 429
+#             decides); scope = "model" (each model has its own limits) or "provider" (all models share them)
+#   candidates  the bake-off list (LLM_bakeoff.py / LLM_smoke_test.py), not used by the roles
+#
+# [models.<name>]  one block per model the roles may use
+#   provider, id   the provider block and the provider's model id
+#   structured     function_calling | json_schema | json_mode (the structured-output method; Model_probe finds it)
+#   temperature    sent when present; omit it for a model that refuses it
+#   timeout_s      the request timeout (a slower model needs more; a timeout is read as an outage)
+#   limits         as above; replaces the provider's defaults for this model
+#   price_usd_per_mtok = { input = …, output = … }   paid models only, entered by hand from the price page
+#   max_usd_per_day    paid models only: reaching it stops the model for the day like a quota (plan decision M5)
+#
+# Limits of the free tiers verified 2026-10-09 (Agents plan §7a); Gemini's are shown only in AI Studio, so the local
+# values are conservative and the provider's 429 decides.
+
+[providers.gemini]
+adapter    = "gemini"
+key_env    = "GEMINI_API_KEY"
+day_tz     = "America/Los_Angeles"
+limits     = { rpm = 10, tpm = 250000, scope = "model" }
+candidates = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemma-4-31b-it"]
+
+[providers.groq]
+adapter    = "groq"
+key_env    = "GROQ_API_KEY"
+base_url   = "https://api.groq.com/openai/v1"
+day_tz     = "UTC"
+limits     = { rpm = 30, tpm = 8000, rpd = 1000, scope = "model" }
+candidates = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"]
+
+[providers.openrouter]
+adapter    = "openai_compatible"
+key_env    = "OPENROUTER_API_KEY"
+base_url   = "https://openrouter.ai/api/v1"
+day_tz     = "UTC"
+limits     = { rpm = 20, tpm = 1000000, rpd = 50, scope = "provider" }   # 50 free requests / day across all models
+candidates = ["nvidia/nemotron-3-super-120b-a12b:free", "thinkingmachines/inkling:free", "poolside/laguna-s-2.1:free"]
+
+[models.flash_lite]
+provider    = "gemini"
+id          = "gemini-3.5-flash-lite"
+structured  = "function_calling"
+temperature = 0
+timeout_s   = 120
+limits      = { rpm = 10, tpm = 250000, scope = "model" }
+
+[models.qwen]
+provider    = "groq"
+id          = "qwen/qwen3.8-27b"
+structured  = "function_calling"
+temperature = 0
+timeout_s   = 120
+limits      = { rpm = 30, tpm = 8000, rpd = 1000, scope = "model" }
+
+[models.gpt_oss_20b]
+provider    = "groq"
+id          = "openai/gpt-oss-20b"
+structured  = "json_schema"
+temperature = 0
+timeout_s   = 120
+limits      = { rpm = 30, tpm = 8000, rpd = 1000, scope = "model" }
+
+[models.nemotron]
+provider    = "openrouter"
+id          = "nvidia/nemotron-3.5-super-vl:free"
+structured  = "function_calling"
+temperature = 0
+timeout_s   = 120
+limits      = { rpm = 20, tpm = 1000000, rpd = 50, scope = "provider" }
+
+# A paid model, for illustration only — nothing is bought by this file (plan §4: choosing one is a later ADR-045
+# amendment with its own ADR-052 evaluation). Uncomment, fill, run Model_probe.py, then follow docs/model_swap.md.
+# [models.strong]
+# provider   = "openrouter"
+# id         = "<vendor>/<model>"
+# structured = "json_schema"
+# timeout_s  = 180
+# limits     = { rpm = 60, tpm = 2000000, scope = "model" }    # no rpd: the provider's own 429 decides
+# price_usd_per_mtok = { input = 0.0, output = 0.0 }
+# max_usd_per_day    = 2.0
+
+# ADR-045 + amendments 1–2: the pack's Insight / Writer prompts (9.7K–17K tokens) do not fit Groq's 8K tokens per
+# minute → flash-lite with OpenRouter nemotron as the fallback from another provider; Tools / routing = flash-lite +
+# gpt-oss-20b (Groq). Main first, then the fallbacks, any length.
+[roles]
+insight = ["flash_lite", "nemotron"]
+writer  = ["flash_lite", "nemotron"]
+tools   = ["flash_lite", "gpt_oss_20b"]

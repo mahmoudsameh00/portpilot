@@ -1,7 +1,7 @@
 # Run lifecycle — Final Checkpoint
 
 This database-free check covers the first execution-reliability slice of the approved
-`docs/plans/Project_validation_and_continuation_plan.md` (R1 and the executor portion of R2).
+`docs/archive/2026-11-16_Project_validation_and_continuation_plan.md` (R1 and the executor portion of R2).
 
 Phase 1 checks that malformed worker output ends with a visible failure, the final-record callback receives
 failure, structured pack problems become readable API strings, valid results publish answer/done, and a failed

@@ -210,7 +210,11 @@ NORM = {"خلال {insight.c1:eta_in_h} ساعة من دلوقتي.": "خلال 
         # (an unknown kind word) is left for the checker
         "{insight.c3[suez]:suez_dues_sdr|money sdr}": "{insight.c3[suez]:suez_dues_sdr|sdr}",
         "{insight.c3[difference]:change_total_sdr|money_sdr|dir}": "{insight.c3[difference]:change_total_sdr|sdr|dir}",
-        "{insight.c3[suez]:suez_dues_sdr|cash sdr}": "{insight.c3[suez]:suez_dues_sdr|cash sdr}"}
+        "{insight.c3[suez]:suez_dues_sdr|cash sdr}": "{insight.c3[suez]:suez_dues_sdr|cash sdr}",
+        # 2026-11-16 (the anchored-vessels question, real run): the row and the field swapped → the right form, only
+        # when that row key and that field exist
+        "{insight.c4:fleet[alerts_total]}": "{insight.c4[fleet]:alerts_total}",
+        "{insight.c4:nowhere[alerts_total]}": "{insight.c4:nowhere[alerts_total]}"}
 # D-TL-14: a slot on a text field is replaced by the field's own text (tl3s2 o01: {…:next_port}, {…:as_of})
 _row1 = EV["insight.c1"]["rows"][0]
 _text_field = next(k for k, v in _row1.items() if isinstance(v, str) and v.strip())
@@ -500,7 +504,9 @@ REVIEWED_3 = {"items_run": 33, "statuses": {"answered": 27, "not_in_data": 3, "p
               # 7,402 → 7,404, measured 2026-11-12 on the tree after the 2026-11-11 rename (the prompt texts changed
               # with the product name; the tool schema did not) — still fits
               # 7,404 → 7,457 on 2026-11-13: the former-name sentence in SUP_TASK (D-TL-13) — still fits
-              "max_request_est_tokens": 7457, "over_conservative_budget": ["c10", "c10_ar"],
+              # 7,457 → 7,567 on 2026-11-16: watch_alerts' `anchored` argument + its docstring line (the anchored
+              # vessels, Frontend gate-2 finding) and the skill's line for it — still fits
+              "max_request_est_tokens": 7567, "over_conservative_budget": ["c10", "c10_ar"],
               "fits_at_4_chars_per_token": True}
 assert actual_3 == REVIEWED_3, actual_3
 print(f"agent: {len(results)} golden items run end to end, statuses {by_status}; largest request "

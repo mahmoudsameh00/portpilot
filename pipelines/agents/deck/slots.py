@@ -44,7 +44,9 @@ NUMERIC_TOOLS = {"finance_kpi", "invoice_audit", "compute_toll", "suez_transits"
                  # Phase 11 (§6c): the voyage watch's code-computed alerts and fleet counts, and the ETA tool
                  "watch_alerts", "watch_fleet", "voyage_eta",
                  # Phase 12 (§6d S3): the route_advice graph run as a tool (its code rows, keyed by route)
-                 "route_advice"}
+                 "route_advice",
+                 # JIT arrival plan: the RTA known at the clock and the arrival options computed in code
+                 "port_call_messages", "arrival_options", "arrival_summary", "arrival_risks", "arrival_advice"}
 MINUS = "−"                                            # U+2212, the deck's minus sign (deck-style-guide)
 
 # a result's row key: the field(s) a slot names in [...] to pick one row of a list; "/" joins the parts
@@ -59,7 +61,9 @@ ROW_KEYS_BY_TOOL = {"invoice_audit": ("invoice_number", "check_code"), "suez_tra
                     # watch_alerts: the alert id "<vessel_id>/<kind>" (the same label as before) + the tool's "fleet"
                     # row (Phase 12 S3; the voyage watch cites full alert ids only)
                     "watch_alerts": ("alert_id",), "watch_fleet": (), "voyage_eta": (),
-                    "route_advice": ("route",)}
+                    "route_advice": ("route",),
+                    "port_call_messages": (), "arrival_options": ("option",), "arrival_summary": (),
+                    "arrival_risks": ("kind",), "arrival_advice": ("option",)}
 # result-level fields (not in a row), e.g. the audit totals and the mean daily Suez transits
 RESULT_FIELDS_SKIP = {"tool", "status", "rows", "source", "note"}
 
@@ -70,7 +74,7 @@ FORMATS = {"money": ("sdr", "M", "k"), "pct": ("%2", "%1"), "days": ("d",), "cou
 DAY_FIELDS = {"days_past_due"}
 CHANGE_RE = re.compile(r"wow|change|variance|difference")
 
-SLOT_RE = re.compile(r"\{(?P<eid>(?:kpi|audit|insight|context|route|watch)\.[A-Za-z0-9_.:-]+?)(?:\[(?P<key>[^\[\]{}]+)\])?"
+SLOT_RE = re.compile(r"\{(?P<eid>(?:kpi|audit|insight|context|route|watch|arrival)\.[A-Za-z0-9_.:-]+?)(?:\[(?P<key>[^\[\]{}]+)\])?"
                      r":(?P<field>[a-z][a-z0-9_]*)(?:\|(?P<fmt>[A-Za-z0-9%]+))?(?:\|(?P<dir>dir))?\}")
 
 
@@ -319,6 +323,22 @@ DIR_WORD_BEFORE_RE = re.compile(r"(?i)\b(up|down|rose|fell|increased|decreased|g
 # "Formats: money M / k / sdr" read as the format's name: {…|money sdr}, {…|money_sdr} (Stage 2 run tl3s2, 2026-11-14:
 # 4 of 14 misses; the slot was not even recognised, so the one patch call repeated it) — the kind word is dropped
 KIND_FORMAT_RE = re.compile(r"(\{[^{}|]+)\|(?:" + "|".join([*FORMATS, "percent"]) + r")[ _]+([A-Za-z0-9%]+)((?:\|dir)?\})")
+# the row and the field swapped: {insight.c1:fleet[anchored]|…} for {insight.c1[fleet]:anchored|…} (real run
+# 2026-11-16, the anchored-vessels question) — rewritten only when that row key and that field both exist
+SWAPPED_RE = re.compile(r"\{(?P<eid>(?:kpi|audit|insight|context|route|watch|arrival)\.[A-Za-z0-9_.-]+):"
+                        r"(?P<key>[^\[\]{}:|]+)\[(?P<field>[a-z][a-z0-9_]*)\](?P<rest>(?:\|[A-Za-z0-9%]+)*)\}")
+
+
+def _unswap(text: str, evidence: dict, fixes: list[str]) -> str:
+    def one(m: re.Match) -> str:
+        res = evidence.get(m["eid"]) or {}
+        keys = row_keys(res)
+        if any(r.get(k) == m["key"] and m["field"] in r for r in res.get("rows") or [] for k in keys):
+            new = f"{{{m['eid']}[{m['key']}]:{m['field']}{m['rest']}}}"
+            fixes.append(f"{m.group(0)}: the row and the field swapped → {new}")
+            return new
+        return m.group(0)
+    return SWAPPED_RE.sub(one, text)
 
 
 def normalize_text(text: str, evidence: dict, *, answer_forms: bool = False) -> tuple[str, list[str]]:
@@ -329,7 +349,8 @@ def normalize_text(text: str, evidence: dict, *, answer_forms: bool = False) -> 
     left for the Validator.
 
     `answer_forms` (D-TL-14, the supervisor's answers only): also the format written with its kind ("|money sdr")
-    → the format alone, and a slot on a text field (a port code, a timestamp) → the field's own text, as the
+    → the format alone, a row and a field written swapped (`{id:row[field]}`, only when both exist) → the right
+    form, and a slot on a text field (a port code, a timestamp) → the field's own text, as the
     checker's message asks. Off for the pack Writer, the finance Q&A graph, route advice and the voyage watch: a
     replay of their recorded runs showed the two rules change which patch request follows, so each needs its own
     measurement before it adopts them."""
@@ -338,6 +359,7 @@ def normalize_text(text: str, evidence: dict, *, answer_forms: bool = False) -> 
         for m_kind in KIND_FORMAT_RE.finditer(text):
             fixes.append(f"{m_kind.group(0)}: the format is written without its kind → {'|' + m_kind.group(2)!r}")
         text = KIND_FORMAT_RE.sub(r"\1|\2\3", text)
+        text = _unswap(text, evidence, fixes)
     for s in find_slots(text):
         before = text[pos:s.start]
         new = s.raw

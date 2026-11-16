@@ -79,6 +79,8 @@ class WatchArgs(BaseModel):
                                            description="only the alerts of these customers' vessels (customer_id from "
                                                        "finance_kpi)")
     high_only: bool = Field(default=False, description="only the high alerts")
+    anchored: bool = Field(default=False, description="instead of the alerts: the vessels at anchorage off their "
+                                                      "destination, one row each (the fleet row is always returned)")
 
 
 def watch_alerts(user, as_of: datetime | None = None, folder: Path = vw.REPORTS_DIR, **args) -> ToolResult:
@@ -92,6 +94,8 @@ def watch_alerts(user, as_of: datetime | None = None, folder: Path = vw.REPORTS_
         return ToolResult(tool="watch_alerts", status="no_data", note=f"no saved voyage-watch run at or before {clock}")
     r = json.loads(path.read_text(encoding="utf-8"))
     tid = r["thread_id"]
+    if a.anchored:                                                    # 2026-11-16: the run's anchored vessels
+        return _anchored(r, a, path, flt_base=f"the latest saved run at or before {clock}: {tid} (clock {r['as_of']})")
     alerts = r.get("alerts") or []
     # c1 C-d (Agents plan Phase 12): the join in code — each alert's vessel → its customer_id (`vessels`, a level-1
     # id); the customer's name and money stay in finance_kpi
@@ -111,8 +115,7 @@ def watch_alerts(user, as_of: datetime | None = None, folder: Path = vw.REPORTS_
                   "vessels_with_alerts": len({x["vessel_id"] for x in xs}), "alerts": len(xs),
                   "high_alerts": sum(x["severity"] == "high" for x in xs), "thread_id": tid}
                  for c, xs in sorted(by_c.items(), key=lambda kv: (-len({x["vessel_id"] for x in kv[1]}), kv[0]))]
-    fleet = {"alert_id": "fleet", **{k: v for k, v in (r.get("fleet") or {}).items()
-                                     if isinstance(v, (int, float)) and not isinstance(v, bool)}, "thread_id": tid}
+    fleet = _fleet_row(r)
     flt = (f"the latest saved run at or before {clock}: {tid} (clock {r['as_of']})"
            + (f"; vessel_id IN {sorted(keep_v)}" if keep_v else "")
            + (f"; customer_id IN {sorted(keep_c)}" if keep_c else "")
@@ -124,11 +127,44 @@ def watch_alerts(user, as_of: datetime | None = None, folder: Path = vw.REPORTS_
                       source=Source(kind="table", name=f"reports/voyage_watch/{path.name}", filter=flt))
 
 
+ANCHORED_KEYS = ("vessel_id", "vessel_name", "destination", "distance_left_nm", "rta_utc", "last_fix_ts", "note")
+
+
+def _fleet_row(r: dict) -> dict:
+    return {"alert_id": "fleet", **{k: v for k, v in (r.get("fleet") or {}).items()
+                                    if isinstance(v, (int, float)) and not isinstance(v, bool)},
+            "thread_id": r["thread_id"]}
+
+
+def _anchored(r: dict, a: WatchArgs, path: Path, flt_base: str) -> ToolResult:
+    """The run's vessels at anchorage off their destination (its `etas` rows with status Anchored: the run's own
+    list behind the fleet row's `anchored` count), one row `anchored/<vessel_id>` each with its customer_id; the
+    vessel / customer filters apply."""
+    tid = r["thread_id"]
+    rows = [x for x in r.get("etas") or [] if x.get("status") == "Anchored"]
+    vids = sorted({x["vessel_id"] for x in rows})
+    cust = {row["vessel_id"]: row["customer_id"] for row in
+            db.fetch("SELECT vessel_id, customer_id FROM vessels WHERE vessel_id = ANY(%s)", (vids,))} if vids else {}
+    keep_v = set(a.vessel_ids or []) | ({a.vessel_id} if a.vessel_id is not None else set())
+    keep_c = set(a.customer_ids or [])
+    out = [{"alert_id": f"anchored/{x['vessel_id']}", **{k: x.get(k) for k in ANCHORED_KEYS},
+            "customer_id": cust.get(x["vessel_id"]), "thread_id": tid}
+           for x in sorted(rows, key=lambda x: x["vessel_id"])
+           if (not keep_v or x["vessel_id"] in keep_v) and (not keep_c or cust.get(x["vessel_id"]) in keep_c)]
+    flt = (flt_base + "; status = Anchored" + (f"; vessel_id IN {sorted(keep_v)}" if keep_v else "")
+           + (f"; customer_id IN {sorted(keep_c)}" if keep_c else ""))
+    note = (f"{len(out)} of {len(rows)} vessels at anchorage off their destination in the run (no ETA at anchor; "
+            "rta_utc = the berth time the port requested, when one is known at the clock)")
+    return ToolResult(tool="watch_alerts", status="ok", rows=out + [_fleet_row(r)], note=note,
+                      source=Source(kind="table", name=f"reports/voyage_watch/{path.name}", filter=flt))
+
+
 @tool("watch_alerts", args_schema=WatchArgs)
 def watch_alerts_tool(runtime: ToolRuntime, **args) -> dict:
     """The alerts of the latest voyage watch (weather on the vessels' next legs, Suez traffic) as of the run's clock,
     and the fleet's counts (vessels in transit, at anchor, alerts, vessels with the Suez Canal ahead, the Suez traffic
-    change vs a year earlier). Each alert row has its vessel's customer_id and a severity (high / moderate: name it);
+    change vs a year earlier). anchored=true lists instead the vessels at anchorage off their destination
+    (`anchored/<id>` rows: destination, berth time requested when known). Each alert row has its vessel's customer_id and a severity (high / moderate: name it);
     one row per customer with alerts (`customer/<id>`: vessels_with_alerts, high_alerts); filter by vessel_ids or
     customer_ids to join with finance rows in one call."""
     return watch_alerts(context.user_of(runtime), as_of=context.as_of_of(runtime), **args).model_dump(mode="json")

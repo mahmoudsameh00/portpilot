@@ -63,7 +63,7 @@ export function decisionProblem(body: Record<string, unknown>, limits: Limits): 
   if (d.decision === "edit" && analysisChange) return "analysis edits and a steer belong to a revise";
   if (d.decision === "revise" && !analysisChange) return "a revise carries analysis edits and / or a steer";
   if (d.decision === "revise" && text)
-    return "a revise drafts the deck again: text edits and additions go in a later edit";
+    return "a revise re-drafts slides: text edits and additions go in a separate edit";
   if ((d.decision === "approve" || d.decision === "reject") && (text || analysisChange || charts.length))
     return `${d.decision} carries no changes`;
   if (new Set(charts.map((c) => c.chart)).size !== charts.length) return "one change per chart";

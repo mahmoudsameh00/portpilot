@@ -16,6 +16,10 @@ Phases
 2. `resolve` on the 22 frozen dialogs, each first turn's frame written here by hand (what its cited rows hold): every
    follow-up resolved the allowed way, naming every expected entity (in the standalone text for ids, weeks and
    speeds), carrying no forbidden one; every `clarify` turn clarifies; nothing invented.
+2b. The owner's web dialogs of 2026-11-16 (each failed before the fix): a compare keeps the previous subject, a
+   pronoun bound to its noun ("الأسبوع ده") carries that kind only, asking back names the options and offers "all of
+   them", a reply completes the pending question, Arabic pronouns are whole words, an owned possessive is not a
+   follow-up, "؟" does not make an English question Arabic.
 3. The model rewrite's guard: an invented vessel → clarify, a number the user never wrote → clarify, a clean rewrite
    → `model`; `needs_clarification` → clarify.
 4. (EVAL_REAL_MODELS=1) the 22 dialogs through the API (TestClient, the real models, EVAL_REPEATS runs — default 2 —
@@ -46,7 +50,7 @@ from pipelines.agents import memory  # noqa: E402
 GOLDEN = ROOT / "Data" / "processed" / "agents" / "eval" / "memory_golden.jsonl"
 FROZEN = "212b1204b146aec1"
 OPS_EMPLOYEES = (12, 17)
-DONE: list[int] = []
+DONE: list[float] = []
 text = GOLDEN.read_text(encoding="utf-8")
 assert hashlib.sha256(text.encode("utf-8")).hexdigest().startswith(FROZEN), "the frozen set changed"
 GOLD = [json.loads(line) for line in text.splitlines()]
@@ -134,6 +138,47 @@ DONE.append(2)
 print(f"✅ Phase 2 validation passed: {sum(n for _, n in by_lang.values())} follow-ups of the frozen set resolved as "
       f"expected by the rules (EN {acc['en']}, AR {acc['ar']}); ways {counts}; nothing invented, nothing refused "
       f"carried, every clarify turn clarifies")
+
+
+# %% Phase 2b — the owner's web dialogs of 2026-11-16 (regressions: each one failed before the fix)
+from pipelines.agents.graphs.supervisor import detect_lang  # noqa: E402
+
+T = memory.Turn
+q1 = "What was collected revenue in week 17 versus the amount due?"
+r = memory.resolve("And how does that compare with week 16", "en", [T(q1, q1, {"report_week": [17]})])
+assert r.by == "code" and r.used["report_week"] == [17, 16], r                    # the subject kept, both weeks
+assert r.standalone.startswith("What was collected revenue in week 17 and week 16 versus the amount due?"), r
+qa = "إيه أكتر 3 عملاء علينا فلوس متأخرة"
+fa = {"report_week": [52], "customer": [15, 9, 10],
+      "labels": {"customer:15": "Belanor Tankers", "customer:9": "Talomar Shipping", "customer:10": "Levavia Tankers"}}
+ha = [T(qa, qa, fa)]
+r = memory.resolve("طب والمتأخرات زادت ولا قلّت الأسبوع ده", "ar", ha)
+assert r.by == "code" and r.used == {"report_week": [52]}, r                    # "الأسبوع ده" = the week, no customer
+r = memory.resolve("طب والعميل ده متأخراته زادت؟", "ar", ha)                       # a customer pronoun: ask back, by name
+assert r.by == "clarify" and r.kind == "customer" and r.options == [15, 9, 10], r
+assert "Belanor Tankers (15)" in (r.clarify or "") and "كلهم" in (r.clarify or ""), r.clarify
+pend = {"kind": r.kind, "options": r.options, "labels": r.labels, "question": "طب والعميل ده متأخراته زادت؟"}
+replies = {"قصدي في العموم": {"report_week": [52]}, "العميل 9": {"report_week": [52], "customer": [9]},
+           "Belanor": {"report_week": [52], "customer": [15]}, "التاني": {"report_week": [52], "customer": [9]},
+           "15": {"report_week": [52], "customer": [15]}}
+for reply, used in replies.items():                                             # the reply completes the pending one
+    a = memory.answer_clarify(reply, pend, "ar", ha)
+    assert a is not None and a.by == "code" and a.used == used, (reply, a)
+assert "كل العملاء" in (memory.answer_clarify("قصدي في العموم", pend, "ar", ha) or r).standalone
+again = memory.answer_clarify("مش فاهم", pend, "ar", ha)
+assert again is not None and again.by == "clarify", again                       # picks nothing → asked back again
+assert memory.answer_clarify("What was billed in week 30 of 2025?", pend, "ar", ha) is None   # a new question
+assert not memory.is_follow_up("قصدي في العموم") and not memory.is_follow_up("هدية")   # "دي" inside a word
+assert memory.is_follow_up("السفينة دي فين") and memory.is_follow_up("وده كان أعلى من الميزانية؟")
+q5 = "Which vessels are anchored waiting near their destination?"
+assert not memory.is_follow_up(q5) and memory.resolve(q5, "en", []).by == "none"   # "their" = the vessels named
+assert memory.is_follow_up("What is their ETA?")                                # no owner named → a follow-up
+assert detect_lang(q5[:-1] + "؟") == "en" and detect_lang("كام فوترنا؟") == "ar"    # Arabic letters decide
+DONE.append(2.5)
+print("✅ Phase 2b validation passed: the 2026-11-16 web dialogs — a compare keeps its subject, 'الأسبوع ده' carries "
+      "the week only, asking back names the options and offers 'all of them', a reply completes the pending question "
+      "(general / id / name / ordinal), Arabic pronouns are whole words, a possessive owned in the question is not a "
+      "follow-up, '؟' does not make English Arabic")
 
 
 # %% Phase 3 — the model rewrite's guard
@@ -315,7 +360,7 @@ else:
 
 
 # %% Final Checkpoint
-PHASES = {1: "frame + mask", 2: "the frozen dialogs (rules)", 3: "the rewrite guard", 4: "real models via the API"}
+PHASES = {1: "frame + mask", 2: "the frozen dialogs (rules)", 2.5: "the 2026-11-16 web dialogs", 3: "the rewrite guard", 4: "real models via the API"}
 pending = [f"{k} {v}" for k, v in PHASES.items() if k not in DONE]
 print(f"Final Checkpoint: done {DONE}; pending: {pending}")
 print(f"✅ Final Checkpoint: {len(DONE)} / {len(PHASES)} phases passed")

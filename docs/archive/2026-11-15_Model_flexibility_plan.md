@@ -1,5 +1,23 @@
 # Plan — model flexibility: any model, from any provider, changed in one reviewed file
 
+**Status: IMPLEMENTED (2026-11-15)** — implementation record (the plan below is kept as approved):
+- **Done:** Phases 1–5. `pipelines/agents/models.toml` + `model_config.py`; `llm.py` / `roles.py` read them (adapters
+  `gemini` / `groq` / `openai_compatible` / `langchain`; per-model limits, temperature, timeout, method, price + daily
+  cap); `EVAL_MODELS` for `Stage1_eval` / `Stage2_eval` / `Weekly_pack_check` (and `Model_probe`); the outage-aware
+  repeated-failure rule (M7); `cost_usd` per call + `spend.json` (M5); `fallback_share` in the pack's `run.json`, the
+  API's pack view (shown in Reports) and the evaluations (W10); `Model_probe.py`; `docs/model_swap.md`.
+- **Proof:** `Models_config_check.py` 3 / 3 (48 cache keys byte-equal to the pre-file payload); every fake-model check
+  unchanged (10 scripts); probe of the four models, every line passes; no-regression **without spending quota** —
+  cache-only replays of s9 (packs) and tl3qa (Q&A): 0 fresh calls, primaries identical, ADR-052 "tie"; Stage 2 on
+  tl3s2's caches: 0 fresh calls in 300 requests, primaries identical to `stage2_eval_2026-11-14_tl3s2_rescored.json`.
+- **Deviations:** the loader is `model_config.py` (no import cycle with `roles.py`); the probe's size line is capped
+  at 75 % of a model's per-minute token limit; Phase 5 = replays / cache runs instead of two fresh provider days (the
+  models did not change, and an identical cached request is the strongest proof of it); model-naming comments left.
+- **Open note:** the Stage 2 cache-only replay stopped at item a03 (one request refused as "not in the cache") while
+  the non-replay run on the same caches minutes later served that request from the cache — not caused by a key
+  change; the replay path's handling of that item (it calls PortWatch for a not-yet-settled window) is unexplained.
+- **ADR:** ADR-045 amendment 4. Owner: one commit (commands in the session's closing message).
+
 **Status: APPROVED (2026-11-13, owner: "موافق", with the recommended answers to M4–M7)** — written PROPOSED the same day, on the owner's request ("we want things flexible, so that if one day we
 change the main model or the fallback to a stronger real model, nothing falls over"). Owner decisions asked as
 clickable choices the same day: **M1** a configuration file in the project, **M2** "any model from anywhere",
@@ -196,3 +214,54 @@ Phases 1–4 spend no model quota except the probe (Phase 4). Phase 5 is one eva
 - 2026-11-13 — **APPROVED** by the owner ("موافق") with the recommended answers: M4 `EVAL_MODELS` for the
   evaluation scripts only, M5 `max_usd_per_day` per model, M6 no new provider library now, M7 the outage-aware
   repeated-failure rule. Implementation waits for traffic Phase 6 to be recorded (M3).
+- 2026-11-15 — **Phase 1 started** (owner, clickable: "all phases now"; traffic Phase 6 closed 2026-11-14).
+  Handoff: `pipelines/agents/models.toml` (four models, three roles = ADR-045, provider defaults + bake-off
+  candidates) and `pipelines/agents/model_config.py` (loader + validation, `use()` for EVAL_MODELS) written; the
+  loader parses the file. **Deviation:** the loader is its own module (not `roles.load_models`) so `llm.py` and
+  `roles.py` can both read it without an import cycle. **Not yet wired:** nothing imports it — `llm.py` (limits /
+  adapter / temperature / timeout per entry; cache-key params unchanged for temperature 0) and `roles.py` (ROLES
+  built from `[roles]`, key check in `Roles()`) are unchanged; next: that wiring + `Models_config_check.py`
+  (byte-equal cache keys vs the legacy payload), then Phases 2–5. W7 design note: "answered another request" =
+  a fresh success of the same model in this process within the last 30 min.
+- 2026-11-15 — same session, outside this plan: `Stage1_eval.py` records `degraded` + `draft_origin` per pack and
+  `degraded_packs` in the aggregate (Phases 1–4 ✅, new asserts: 0 in Phase 3, 11 in Phase 3c). Owner decisions the
+  same day: stabilization / frontend gates → Claude prepares the full-data clone script + Power BI parity by MCP,
+  W17 decided in the UI with one approver change; JIT plan deferred (after this plan); the pack's rewrite load
+  deferred. Pushed CI green: run 43690050303 (checks, web incl. Playwright 130 passed / 50 skipped,
+  api-integration). These still need recording in ROADMAP and the two other plans.
+- 2026-11-15 — **Phases 1–4 done** (owner: "كمّل خطة المرونة"). Handoff:
+  - **Phase 1:** `llm.py` reads providers (adapter, key variable, quota day, base URL, default limits, bake-off
+    candidates) and per-model limits / temperature / timeout from the file (`llm.limits`, `llm.chat_kwargs`,
+    `llm.PROVIDERS` rebuilt by `reload_providers`); `roles.ROLES` built from `[roles]`; `roles.reload` /
+    `roles.use_eval_models` (M4, read by `Stage1_eval`, `Stage2_eval`, `Weekly_pack_check`; results files record
+    `models_file`); `roles.NoModelKey` (an `Exhausted`) when a role has no key. The model constants of `roles.py` are
+    gone (nothing outside it used them). New `Models_config_check.py` Phase 1: roles / providers / limits / kwargs =
+    the pre-file values, **48 cache keys byte-equal** to the pre-file payload, 8 broken files refused naming the
+    entry, EVAL_MODELS switch and back, keyless role refused. Fake-model checks after the wiring, all exit 0:
+    Weekly_pack_check (10 lines), Deck_check (9), Finance_qa_check (6), Supervisor_check (9), Traffic_claims_check
+    (6), Stage1_eval Phases 1–4 (6), Stage2_eval Phases 1–3 (4), Approval_safety_check (5), Run_lifecycle_check (4),
+    Load_test (6, its stub provider still injected through `llm.PROVIDERS`).
+  - **Phase 2:** adapters `openai_compatible` (any base URL; Groq's model list now from its base URL too) and
+    `langchain` (`init_chat_model`, `lc_provider`). `Models_config_check` Phase 2 against a stub OpenAI-style server
+    on 127.0.0.1: request shape, the key only in the Authorization header, temperature sent / not sent (W4), the model
+    list, 429 day / minute, 400, 404 classified as before.
+  - **Phase 3:** W7 / M7 — a 5xx counts toward a cached "repeated server failure" only if the same model gave a fresh
+    answer in this process within 30 min (`RECENT_OK_S`); W8 / M5 — `llm.cost_usd`, `QuotaState.spend` /
+    `add_spend` (`spend.json`, per provider day and model), the cap checked with the quota, `cost_usd` in every role
+    usage record; W10 — `roles.fallback_share` in the pack's `run.json` (+ `cost_usd`), the API's `PackView`
+    (`fallback_share`, shown in Reports when above 0; OpenAPI + client regenerated, packs spec 8 / 8), and per item
+    in both evaluations' usage (+ `cost_usd` summed in the aggregates). `Models_config_check` Phase 3: outage not
+    counted or cached; request-specific 5xx cached on its second run, then not sent; a priced stub spent 0.021 USD and
+    stopped at its 0.02 cap, the fallback answered; share 0.25. Lint ruff 0 / pyright 0.
+  - **Phase 4:** `Model_probe.py` (6 lines per model, ~7 real calls; `PROBE_MODELS`, `EVAL_MODELS`; the size line is
+    capped at 75 % of the model's per-minute token limit — Groq's 8K TPM cannot take 17K, ADR-045 am. 3) — real
+    probe 2026-11-15 of the four entries: flash-lite, nemotron, gpt-oss-20b, qwen **all pass every line**
+    (structured: flash-lite all 3 methods, nemotron function_calling + json_schema, gpt-oss-20b json_schema only,
+    qwen function_calling + json_schema — each entry's method among them; Arabic answered in Arabic by all four);
+    about 28 calls. `docs/model_swap.md` written; `Weekly_pack_check`'s pinned pairs now read from the file's
+    `[roles]` (the tracked file itself is pinned to ADR-045 by `Models_config_check`).
+  - **Deviations:** the loader is `model_config.py`, not `roles.load_models` (no import cycle); the probe's size line
+    is capped per model; the evaluation aggregate carries `fallbacks` + `calls` (share per item and in `run.json` /
+    `PackView`); the model-naming comments of `weekly_pack.py` / `memory.py` / `Memory_check.py` / `Api_smoke.py`
+    were left as they are (wording only).
+  - **Phase 5 done:** see the implementation record at the top.

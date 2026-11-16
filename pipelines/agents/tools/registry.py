@@ -33,13 +33,16 @@ PRODUCTS = {
     "fleet_customers": (fleet.fleet_customers_tool, fleet.fleet_customers),
 }
 ROUTE_ADVICE = products.run_route_advice
+# JIT arrival plan §3d: the arrival_advice graph as a tool, built per agent with its roles like route_advice
+ARRIVAL_ADVICE = products.run_arrival_advice
 
 
 def supervisor_tools(roles, saver=None, pool=None) -> list:
     """Every tool the supervisor may bind (S3's code router picks a subset per question): Stage 1 + Stage 2 + the
-    products + `route_advice` bound to `roles`; one name each."""
+    products + `route_advice` and `arrival_advice` bound to `roles`; one name each."""
     tools = (STAGE1_TOOLS + STAGE2_TOOLS + [t for t, _ in PRODUCTS.values()]
-             + [products.make_route_advice_tool(roles, saver, pool)])
+             + [products.make_route_advice_tool(roles, saver, pool),
+                products.make_arrival_advice_tool(roles, saver, pool)])
     names = [t.name for t in tools]
     assert len(names) == len(set(names)), names
     return tools

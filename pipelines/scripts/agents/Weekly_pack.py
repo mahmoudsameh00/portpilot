@@ -115,7 +115,8 @@ def scheduled(employee: int | None) -> int:
             return code
         rec["run_as"] = run_as
         rec.update(scheduling.fire(graph(), checkpointer.saver(), checkpointer.pool(), user, REPORTS,
-                                   tracer=scheduled_tracer, route_graph=route_graph(), ask_graph=ask_graph()))
+                                   tracer=scheduled_tracer, route_graph=route_graph(), ask_graph=ask_graph(),
+                                   arrival_graph=arrival_graph()))
         rec["operational"] = scheduling.operational_outcome(rec, "weekly_pack")
         code = rec["operational"]["exit"]
         if code:
@@ -147,6 +148,12 @@ def route_graph():
     """The route_advice graph on the same checkpointer, only to read and prune its threads (no model is called)."""
     from pipelines.agents.graphs import route_advice
     return route_advice.build_graph(None, checkpointer.saver())
+
+
+def arrival_graph():
+    """The arrival_advice graph on the same checkpointer, only to read and prune its threads (JIT arrival plan)."""
+    from pipelines.agents.graphs import arrival_advice
+    return arrival_advice.build_graph(None, checkpointer.saver())
 
 
 def ask_graph():
@@ -192,8 +199,15 @@ def show(g, cfg) -> None:
             print(f"  note caveat[{i}]: {c}")
     if st.get("charts"):
         print(f"  chart variants: {json.dumps(st['charts'], ensure_ascii=False)}")
-    if st.get("redrafted"):
-        print("  re-drafted after a revise: earlier edits and additions are not in this draft (D2)")
+    if st.get("redrafted_slides"):
+        print(f"  slides re-drafted by the last revise: {st['redrafted_slides']} (the others, the additions and the "
+              "chart variants kept)")
+    elif st.get("redrafted"):
+        print("  re-drafted after a revise (before the targeted revise: earlier edits and additions not kept)")
+    marked = [b["slide"] for b in (st.get("draft") or {}).get("bullets") or [] if b.get("origin") == "code"]
+    if marked or (st.get("draft") or {}).get("removed"):
+        print(f"  written by code on slides {sorted(set(marked))}; texts taken out: "
+              f"{[(r['slide'], r['why']) for r in st['draft'].get('removed') or []]}")
     rev = st.get("revision") or {}
     if rev.get("failed"):
         print(f"  the last revise could not be shown and was undone: {rev['failed']}")
@@ -308,6 +322,10 @@ def main() -> None:
             ag = ask_graph()                      # §6d S4: the supervisor's question threads, same rule
             out["ask"] = scheduling.prune(ag, checkpointer.saver(), scheduling.describe_ask(ag, checkpointer.pool()),
                                           LOG / "threads_archive.jsonl", dry_run=a.dry_run)
+            arg = arrival_graph()                 # JIT arrival plan: the arrival-advice threads, same rule
+            out["arrival_advice"] = scheduling.prune(arg, checkpointer.saver(),
+                                                     scheduling.describe_arrival_advice(arg, checkpointer.pool()),
+                                                     LOG / "threads_archive.jsonl", dry_run=a.dry_run)
         else:
             out = scheduling.approval_report(scheduling.report_entries(g, infos, REPORTS))
         print(json.dumps(out, ensure_ascii=False, indent=1, default=str))

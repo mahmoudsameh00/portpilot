@@ -84,6 +84,8 @@ class Script:
             drivers = [m.Driver(vessel_category=c["vessel_category"], direction="up", flagged_by_audit=False,
                                 explanation="largest change", evidence_ids=["kpi.category"]) for c in cats[:3]]
             return m.InsightNotes(summary=summary, drivers=drivers, caveats=[])
+        if schema is m.SlidesDraft:                      # a revise re-drafts its related slides only
+            return wp.slides_of(sample.slot_draft(W, self.ev), msgs)
         assert schema is m.DeckDraft, schema
         return m.DeckDraft.model_validate(sample.slot_draft(W, self.ev))
 

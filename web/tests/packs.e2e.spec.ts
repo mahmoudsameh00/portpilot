@@ -36,6 +36,12 @@ test("the list opens a pack reviewed slide by slide, with the Validator's note a
   await page.getByRole("button", { name: /Billing beat the budget/ }).click();
   await expect(page.getByText("Validator V2")).toBeVisible();
   await expect(page.getByRole("img", { name: /chart:trend/ })).toBeVisible();
+  // the deck's report-week marker (render.py `highlight`) is drawn in the preview too
+  await expect(page.locator('[data-highlight="report-week"]')).toHaveCount(1);
+  await expect(page.getByText("W45 is the report week.")).toBeVisible();
+  await page
+    .getByRole("img", { name: /chart:trend/ })
+    .screenshot({ path: `../Notebooks/_scratch/reports-trend-marker.png`, animations: "disabled" });
   await expect(page.getByRole("link", { name: "Preview PowerPoint" })).toHaveAttribute(
     "href",
     /\/bff\/packs\/.+\/preview$/,
@@ -64,6 +70,27 @@ test("a request in words is understood, shown, and applied only on Confirm", asy
   await expect(page.getByText("Run finished")).toBeVisible();
 });
 
+test("a question asked back has a box for the answer, sent with the request it answers", async ({ page }) => {
+  await signedIn(page, manager, PACK);
+  await page.getByRole("button", { name: /Billing beat the budget/ }).click();
+  await page.getByLabel(/Say what to change/).fill("Look again at the budget wording");
+  await page.getByRole("button", { name: "Understand my request" }).click();
+  await expect(
+    page.getByText("Which slide should I look at again, and the title or the bullets?"),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm" })).toHaveCount(0);
+  const reply = page.getByLabel("Your answer");
+  await expect(reply).toBeFocused();
+  await reply.fill("Slide 4, the title");
+  await page.getByRole("button", { name: "Send my answer" }).click();
+  await expect(page.getByLabel(/Say what to change/)).toHaveValue(
+    'Look again at the budget wording — you asked: "Which slide should I look at again, and the title or the ' +
+      'bullets?" — my answer: Slide 4, the title',
+  );
+  await expect(page.getByText(/edit the deck — 1 text edit/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm" })).toBeVisible();
+});
+
 test("a proposal for a draft that changed meanwhile is refused as stale", async ({ page }) => {
   await signedIn(page, manager, PACK);
   await page.getByRole("button", { name: /Billing beat the budget/ }).click();
@@ -88,7 +115,8 @@ test("a proposal for a draft that changed meanwhile is refused as stale", async 
 
 test("a direct approval sends the reviewed version and refuses a stale tab", async ({ page }) => {
   await signedIn(page, manager, PACK);
-  await page.getByRole("tab", { name: "Decide" }).click();
+  // the review (this version) is on screen before another tab changes the pack
+  await expect(page.getByRole("button", { name: "Approve the whole pack" })).toBeVisible();
   const csrf = (await page.context().cookies()).find((c) => c.name === "ng_csrf")?.value ?? "";
   const edited = await page.request.post(`/bff${PACK}/decision`, {
     headers: { origin: "http://localhost:3100", "x-csrf-token": csrf },
@@ -100,7 +128,8 @@ test("a direct approval sends the reviewed version and refuses a stale tab", asy
   });
   expect(edited.status()).toBe(202);
   const posted = page.waitForRequest((r) => r.url().endsWith("/decision") && r.method() === "POST");
-  await page.getByRole("button", { name: "Approve the pack", exact: true }).click();
+  await page.getByRole("button", { name: "Approve the whole pack" }).click();
+  await page.getByRole("button", { name: "Yes, approve the whole pack" }).click();
   expect((await posted).postDataJSON().draft_sha).toBe("0000000000000001");
   await expect(page.getByRole("alert").filter({ hasText: "The pack changed" })).toBeVisible();
   // Verify the stale click did not publish the mock pack.
@@ -113,9 +142,16 @@ test("the browser applies the decision rules before sending; approve publishes",
   await page.getByRole("tab", { name: "Edit" }).click();
   await page.getByRole("button", { name: "Save and check again" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "an edit carries" })).toBeVisible();
-  await page.getByRole("tab", { name: "Decide" }).click();
-  await expect(page.getByRole("button", { name: "Reject" })).toBeDisabled();
-  await page.getByRole("button", { name: "Approve the pack" }).click();
+  await expect(page.getByRole("button", { name: "Reject the whole pack" })).toBeDisabled();
+  // owner 2026-11-15: the approval lives in the whole-pack bar, never in the slide panel, and asks to confirm
+  await expect(page.getByLabel("Decision for the whole pack")).toBeVisible();
+  // Model flexibility plan W10: a pack partly written by a fallback model says so
+  await expect(
+    page.getByText(/25% of the\s+model calls for this pack were answered by a fallback model/),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Approve the whole pack" }).click();
+  await expect(page.getByRole("group", { name: "Confirm the approval" })).toContainText("all");
+  await page.getByRole("button", { name: "Yes, approve the whole pack" }).click();
   await expect(page.getByText("Approved", { exact: true })).toBeVisible();
   await expect(page.getByText("This pack no longer waits for a decision.")).toBeVisible();
   await page.goto("/packs/report");
@@ -135,7 +171,7 @@ test("outside Finance the packs are not found", async ({ page }) => {
   expect(res?.status()).toBe(404);
 });
 
-test("the pack's chart can be changed from the catalogue, and the analysis revised with a caveat", async ({
+test("the pack's chart can be changed from the catalogue, and a caveat asked in words revises the analysis", async ({
   page,
 }) => {
   await signedIn(page, manager, PACK);
@@ -143,11 +179,38 @@ test("the pack's chart can be changed from the catalogue, and the analysis revis
   await page.getByRole("tab", { name: "Chart" }).click();
   await page.getByRole("button", { name: "Change the chart" }).click();
   await expect(page.getByText("Sent: edit the deck.")).toBeVisible();
-  await page.getByRole("tab", { name: "Revise" }).click();
-  await expect(page.getByLabel("Summary point 1")).toHaveValue(
-    "Billing beat the budget for the third week running.",
-  );
-  await page.getByLabel("Add a caveat").fill("Week 53 is not in this year.");
-  await page.getByRole("button", { name: "Revise" }).click();
-  await expect(page.getByText(/Sent: revise the analysis/)).toBeVisible();
+  // owner 2026-11-16: Revise is merged into Request — an analysis change is asked in words and confirmed
+  await expect(page.getByRole("tab", { name: "Revise" })).toHaveCount(0);
+  await page.getByRole("tab", { name: "Request" }).click();
+  await page.getByLabel(/Say what to change/).fill("Add a caveat: week 53 is not in this year");
+  await page.getByRole("button", { name: "Understand my request" }).click();
+  await expect(
+    page.getByText(/revise the analysis and draft its related slides again — 1 analysis edit/),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Confirm" }).click();
+  await expect(page.getByText("Applied. The deck was checked again.")).toBeVisible();
+  // targeted-revise plan A6: the re-drafted slide is marked in the filmstrip and on the slide, no page banner
+  await expect(page.getByLabel("Drafted again by the revise")).toHaveCount(1);
+  await page
+    .getByRole("navigation", { name: "Slides" })
+    .getByRole("button", { name: /at a glance/ })
+    .click();
+  await expect(page.getByText(/Drafted again by the last revise/)).toBeVisible();
+  await expect(page.getByText(/Earlier edits and additions were not carried over/)).toHaveCount(0);
+});
+
+test("what code wrote or took out is marked on its slide, not in a page banner", async ({ page }) => {
+  await signedIn(page, manager, PACK);
+  await expect(page.getByText(/Some texts were written by code/)).toHaveCount(0);
+  await page
+    .getByRole("navigation", { name: "Slides" })
+    .getByRole("button", { name: /Collections slowed/ })
+    .click();
+  await expect(page.getByText("Written by code")).toHaveCount(1);
+  await page.getByText(/Code removed 1 text from this slide/).click();
+  await expect(page.getByText(/it repeated what the slide's tiles show/)).toBeVisible();
+  const axe = await new AxeBuilder({ page }).analyze();
+  expect(
+    axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id),
+  ).toEqual([]);
 });

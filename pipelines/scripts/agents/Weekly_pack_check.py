@@ -29,6 +29,7 @@ Final Checkpoint (pending phases listed).
 # %% Setup
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -37,7 +38,9 @@ from pydantic import ValidationError
 
 ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / "pyproject.toml").exists() and (p / "Data").is_dir())
 sys.path.insert(0, str(ROOT))
-from pipelines.agents import llm, roles  # noqa: E402
+from pipelines.agents import llm, model_config, roles  # noqa: E402
+
+EVAL_MODELS_FILE = roles.use_eval_models()   # Model flexibility plan M4: Phase 5 on a candidate models file
 from pipelines.agents.graphs import models as m  # noqa: E402
 from pipelines.lib import common  # noqa: E402
 
@@ -143,9 +146,10 @@ actual = {"round_trip": round_trip, "refused": sorted(refused), "roles": sorted(
 expected = {"round_trip": True, "refused": sorted(invalid), "roles": ["insight", "tools", "writer"],
             # ADR-045 amendment 1 (owner 2026-10-19): the pack's Insight / Writer prompts do not fit Groq's 8K TPM;
             # amendment 2 (2026-10-23, §5f F7): the retired nemotron-3-super → nemotron-3.5-super-vl
-            "role_pairs": {"insight": ["gemini/gemini-3.5-flash-lite", "openrouter/nvidia/nemotron-3.5-super-vl:free"],
-                           "writer": ["gemini/gemini-3.5-flash-lite", "openrouter/nvidia/nemotron-3.5-super-vl:free"],
-                           "tools": ["gemini/gemini-3.5-flash-lite", "groq/openai/gpt-oss-20b"]},
+            # since the Model flexibility plan: the reviewed [roles] of the tracked models.toml (or the candidate
+            # file of EVAL_MODELS) — Models_config_check pins the tracked file to ADR-045 itself
+            "role_pairs": {r: [f"{c.models[n].provider}/{c.models[n].id}" for n in names]
+                           for c in [model_config.current()] for r, names in c.roles.items()},
             "role_cases": {"exhausted → fallback": (FALLBACK.name, ["exhausted", "ok"]),
                            "invalid → retry ok": (MAIN.name, ["invalid", "ok"], 15),
                            "invalid twice": "StructuredError", "chat fallback": FALLBACK.name,
@@ -253,6 +257,13 @@ class PackScript:
             fixed = self.mode == "wrong_once"
             text = sample.slot_draft(w, self.ev)["bullets"][0]["text"] if fixed else wrong_text
             return m.DeckPatch(fixes=[m.Fix(target="bullet", index=0, text=text, evidence_ids=["kpi.weekly"])])
+        if schema is m.SlidesDraft:                      # a revise: the named slides of the slot draft only
+            want = [int(x) for x in re.search(r"\[redraft slides\] ([\d, ]+)", " ".join(
+                str(x.content) for x in msgs))[1].split(",")]
+            d = sample.slot_draft(w, self.ev)
+            self.redraft_asked = want
+            return m.SlidesDraft(slide_titles=[t for t in d["slide_titles"] if t["slide"] in want],
+                                 bullets=[b for b in d["bullets"] if b["slide"] in want])
         assert schema is m.DeckDraft, schema
         d = sample.slot_draft(w, self.ev)
         first = not any("[validator]" in str(x.content) for x in msgs)
@@ -683,7 +694,8 @@ RUN_REAL = E.get("PACK_REAL_MODELS") == "1"   # Phase 6 S6: fresh calls on the n
 
 
 def _tpm(model_name: str) -> int:
-    return llm.PROVIDERS[model_name.split("/", 1)[0]]["tpm"]
+    provider, model = model_name.split("/", 1)
+    return llm.limits(provider, model)["tpm"]
 
 
 
@@ -974,10 +986,10 @@ DONE.append(8)
 
 
 # %% Phase 9 — A revise (approver-additions plan Phase D, owner C1 / D1–D3)
-# The approver changes the Insight notes (a summary point, a caveat) and the Writer drafts the deck again — one Writer
+# The approver changes the Insight notes (a summary point, a caveat) and the Writer re-drafts the related slides — one Writer
 # call, no Insight call; or he steers the Insight agent ("look at collections by customer"), which looks again and
-# returns new notes the edits are applied to, then the Writer drafts. D2: the re-draft keeps no earlier addition or
-# chart variant. Refused before any model call: a number the cited evidence does not hold, an injection-shaped
+# returns new notes the edits are applied to, then the Writer drafts. Since the targeted-revise plan (Phase 10) the
+# earlier addition and chart variant stay (D2 superseded). Refused before any model call: a number the cited evidence does not hold, an injection-shaped
 # steer, a third revise; a revise with text edits is an invalid decision (D1). A re-draft that cannot be shown (the
 # Writer answering twice with an invalid object) restores the pack as it was before the revise, with the reason.
 class ReviseScript(PackScript):
@@ -989,7 +1001,7 @@ class ReviseScript(PackScript):
 
     def __call__(self, role, msgs, tools, schema):
         text = " ".join(str(x.content) for x in msgs)
-        if schema is m.DeckDraft:
+        if schema in (m.DeckDraft, m.SlidesDraft):
             self.writer_calls += 1
             self.saw_note.append(NOTE in text)
             if self.fail_after_revise and '"origin": "approver"' in text:
@@ -1064,7 +1076,9 @@ expected = {"steps": [("edited", "", True, ("approval",), (0, 0), ("validator",)
                        ("insight_llm", "insight_notes", "writer", "validator")),
                       ("refused", "at most 2 revisions per pack (the free model", True, ("approval",), (0, 0), ()),
                       ("approved", "", True, (), (0, 0), ("publisher",))],
-            "revise_1": (NOTE_ITEM, "The approver asked for a second look at receivables.", True, False, {}, True,
+            # targeted-revise plan T2 (supersedes D2): the slide-4 addition and the chart variant stay
+            "revise_1": (NOTE_ITEM, "The approver asked for a second look at receivables.", True, True,
+                         {"variance": {"chart": "variance", "measure": "budget_variance_sdr", "rows": "top5"}}, True,
                          True, "writer"),
             "revise_2": (1, ["Collections were reviewed by customer."], True),
             "final": "published",
@@ -1072,18 +1086,164 @@ expected = {"steps": [("edited", "", True, ("approval",), (0, 0), ("validator",)
                          True)}
 assert actual == expected, actual
 print(f"Phase 9: revise steps {[s[0] for s in rv_steps]}; restored after a failed re-draft {restored[:2]}")
-print("✅ Phase 9 validation passed: note edits re-draft the deck with one Writer call and no Insight call (D2: no "
-      "addition or chart kept); a steer re-runs the Insight agent and the edits land on its notes; an unbound number "
+print("✅ Phase 9 validation passed: note edits re-draft with one Writer call and no Insight call (the addition and "
+      "chart kept, Phase 10); a steer re-runs the Insight agent and the edits land on its notes; an unbound number "
       "/ an injection-shaped steer / a third revise / revise + text edits refused before any model call; a re-draft "
       "that cannot be shown restores the pack with the reason")
 DONE.append(9)
+
+# %% Phase 10 — A targeted revise; code's texts marked inline (targeted-revise plan, owner T1–T3, 2026-11-16)
+# 10a (B1 / B4): a Writer comment that only repeats its slide's tiles is dropped by code before the Validator (no
+# rewrite, the pack not degraded); after two failing rewrites the fallback marks what it wrote (`origin: "code"`) and
+# keeps the Writer texts it took out in the draft's `removed`, with why — so the web shows both on their slide.
+# 10b (A1–A5): a revise re-drafts only the related slides — 2, the changed note's own slide, and every slide whose
+# Writer texts cite the changed note's evidence (T1) — with one `SlidesDraft` call; every other slide keeps its text
+# (an approver's edit included), every addition stays (also on a re-drafted slide) and the chart variant stays (T2);
+# the whole deck passes the Validator. A steer re-drafts the slides of the notes it changed; a re-drafted slide 2 with
+# a wrong shape is re-drafted again (never the whole deck).
+class MarkScript(PackScript):
+    """PackScript whose first draft puts a tile-only comment on slide 3 and (wrong6) a wrong number in a slide-6
+    comment."""
+
+    def __init__(self, mode="good", wrong6=True):
+        super().__init__(mode)
+        self.wrong6 = wrong6
+
+    def __call__(self, role, msgs, tools, schema):
+        out = super().__call__(role, msgs, tools, schema)
+        if schema is not m.DeckDraft:
+            return out
+        d, k = out.model_dump(mode="json"), self.ev["kpi.weekly"]["rows"][0]
+        for s, text in ((3, "Billed {kpi.weekly:billed_sdr|M} this week."),
+                        (6, f"Overdue stood at {m_sdr(k['overdue_sdr'] + 10_000)} this week.")
+                        if self.wrong6 else (3, "Billed {kpi.weekly:billed_sdr|M} this week.")):
+            at = next((i for i, b in enumerate(d["bullets"]) if b["slide"] == s), None)
+            new = {"slide": s, "text": text, "evidence_ids": ["kpi.weekly"]}
+            if at is None:
+                d["bullets"].append(new)
+                d["bullets"].sort(key=lambda b: b["slide"])
+            else:
+                d["bullets"][at] = new
+        return m.DeckDraft.model_validate(d)
+
+
+mk = MarkScript("always_wrong")
+g_mk = wp.build_graph(roles.FakeRoles(mk), InMemorySaver(), REPORTS / "marks")
+visited, st, cfg_mk = run(fin_mgr, W, g=g_mk, sc=mk)
+shown = wp.v2.render_draft(st["draft"], st["evidence"])
+marks = ([(b["slide"], b.get("origin")) for b in st["draft"]["bullets"] if b.get("origin") == wp.CODE],
+         [(r["slide"], r["by"], r["why"]) for r in st["draft"].get("removed") or []],
+         st["verdict"]["passed"], bool(st.get("degraded")), [p for p, _ in mk.prompts],
+         any("repeats the slide's tiles" in n for n in st.get("normalized") or []),
+         "{" not in " ".join(r["text"] for r in shown.get("removed") or []))
+expected_marks = ([(2, "code")],
+                  [(3, "code", "it repeated what the slide's tiles show"), (6, "fallback", "failed V2 after the rewrites")],
+                  True, True, ["DeckDraft", "DeckPatch", "DeckPatch"], True, True)
+assert marks == expected_marks, marks
+# the tile comment alone: dropped before the Validator, no rewrite, not degraded
+tile = MarkScript("good", wrong6=False)
+g_tile = wp.build_graph(roles.FakeRoles(tile), InMemorySaver(), REPORTS / "tile")
+visited_t, st_t, _ = run(fin_mgr, W, g=g_tile, sc=tile)
+tile_case = (visited_t.count("writer"), st_t.get("rewrites"), st_t.get("degraded"),
+             [(r["slide"], r["by"]) for r in st_t["draft"].get("removed") or []])
+assert tile_case == (1, 0, None, [(3, "code")]), tile_case
+
+
+class TargetScript(ReviseScript):
+    """ReviseScript whose re-drafted slide 2 has four bullets on its first try (a shape only a re-draft fixes)."""
+
+    def __init__(self, short_once=False):
+        super().__init__()
+        self.short_once, self.slides_calls = short_once, []
+
+    def __call__(self, role, msgs, tools, schema):
+        out = super().__call__(role, msgs, tools, schema)
+        if schema is m.SlidesDraft:
+            self.slides_calls.append(self.redraft_asked)
+            if self.short_once and len(self.slides_calls) == 1:
+                d = out.model_dump(mode="json")
+                d["bullets"].remove(next(b for b in d["bullets"] if b["slide"] == 2))
+                return m.SlidesDraft.model_validate(d)
+        return out
+
+
+def cites(draft: dict) -> dict[int, set]:
+    out: dict[int, set] = {}
+    for b in draft["bullets"]:
+        if b.get("origin") != "approver":
+            out.setdefault(b["slide"], set()).update(wp.text_ids(b["text"], b.get("evidence_ids") or []))
+    for t in draft["slide_titles"]:
+        out.setdefault(t["slide"], set()).update(wp.text_ids(t["title"]))
+    return out
+
+
+ts = TargetScript()
+g_t = wp.build_graph(roles.FakeRoles(ts), InMemorySaver(), REPORTS / "targeted")
+_, st0, cfg_t = run(fin_mgr, W, g=g_t, sc=ts)
+c0 = cites(st0["draft"])
+want = sorted({2, 4} | {s for s, ids in c0.items() if "kpi.category" in ids} - {10})   # a driver note: kpi.category
+kept_slide = next(s for s in (8, 6, 7, 3) if s not in want and any(
+    b["slide"] == s for b in st0["draft"]["bullets"]))
+i_kept = next(i for i, b in enumerate(st0["draft"]["bullets"]) if b["slide"] == kept_slide)
+edited = "As shown, " + st0["draft"]["bullets"][i_kept]["text"]
+add_kept, add_target = next(s for s in (7, 6, 8, 3) if s not in want and s != kept_slide), 4
+snap = resume(cfg_t, {"approver_employee_id": fin_mgr.employee_id, "decision": "edit",
+                      "edits": [{"bullet": i_kept, "text": edited}],
+                      "additions": [{"slide": add_kept, "text": "Finance will follow this up."},
+                                    {"slide": add_target, "text": "Finance will review these drivers again."}],
+                      "charts": [{"chart": "variance", "rows": "top5"}]}, g=g_t)[1]
+before = snap.values["draft"]
+assert snap.values["verdict"]["passed"], snap.values["verdict"]
+calls0 = ts.writer_calls
+visited_r, rv = resume(cfg_t, {"approver_employee_id": fin_mgr.employee_id, "decision": "revise", "analysis_edits": [
+    {"target": "driver", "op": "replace", "index": 0, "text": "The largest change of the week, by its billing."}]},
+    g=g_t)
+after = rv.values["draft"]
+same_outside = all([b for b in before["bullets"] if b["slide"] == s] == [b for b in after["bullets"] if b["slide"] == s]
+                   and [t for t in before["slide_titles"] if t["slide"] == s] ==
+                   [t for t in after["slide_titles"] if t["slide"] == s]
+                   for s in range(1, 11) if s not in want)
+targeted = (rv.values["redrafted_slides"] == want, ts.slides_calls[-1] == want, ts.writer_calls - calls0,
+            same_outside, any(b["text"] == edited and b.get("edited") for b in after["bullets"]),
+            sorted(b["slide"] for b in after["bullets"] if b.get("origin") == "approver"),
+            rv.values.get("charts", {}).get("variance", {}).get("rows"), rv.values["verdict"]["passed"],
+            rv.interrupts[0].value["redrafted_slides"] == want,
+            tuple(dict.fromkeys(v for v in visited_r if v != "approval")))
+expected_t = (True, True, 1, True, True, sorted([add_kept, add_target]), "top5", True, True, ("writer", "validator"))
+assert targeted == expected_t, (targeted, want)
+# a steer: the Insight agent writes its notes again — here driver 0's explanation goes back to its own words (the
+# approver's note of the revise above is gone), so the same slides as that revise follow; the tool round's insight.*
+# results are cited nowhere else
+visited_s, rs = resume(cfg_t, {"approver_employee_id": fin_mgr.employee_id, "decision": "revise",
+                               "steer": "Look at collections by customer first."}, g=g_t)
+steer_case = (rs.values["redrafted_slides"], rs.values["verdict"]["passed"],
+              sorted(b["slide"] for b in rs.values["draft"]["bullets"] if b.get("origin") == "approver"))
+assert steer_case == (want, True, sorted([add_kept, add_target])), steer_case
+# a re-drafted slide 2 with four bullets: re-drafted again (two SlidesDraft calls), never the whole deck
+ts2 = TargetScript(short_once=True)
+g_t2 = wp.build_graph(roles.FakeRoles(ts2), InMemorySaver(), REPORTS / "targeted_shape")
+_, _, cfg_t2 = run(fin_mgr, W, g=g_t2, sc=ts2)
+deck_calls = [s for s, _ in ts2.prompts]
+_, r2s = resume(cfg_t2, {"approver_employee_id": fin_mgr.employee_id, "decision": "revise", "analysis_edits": [
+    {"target": "caveat", "op": "add", "text": "The approver asked for a second look at receivables."}]}, g=g_t2)
+shape_case = (ts2.slides_calls, [s for s, _ in ts2.prompts][len(deck_calls):], r2s.values["verdict"]["passed"],
+              r2s.values["redrafted_slides"])
+assert shape_case == ([[2], [2]], ["SlidesDraft", "SlidesDraft"], True, [2]), shape_case
+print(f"Phase 10: marks {marks[0]} / removed {marks[1]}; revise of a driver note → slides {want} "
+      f"(kept slide {kept_slide} edited, additions on {add_kept} and {add_target}, chart top5); steer → {steer_case[0]}")
+print("✅ Phase 10 validation passed: a tile-only comment dropped by code before the Validator (no rewrite, not "
+      "degraded); the fallback's text marked origin code and the texts it took out listed with why; a revise re-drafts "
+      "only slide 2, the changed note's slide and the slides citing its evidence (one SlidesDraft call), every other "
+      "slide byte-equal with the approver's edit, both additions and the chart variant kept, the whole deck passing; a "
+      "steer → the slides of the notes it changed; a wrong re-drafted shape → that slide re-drafted again")
+DONE.append(10)
 
 # %% Final Checkpoint
 # Narrative: pipelines/checkpoints/agents/Weekly_pack_check.md (every step, its problems and their fixes).
 PHASES = {0: "models + roles", 1: "deterministic nodes", 2: "fake-LLM pack on 52 weeks + approval",
           3: "Validator loop", 4: "crash and resume (PostgresSaver)", 5: "real models on 4 weeks",
           6: "contract (schemas, dataset)", 7: "approver additions", 8: "chart variants",
-          9: "a revise"}
+          9: "a revise", 10: "a targeted revise; code's texts marked"}
 import shutil  # noqa: E402
 
 shutil.rmtree(REPORTS, ignore_errors=True)                  # the throw-away published packs

@@ -40,7 +40,7 @@ from pipelines.agents.graphs import finance_qa as fq
 from pipelines.agents.graphs import models as m
 from pipelines.agents.graphs.weekly_pack import _cap_search, _evidence_id, _tool_evidence, _tool_rounds, evidence_index
 from pipelines.agents.roles import StructuredError
-from pipelines.agents.tools import context
+from pipelines.agents.tools import arrival, context
 from pipelines.agents.tools.context import RunContext
 from pipelines.agents.tools.registry import supervisor_tools
 from pipelines.agents.tools.schemas import ToolResult
@@ -66,12 +66,17 @@ RULES = [
     ("toll", r"\b(toll|dues|tariff)\b|رسوم", ["compute_toll"]),
     ("route", r"\b(suez or|or the cape|cape|cheaper|cheapest|avoid\w*|sea days|via suez|which route)\b|"
               r"\bfrom [a-z ]+ to [a-z ]+|الرجاء الصالح|أرخص|ارخص|السويس ولا", ["route_advice"]),
+    # JIT arrival plan §3d: the port's requested time of arrival → the arrival_advice graph
+    ("arrival", r"\b(berth\w*|RTA|requested time|just[- ]in[- ]time|JIT|slow (it )?down|slow steam\w*|"
+                r"(what|which) speed (should|to)|speed (should|to sail|to arrive))\b|"
+                r"رصيف|ميعاد الوصول المطلوب|يهدي|يهدّي|تهدي|يبطّأ|يبطأ|يبطء|أنهي سرعة|انهي سرعة|بسرعة كام|سرعة كام",
+     ["arrival_advice"]),
     ("distance", r"\b(sea route|how long is|nautical|miles|distance|how far)\b|ميل|مسافة", ["voyage_status", "sea_route"]),
     ("position", r"\b(where|position|next port|moving|anchor\w*|at sea|status|sail(ing)?|underway|finished|"
                  r"arrived)\b|فين|مكان|موقع|الميناء الجاي|راسي|وصلت|وصل", ["voyage_status"]),
     ("eta", r"\b(eta|arriv\w*|when will|reach(es)?|hours until)\b|إمتى|امتى|هتوصل|توصل", ["voyage_eta", "voyage_status"]),
-    ("watch", r"\b(alert\w*|weather|wave\w*|wind|storm\w*|watch|risk\w*|traffic|in transit)\b|"
-              r"إنذار|انذار|تنبيه|موج|رياح|طقس|متابعة|حركة|في الطريق", ["watch_alerts"]),
+    ("watch", r"\b(alert\w*|weather|wave\w*|wind|storm\w*|watch|risk\w*|traffic|in transit|anchor\w*)\b|"
+              r"إنذار|انذار|تنبيه|موج|رياح|طقس|متابعة|حركة|في الطريق|راسي|راسية|راسيين|مخطاف", ["watch_alerts"]),
     ("traffic", r"\b(traffic|transits?)\b|حركة|عبور", ["suez_transits"]),
     ("fuel", r"\b(fuel|burn\w*|consumption|bunker\w*)\b|وقود|بتحرق|استهلاك", ["vessel_params"]),
     # + the conversation's uploads (FastAPI plan P5): "the file I uploaded", "my attached note", "الملف اللي رفعته"
@@ -94,7 +99,9 @@ TOOL_RESOURCES = {
     "voyage_eta": [context.AIS_TRACKS, context.PORTS, context.VESSELS, context.VESSEL_PARAMS],
     "watch_alerts": [context.AIS_TRACKS, context.PORTS, context.VESSELS, context.VESSEL_PARAMS],
     "fleet_customers": [context.VESSELS],
-    "route_advice": [context.VESSEL_PARAMS, context.VESSELS, context.AIS_TRACKS, context.PORTS, context.TOLL_BANDS]}
+    "route_advice": [context.VESSEL_PARAMS, context.VESSELS, context.AIS_TRACKS, context.PORTS, context.TOLL_BANDS],
+    "arrival_advice": [context.VESSEL_PARAMS, context.VESSELS, context.AIS_TRACKS, context.PORTS, context.PORT_CALLS,
+                       context.TOLL_BANDS, context.PUBLIC_EXTERNAL]}
 REFUSED_PART = {"finance_kpi": "PortPilot's finance data (billing, receivables, overdue invoices, customers)",
                 "invoice_audit": "the invoice audit (Finance data)"}
 SKILLS = {"base": ["supervisor-qa", "untrusted-content"], "finance_kpi": ["finance-qa", "finance-kpi-definitions"],
@@ -197,6 +204,13 @@ def check_supervisor_answer(answer: dict, evidence: dict, question: str, lang: s
             if (res.get("tool"), s.field) in TOLL_FIELDS and re.search(INVOICE_WORDS, _sentence(text, s.start), re.I):
                 problems.append(f"{s.raw}: a toll is not an invoice amount this user may see — keep the toll and the "
                                 "invoice in different sentences, and give nothing of the invoice")
+    # JIT arrival plan D-J8: an answer over the arrival tool — a change slot after "save" (a double negative) and an
+    # arrival time named as the RTA are refused; no other answer is touched (no golden item cites this tool)
+    arrival_rows = [r for res in evidence.values() if res.get("tool") == "arrival_advice"
+                    for r in res.get("rows") or [] if r.get("option") == "summary"]
+    if arrival_rows:
+        problems += arrival.sign_problems("answer", text)
+        problems += arrival.rta_label_problems("answer", text, arrival_rows[0].get("rta_utc"))
     linked = _linked_customers(evidence, calls)
     for b in bound:                                    # c1 C-d: the customer row must be the vessels' customer
         res = evidence.get(b["eid"]) or {}
@@ -277,7 +291,8 @@ SLOT_RULES = ("Every PortPilot number is a slot: {<id>:<field>|<format>} for a o
 # unbound). The evidence the slots bind to is this view.
 MODEL_DROP = {"watch_alerts": {"lat", "lon", "reason", "wave_source", "wind_source"},
               "voyage_status": {"route"},
-              "route_advice": {"problems"}}
+              "route_advice": {"problems"},
+              "arrival_advice": {"assumptions", "floor_source", "current_speed_source", "rta_message_id"}}
 
 
 def model_view(res: dict) -> dict:
@@ -457,7 +472,9 @@ LAST_NODE = f"{SupervisorTurn.__name__}.after_model"     # a refusal is stored a
 
 
 def detect_lang(question: str) -> str:
-    return "ar" if re.search(r"[؀-ۿ]", question) else "en"
+    """Arabic letters decide, not Arabic punctuation: an English question typed with "؟" on an Arabic keyboard stays
+    English (2026-11-16)."""
+    return "ar" if re.search(r"[ء-ي٠-٩ٱ-ۓ]", question) else "en"
 
 
 def thread_prefix(employee_id: int, as_of: datetime) -> str:

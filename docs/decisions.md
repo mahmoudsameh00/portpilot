@@ -645,6 +645,25 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   (limits, one retry, exhausted until the provider's day ends) are unchanged. The API also counts each Gemini query
   embedding (`gemini/gemini-embedding-2`, no limit enforced). First real uses: the voyage watch's writer call of
   2026-11-04 08:30Z and the API smoke the same day.
+- **Amendment 4 (2026-11-15, owner: Model flexibility plan, approved 2026-11-13 with M1–M7):** the model per role is
+  no longer code. `pipelines/agents/models.toml` (tracked) holds, per provider, the adapter (`gemini` | `groq` |
+  `openai_compatible` with any base URL | `langchain`), the key's `.env` name, the quota day and default limits; per
+  model, its limits (moved from the provider: rpm / tpm / rpd / scope), temperature (absent = not sent), timeout,
+  structured-output method and, for a paid model, a hand-entered price and `max_usd_per_day` (reached = stopped for
+  the day like a quota, the fallback answers; spend in `spend.json`, `cost_usd` per call); `[roles]` lists the main
+  and the fallbacks. `model_config.py` loads and validates it once; `roles.ROLES` / `llm.PROVIDERS` are built from
+  it. The models and pairs of this ADR and amendments 1–3 are **unchanged**. A 5xx now counts toward a cached
+  "repeated server failure" only if the model answered another request in the process within 30 min (M7: an outage
+  is not cached as failures). The share of calls a fallback answered is recorded (pack `run.json`, the API's pack
+  view and Reports, the evaluations). Evaluation scripts alone may read a candidate file (`EVAL_MODELS`, M4). A swap
+  follows `docs/model_swap.md` (`Model_probe.py` → fake-model checks → a small real run → ADR-052).
+  **Evidence:** `Models_config_check.py` 3 / 3 phases (48 cache keys byte-equal to the pre-file payload; adapters on a
+  stub server; outage / spend cap / fallback share); every fake-model check unchanged; `Model_probe.py` on the four
+  models, all lines pass (2026-11-15, ~28 calls); no-regression without a model call: cache-only replays of s9
+  (packs) and tl3qa (Q&A) — 0 fresh calls, primaries identical, ADR-052 "tie"; Stage 2 on tl3s2's caches — 0 fresh
+  calls in 300 requests, primaries identical to `stage2_eval_2026-11-14_tl3s2_rescored.json` (c1 stays the Stage 2
+  baseline). Results: `stage1_eval_2026-11-15_s9_rescored_mf.json`, `stage1_eval_2026-11-15_tl3qa_rescored_mf.json`,
+  `stage2_eval_2026-11-15_tl3s2.json`.
 
 ## ADR-046 — Synthetic finance data for the Weekly Finance Pack; `invoices.status` is a label
 - **Status:** Accepted (2026-10-13 rules approved, 2026-10-14 migration 012 applied and verified). Agents plan §4a
@@ -695,6 +714,10 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 - **Amendment (2026-10-14, Phase 3, owner P3-4):** a 13th view `kpi_weekly_trend` (migration 014) gives each report
   week its 13 trend rows, so Power BI's single week slicer drives the trend chart with no DAX (rejected: a
   disconnected slicer table with DAX measures; a 52-week chart that ignores the slicer).
+- **Note (2026-11-16, web dashboards plan Phase 5):** the one-definition rule held across three readers on week 17:
+  Power BI's measures (DAX through the Power BI Modeling MCP), the views read directly and the API's `finance_kpi`
+  rows agree on 249 values with 0 differences, and the web's tiles show those values only rounded
+  (`web/tests/stack/parity.stack.spec.ts`). W16 was matched the same way by the frontend plan (D-FE-7).
 
 ## ADR-048 — Power BI semantic model and report: DirectQuery, thin DAX, one week slicer
 - **Status:** Accepted (2026-10-15). Agents plan Phase 3, owner decisions P3-1…P3-14; `powerbi/NileGate_Finance.pbip`
@@ -891,6 +914,24 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   its tools for drill-downs (E2). `run.json` records `external_context` (status + note per id). Fake models get
   `no_context` (no network, D-EC-1). Acceptance (ADR-052, golden weeks × 2, packs scope): every gate held in both
   runs; narrative recall 0.948 vs c5b's 0.931.
+- **Amendment 5 (2026-11-16, `docs/archive/2026-11-16_Targeted_revise_plan.md`, owner T1 / T2) — supersedes amendment 2's D2 ("the
+  Writer drafts the deck again, nothing of the earlier draft is carried"):** a revise re-drafts **only the related
+  slides**. Code picks them (`weekly_pack.revise_slides`): slide 2 always (the summary follows every change); the
+  changed note's own slide (a driver → 4, a context item → 9); and every slide whose current Writer texts (a bullet's
+  `evidence_ids`, a slot in a bullet or a title) cite an evidence id the changed notes cite or a steer's new
+  `insight.*` results (owner T1: "every slide that cites the same evidence"; caveats carry no ids → slide 2). The
+  Writer answers one `SlidesDraft` (titles + bullets of those slides; the prompt = the Writer prompt + a
+  `[redraft slides]` block with the slides that stay); code merges it (`merge_redraft`). Every other slide keeps its
+  texts **with the approver's earlier edits** (marked `edited`, never normalized or dropped by code), every addition
+  stays (also on a re-drafted slide, re-validated) and the chart variants stay — the revise's own chart choices
+  overlay them (owner T2). The Validator still checks the whole deck; a patch rewrite as before; a wrong shape in a
+  revise round re-drafts the same slides again (never the whole deck); the fallback and `revise_failed` unchanged.
+  State / API: `redrafted_slides` (the payload, `GET /packs/{thread}`, `Weekly_pack.py show`); `redrafted` kept.
+  The web marks the re-drafted slides in the filmstrip and on the slide; the page banner is gone. The first draft's
+  prompt and schema are unchanged. `Weekly_pack_check.py` Phase 10b, Phase 9 updated; `Api_check` /
+  `Approver_request_check` fakes answer `SlidesDraft`. The revise path is not in the golden-week evaluation (ADR-052:
+  proven by the fake-model phases). Not changed: the request interpreter's prompt (ADR-067) still says "the deck was
+  drafted again" (changing it would move its measured cache keys).
 
 ## ADR-051 — The weekly deck: number slots, code-drawn template, a Validator that binds every number to its field
 - **Status:** Accepted (2026-10-19, owner decisions P6-1…P6-8, Agents plan §5c; S6 decisions the same day).
@@ -1099,6 +1140,39 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   23 `tl2` drafts and 23 of 27 `s9` drafts; patch fixes about it 11 of 340 (`tl2`) → 0 of 299 (`s9`). The rewrite
   count is unchanged (two per pack: the patches' other problems); the case it removes is W16:5's, where the bullet
   was one of the last four problems and a rewrite invented a field. `Weekly_pack_check` Phase 3 `link_bullet`.
+- **Amendment 13 (2026-11-16, the live W17 draft `weekly_pack:live:2025-W17:1`, owner: "fix it so the model does not
+  make it again"): three V9 claim rules, code only.** The draft passed V1–V10 with three wrong sentences: slide 4's
+  title "Billed revenue exceeded budget …" with the week −12.49 % and the period −6.85 % (rule 2b's direction words
+  had no budget comparatives), slide 6's title "declined by down 8.5 %" (a direction word before a `|dir` slot that
+  writes it), slide 3 "Collected 5.57 M SDR …, exceeding the weekly due amount of 5.00 M SDR" (every payment against
+  what fell due). (2b) a title's budget words — exceed / beat / ahead / outperform, miss / short / behind /
+  underperform — count as its direction when the clause names the budget; (9) a direction word (+ "by") right before
+  a `|dir` slot is refused; (10) a sentence binding `collected_sdr` and `due_week_sdr` with a comparative is refused
+  (compare `due_week_collected_sdr` with `due_week_sdr`). No prompt, model or slot change (no cache key moves); the
+  Writer sees the refusal through the existing rewrite / fallback loop. Evidence: the W17 draft re-validated → exactly
+  these 3 V9 problems, nothing else; `Deck_check` 8 / 8 (Phase 2: the 52 clean weeks still pass; Phase 5: + 3 planted
+  classes from W17 → 17 classes, 34 planted, all caught by V9 alone); `Weekly_pack_check` 9 / 10 (Phase 5 = real
+  models, skipped as always); lint ratchet 0 / 0. ADR-052: a Validator change can move the evaluation (more refusals
+  → more rewrites) — the real Stage 1 run (× 2 vs ec2) is the owner's call on quota, not run yet.
+
+- **Amendment 14 (2026-11-16, `docs/archive/2026-11-16_Targeted_revise_plan.md`, owner T3 "code only"): rare fallbacks, and what
+  code wrote shown on the text itself.** Measured first (a scratch replay of the `s9` caches, 0 requests, and the live
+  threads W16:5 / W17:1): **every pack reached the fallback** (22 / 22 in `s9`); of the 57 problems left after the two
+  rewrites in 16 replayed packs, 25 were V9 rule 5 (a comment repeating the slide's tiles; 13 / 16 packs, 11 on slide
+  8) and 8 + 3 one V7 false alarm (a result total read as the row of a date / invoice named in a **later clause**:
+  "averaged {week_mean_transits} daily calls, dipping to {…} on 2025-04-26"). (1) **B1:** a Writer comment on slides
+  3–8 that rule 5 refuses is dropped by code before the Validator (`drop_tile_comments`, the amendment 12 pattern; the
+  same test, `validator.repeats_tiles`); V4 allows 0–3 comments; the approver's texts are never dropped. (2) **B2:**
+  `_named_rows` puts a **result total** on a row only when the row is named right after it, in its own clause or
+  before it (row slots unchanged). (3) **B4, inline marks:** the fallback marks every text it writes `origin: "code"`
+  (a bullet, a slide title) and keeps each Writer text code took out in the draft's `removed` (`{slide, text, by:
+  code | fallback, why}`), filled by `render_draft`; the web shows a "Written by code" tag on the text and "Code
+  removed N texts from this slide" (with the texts and why) on its slide — the page banner is gone. `degraded` stays
+  for `run.json`, the dashboard row and the evaluation. The fallback itself and `MAX_REWRITES = 2` are unchanged; no
+  prompt, model or skill change (the V4 full rewrite's `[previous draft]` leaves `removed` out). Proof: `Deck_check`
+  9 / 9 (Phase 9: the W17 sentence passes; a total named right after, before or in its clause with a date, and a row
+  slot, still refused; the 52 clean decks and every planted class unchanged); `Weekly_pack_check` Phase 10a.
+  ADR-052: see its ninth use.
 
 ## ADR-052 — Acceptance rule for a change to the agents (prompt, model, skill)
 - **Status:** Accepted (2026-10-19, owner: §8a G6 "margin 0.03 + two runs", Agents plan §5d). Written in Phase 7
@@ -1210,6 +1284,15 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   `Stage1_eval.py` gained `EVAL_REPLAY_LABEL` and a guard (a replay never overwrites a results file). Real run
   `stage1_eval_2026-11-14_s9.json` (packs, × 2) vs ec2: **"tie: keep"** — every gate in both runs, 22 / 22
   published, planted 6 / 6, narrative recall 0.9655 vs 0.9483, 0 fallbacks. Baselines unchanged (packs ec2).
+- **Ninth use (2026-11-16, targeted-revise plan, ADR-050 amendment 5 / ADR-051 amendment 14) — code that changes
+  what reaches the patch rounds.** The tile-repeat drop before the Validator and the V7 later-clause total fix change
+  the patch requests, so the owner chose the real run at once (T4). Run `stage1_eval_2026-11-16_tr1.json` (packs, ×
+  2, flash-lite; the second repeat stopped once on a Gemini 503 and OpenRouter's 50-a-day limit and was resumed from
+  the caches): **"tie: keep"** vs ec2 — every gate in both runs, 22 / 22 published, planted 6 / 6, deck numbers /
+  claims / traceability 100 %, narrative recall 0.931 vs 0.9483 (−0.0173, limit 0.03). What the plan aimed at:
+  **degraded packs 6 / 22** (4 + 2; before: 22 / 22 in `stage1_eval_2026-11-15_s9_rescored_mf.json`, the first
+  file that records it), rewrites 37 vs 44 (s9 and ec2: 2 per pack). The revise path is not in the golden weeks; it is proven by `Weekly_pack_check` Phase 10 and `Api_check`.
+  Baselines unchanged (packs ec2, Q&A dp127b, Stage 2 c1); the rule is not changed.
 
 ## ADR-053 — Stage 1 evaluation: golden weeks, a finance Q&A agent, twin KPI views of the evaluation copy
 - **Status:** Accepted (2026-10-20, Agents plan Phase 7 closed by the owner with D7 not met: "close Phase 7 and keep
@@ -1495,6 +1578,10 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   unknown) — designed degradation, the next run complete. Rejected: ML first, the schedule as the baseline (near
   exact here: no honest bar), news-driven alerts, a table by migration, every 6 h, a model per vessel.
 
+- **Note (2026-11-15, ADR-070 D-J3):** the watch also raises `rta_late` / `jit` alerts from the RTA known at the clock
+  (`port_call_messages`); the weather and Suez rules, the ETA rule R and the brief's contract are unchanged; the brief's
+  Validator also refuses a change slot after "save" (D-J8).
+
 ## ADR-059 — The supervisor: one agent over both products, a code router, partial answers, slots everywhere
 - **Status:** Accepted (2026-10-30, Agents plan Phase 12, §6d approved by the owner 2026-10-29 — P12-1…P12-5 as
   recommended; steps S1–S5 and candidate c1 each approved before their code; deviations / findings D-P12-1…D-P12-9 in
@@ -1560,6 +1647,25 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   its own run to adopt them. (c) The `route_advice` product tool takes the next free thread number instead of
   raising when the same route is asked twice on one saver. `Supervisor_check` 9 / 9 (+ 5 cases). Measured by
   `tl3s2` (ADR-052 seventh use): the done-when met, c1 kept as the baseline.
+- **Note (2026-11-15, ADR-070):** a 13th router rule `arrival` (JIT words only; 0 of the 57 golden questions match)
+  routes to the product tool `arrival_advice` (`registry.ARRIVAL_ADVICE`, like `route_advice`); `SUP_TASK`,
+  `ANSWER_TASK` and `SLOT_RULES` unchanged; the answer check adds the sign / RTA-label rules only when that tool is
+  cited.
+- **Note (2026-11-16, the owner's web question, Frontend gate 2; owner's choice, clickable):** "Which vessels are
+  anchored waiting near their destination?" answered `not_in_data` although the voyage-watch run lists them (its
+  `etas` rows with status Anchored, the list behind the fleet row's `anchored` count): no tool returned that list
+  and "anchored" routed only to `voyage_status` (one vessel). `watch_alerts` gains `anchored: bool = False` →
+  instead of the alerts, one row `anchored/<vessel_id>` per anchored vessel of the same run (vessel, destination,
+  distance left, the requested berth time when known at the clock, its `customer_id`; the vessel / customer filters
+  apply) + the same `fleet` row; the router's `watch` rule also matches anchor words (EN + Arabic); `supervisor-qa`
+  names the argument (body within its 1,200 budget). Same access, same run-at-clock rule. `Supervisor_tools_check`
+  Phase 1 asserts the list = the run's anchored vessels = the fleet count (78 in the pinned run), the filters and the
+  refusal; `Supervisor_check` 9 / 9 (the largest request 7,457 → 7,567 est tokens, still fits); `Stage2_eval` 1–3
+  unchanged (no golden item asks for the list). The first real answer cited the count as
+  `{id:fleet[anchored]|none}` (row and field swapped) and was stopped; `slots.normalize_text(…, answer_forms=True)`
+  (the supervisor's answers only, as note (b) above) now rewrites `{id:row[field]}` → `{id[row]:field}` when that row
+  key and that field both exist (+ 2 cases). Real models, employee 6: "There are 78 vessels currently anchored…"
+  with seven names, answered, the 78 bound to the run (`ask:6:20260913T0000Z:21`).
 
 ## ADR-060 — The web frontend is React / Next.js, behind the FastAPI layer
 - **Status:** Accepted (2026-10-30, owner) — the framework only; the design (pages, auth flow, hosting, versions) is
@@ -1609,7 +1715,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   Reviewed from the package (its option definitions, the redaction list, `--help`), not from its README alone; the
   bundled skills are not installed. Page text it reads is untrusted data (project rule 5), more so with the internet
   allowed. The Playwright MCP stays not taken (`@playwright/test` remains the E2E runner).
-- **Amendment 3 (2026-11-08, the frontend plan F0–F7, `docs/plans/Frontend_plan.md`; owner decisions F1–F4,
+- **Amendment 3 (2026-11-08, the frontend plan F0–F7, `docs/archive/2026-11-16_Frontend_plan.md`; owner decisions F1–F4,
   D-FE-1 … D-FE-10) — what was built:** (a) **auth through a BFF:** the Next.js server holds the API's bearer token
   in an httpOnly, `SameSite=Strict`, `Secure` cookie (`ng_session`); the browser gets `me` only; CSRF in three layers
   (SameSite, an Origin / `Sec-Fetch-Site` check, a double-submit token compared in constant time); the BFF proxies
@@ -1640,6 +1746,14 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   API restart/expiry may remove a run; that is reported without re-submitting an action. Interpreted approval
   requests are shown read-only and require fresh review before confirmation. This supplements stream reconnect
   and does not introduce durable backend execution or automatic retries of POST requests.
+- **Closing note (2026-11-16, the frontend plan archived `docs/archive/2026-11-16_Frontend_plan.md`):** the done-when
+  met. The owner decided a real pack (W17) through the UI; EN and Egyptian Arabic questions with follow-ups on the
+  real models, after seven memory / language fixes (ADR-065 note 2026-11-16); Power BI parity for week 16; the
+  pushed CI `web` job green; and the **local-stack E2E** 15 / 15 with leakage 0. The stack suite
+  (`web/playwright.stack.config.ts`, `web/tests/stack/`, runner `ops/tests/run_web_stack.ps1`) replaces the hand-run
+  smoke of amendment 3 (f) as the real-API proof. It runs on the full-data clone, not the application database
+  (ADR-064 note 2026-11-16), and it stays outside CI, which keeps the mocked suite. "New conversation" on `/ask`
+  remounts the workspace, because the first question moves the address with `history.replaceState`.
 
 ## ADR-061 — The executive financial-intelligence deck: code-built from the finance views, a DSO split (M12), period measures
 - **Status:** Accepted (2026-10-31, owner: R0–R5 of `docs/analysis/financial_intelligence/implementation_roadmap.md`,
@@ -1855,6 +1969,13 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   "drift vs schedule" is shown. OpenAPI 34 paths (unchanged); `Api_check.py` Phase 8 asserts the ETA fields (its run
   needs one employee without a login per profile — the owner's 11 test logins of 2026-11-07 took the only CEO, so the
   check was verified on the running API instead: 297 ETA rows, 219 with an ETA = the vessels in transit).
+- **Note (2026-11-16, Frontend local-stack E2E):** the test mode now runs the web's stack suite on the full-data
+  clone, not the application database (`ops/tests/run_web_stack.ps1`, `Web_stack_fixture.py`, guide
+  `docs/api/integration_testing.md`); 15 / 15. It found `GET /packs/{thread}` answering **500** for the five packs
+  saved before migration 021 (W08, W10–W13 on the application database too): today's renderer draws
+  `budget_variance_13w_pct`, which their evidence lacks, so `charts_drawn` raised `SlotError`. `charts_drawn` now
+  returns `{}` for such a pack (the web draws no code chart for it; the draft, decisions and deck still show); all 15
+  live packs open. `Api_check.py` 12 / 12 on the clone.
 
 ## ADR-065 — Conversation memory: a code-built entity frame, a guarded standalone rewrite, asking back instead of guessing
 - **Status:** Accepted (2026-11-05; FastAPI plan §6a, owner answer A3 "intelligent memory" 2026-11-03; the golden
@@ -1893,6 +2014,22 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   falls to the guarded rewrite or a question back, never to a guess. Rejected: one thread per conversation (earlier
   tool rows and numbers in the model's context), the model rewriting every follow-up (quota, invented context),
   memory built from the answer's prose (it could carry a number or an injected instruction).
+- **Note (2026-11-16, the owner's web dialogs, Frontend done-when gate 2):** seven defects found on real questions
+  and fixed in code (owner's choices, clickable: all of them + names when asking back; a reply completes the pending
+  question; a compare built from the previous question by code; the "no week" rule unchanged). (1) "How does that
+  compare with week 16?" carried only the weeks and lost the subject (routed to the documents, "not in data") → with
+  no subject of its own, the previous standalone over both weeks + "Compare the two weeks."; (2) "الأسبوع ده" made it
+  ask "which customer?" → a demonstrative bound to its noun carries that kind only, and "in general / كلهم" carries no
+  vessel / customer; (3) Arabic pronouns matched inside words ("قصدي" holds "دي") → whole words (an optional و / ف);
+  (4) a reply to the question asked back was a new question → the asked-back turn keeps `{"clarify": {kind, options,
+  labels, question}}` in its frame and the next message completes it (`memory.answer_clarify`: a chosen id / name /
+  ordinal, "all of them", or asked again; a reply that is a question of its own is resolved as new); (5) "Which
+  vessels … near their destination?" asked back → a possessive whose owner the question names is not a follow-up;
+  (6) "؟" made an English question Arabic → `detect_lang` reads Arabic letters only; (7) an asked-back turn's thread
+  id was handed out again (two turns shared `…:13`) → the next id counts the turns' ids too. Asking back names the
+  options from the answer's rows ("Belanor Tankers (15)") and offers "all of them". Proof: `Memory_check` Phase 2b
+  (the day's dialogs; the frozen 25 follow-ups unchanged), `Api_check` Phase 5 (the reply completes the question on
+  its own thread).
 
 ## ADR-066 — One chart catalogue for the pack's approver and the reader's "smart" view; the model chooses, code draws
 - **Status:** Accepted (2026-11-06, approver-additions plan, owner decisions C2 / C3 / D5 / D6;
@@ -1997,6 +2134,112 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   top-10 customers". One sentence in the two Q&A briefs (`finance_qa.FORMER_NAME`) says the old name means the
   company itself and the answer uses PortPilot; measured by `tl3qa` (q01 answered in both runs). Reviewed
   snapshots that still counted the old name's length were corrected (`Finance_qa_check`, `Supervisor_check`).
+
+## ADR-069 — The web dashboard's week pages: a breakdown view, an Excel export, one decision for the whole pack
+- **Status:** Accepted (2026-11-15, owner: the web dashboards plan, clickable answers D-WD-1 "week pages only",
+  D-WD-2 Excel, D-WD-3 everyone who sees the dashboard, D-WD-4 "Break down by").
+- **Decision:** (1) **Data:** `finance.kpi_weekly_breakdown` (migration 029, M18) — the week's billing by one
+  dimension at a time (vessel category, toll band, route, laden / ballast, customer segment, country, rating), long
+  format, the same plain sums as Power BI's `Revenue SDR` / `Invoice Count` / `SCNT Tons` (ADR-047: written once, in
+  SQL). It is **not** a dataset of the agents' `finance_kpi` tool: the tool's argument list is in the schema sent to
+  the models, so a new value would change every tools-role cache key and make the next evaluation re-spend its
+  quota; the API reads it through `pipelines/api/finance_views.py` with the same RBAC predicate.
+  (2) **API:** `GET /finance/breakdown?week&dimension`; `GET /finance/export?week&page` → one `.xlsx` per dashboard
+  page (a sheet per visual, rows exactly as the views give them, an "About" sheet with week, exporter, time and each
+  sheet's source; `openpyxl==3.1.5`); allowed to whoever may read the dashboard (Finance, every manager, the CEO);
+  each export = one `audit_log` row, action `export`. (3) **Web:** the week pages (Overview, Revenue, Receivables,
+  Customers, Exceptions) gain Power BI's missing visuals; chart cards with a "Break down by" + measure + compare-week
+  choice kept in the URL; an "Export to Excel" button. (4) **Reports:** approve / reject sit in one "Decision for the
+  whole pack" bar with a confirmation naming the week and the slide count; the side panel only changes the shown
+  slide (the API never had a per-slide approval — the page made it look so). (5) The tabs read **Reports** and
+  **Dashboards**; the URLs stay `/packs` and `/finance` (`/reports`, `/dashboards` redirect).
+- **Not done (owner's choice):** the year-wide Executive visuals, an Explore (Smart View) tab, an Approved-pack tab.
+- **Evidence:** `Finance_views_check.py` Phase 8 (the view = a pandas reference from the base tables on 52 weeks × 7
+  dimensions, members = `kpi_weekly`); the export / breakdown / 403 smoke through the router on the live views;
+  `npm run check` all ✅ (Playwright EN + AR, desktop + phone, axe). Power BI parity on one week and the
+  full-data `Api_check` are owner steps.
+- **Amendment 1 (2026-11-15, owner comments on the Dashboards tab; plan §4a, D-WD-5 / D-WD-6):** (a) **form and
+  colour by the data's job** (dataviz skill): KPI tiles carry a coloured week-on-week change (arrow + sign; green when
+  the move is good for the business, orange when bad — a fixed direction per KPI) and a 13-week sparkline; billed
+  against budget is a bullet bar (bar + budget tick, under budget in orange); the 13-week trends are billed bars with
+  budget / collected lines, the report week in colour and the earlier weeks muted, DSO an area; receivables by age a
+  stacked bar on a validated one-hue ramp with 90+ in the marker orange; DSO split a two-part bar with the view's DSO;
+  ratios are meters; a breakdown of ≤ 4 members is a segmented share bar (the view's `share_pct`), more members are
+  ranked horizontal bars with the largest in colour and the rest muted, a compare week adds a light bar; top-10
+  customers flag the watchlist in orange; the findings' difference is a small diverging bar. Widths are geometry only
+  and the emphasised item is a choice among the view's rows — no new number is printed (ADR-047). New tokens
+  `chart-muted`, `chart-compare`, `ramp-1…4` (`web/design/MASTER.md`). (b) **per-figure export:** every card downloads
+  its own rows — `GET /finance/export/figure?week&figure&format=xlsx|csv[&page|dimension|compare|ytd|limit]`
+  (`figure_file` in `finance_views.py`): a one-sheet workbook + About, or UTF-8 CSV whose every row names its source
+  view and filter; a breakdown carries its dimension and the compare week's rows; same access rule, one `audit_log`
+  row (`export:<figure>`). The page workbook stays beside it as "Export whole page" (owner D-WD-6b). Evidence: the
+  live smoke of all 8 figures × 2 formats on W16 + the refusal outside Finance; `Api_check.py` Phase 11 gained the
+  figure assertions (owner gate, clone); `npm run check` all ✅ with two new dashboard tests.
+- **Note (2026-11-16, closing — the plan archived as `docs/archive/2026-11-16_Web_dashboards_and_reports_plan.md`):**
+  parity on week 17, the last published pack (owner: "we did W17"): Power BI (DAX on the open Desktop model) = the
+  `finance` views = the API on 249 values (KPI row, 13 categories, 4 age buckets, top 5 customers, 13 trend weeks,
+  overdue rows, audit findings), 0 differences; the Dashboards page over the real API on the full-data clone shows
+  them rounded only — new stack test `web/tests/stack/parity.stack.spec.ts`, the stack suite 16 / 16
+  (`ops/tests/run_web_stack.ps1`). Full-data `Api_check` 12 / 12 (2026-11-16). W17 decided and published through
+  the Reports bar.
+
+## ADR-070 — Just-in-Time arrival: the RTA as a port-call message, the `arrival_advice` graph, RTA alerts in the watch
+- **Status:** Accepted (2026-11-15, owner: the JIT arrival plan's J1–J7 in one round of clickable answers; J6 "also
+  inside the voyage watch" with the request that it "simulate reality, dynamic and real, so that real data needs no
+  change", the design left to the assistant (D-J1) and migration 030 approved; no CO₂ (owner)).
+  `docs/archive/2026-11-15_JIT_arrival_plan.md`. Files: `db/migrations/030_port_call_messages.sql`,
+  `pipelines/scripts/synthetic/Port_call_generator.py`, `pipelines/agents/tools/arrival.py`,
+  `pipelines/agents/graphs/arrival_advice.py`, `graphs/models.py` (`ArrivalRequest`, `ArrivalAdvice`,
+  `ArrivalAdviceResult`), `skills/arrival-advice/SKILL.md`, `tools/products.py` (`run_arrival_advice`,
+  `make_arrival_advice_tool`), `registry.ARRIVAL_ADVICE`, `graphs/supervisor.py` (rule `arrival`), `graphs/voyage_watch.py`
+  (D-J3), `deck/slots.py` (`arrival.` ids), `scheduling.py` (`describe_arrival_advice`, retention),
+  `pipelines/scripts/agents/Arrival_advice.py` (CLI), `Arrival_advice_check.py`, `Data/processed/agents/eval/arrival_cases.json`.
+- **Context:** JIT arrival = a vessel that would reach its berth before it is ready sails slower and arrives when the
+  port can take it, instead of racing and waiting at anchor; the port's time comes as a Requested Time of Arrival
+  (IMO *Just In Time Arrival Guide*). The project had no berth data (plan §0), and the synthetic voyages sail at a
+  constant speed (ADR-058 F2 / F7).
+- **Decision:** (1) **The RTA is a port-call message** (D-J1): `public.port_call_messages` (migration 030), one row
+  per message (vessel, voyage number, port, `RTA`, berth or pilot boarding place, the requested time, `sent_at`,
+  requested / cancelled, sender, real / synthetic, source); the RTA known at a clock = the latest message of the port
+  call with `sent_at <= as_of`, a cancelled latest message = none. Filled today by a seeded generator from each
+  voyage's **declared schedule** (never the true arrival, P9-7); real messages are new rows read by the same code. A
+  question may give its own RTA (J1), which wins and is said so. (2) **The arithmetic in code** (`tools/arrival.py`,
+  exact Decimal): target = RTA − 2 h (J3); options keep (then wait at anchor, auxiliaries only), jit, floor =
+  max(8 kn, 50 % of the band's IMO reference speed, never above the current speed) (J2), catch_up (≤ the service
+  speed), cape (J4: only when the floor still waits and the canal is ahead; the remaining route from the last fix with
+  Suez closed, the Suez dues of one transit on the Suez options); fuel by the cube law, money at the dated SDR price;
+  the rule's choice = the cheapest option at the berth by the RTA, else the least late. (3) **The graph** (ADR-057's
+  pattern, J5): inputs → options → context (the watch's weather rule on the next legs, Suez traffic with the canal
+  ahead) → one `writer` call with number slots ⇄ a code Validator (dates copied from the evidence only; the rule's
+  option unless the first reason cites a weather row or Suez traffic ≤ −20 %; one patch) → render with code-written
+  assumptions; one option only (on time, or late with no faster speed) → a code headline, no model call; one
+  PostgresSaver thread per question, the 30-day retention. (4) **Where it runs** (J6): the CLI `Arrival_advice.py`
+  (`ask` / `rta` / `show` / `list`); the supervisor's product tool `arrival_advice` (registered beside
+  `route_advice` as `registry.ARRIVAL_ADVICE`, not in `PRODUCTS`, because it needs the roles — D-J4), routed only by
+  JIT words (berth, RTA, just in time, slow down, "what speed should", Egyptian Arabic رصيف / يهدي / سرعة كام);
+  the voyage watch (D-J3): `rta_late` (high ≥ 12 h late) and `jit` (moderate: would wait ≥ 6 h and the rule's slower
+  speed saves fuel) alerts in code, the brief may cite them, anchored vessels show their RTA. (5) **No CO₂, no
+  port time, no charter-party terms** (owner; stated in the assumptions).
+- **Consequences (`Arrival_advice_check.py` Phases 1–8 ✅):** the table = the generator's CSV, 120 clock probes = the
+  independent rule, every first RTA inside its scenario's range around the schedule; 20 frozen cases
+  (`arrival_cases.json`) = an independent float computation (38 options; 20 / 20 planted result errors caught); 400
+  grid cases, 0 property violations; the Validator 60 / 60 planted text errors, 0 false alarms; the graph on fake
+  models on every path (incl. crash + resume with 0 HTTP repeated); the watch's 41 arrival alerts at the clock (24
+  jit, 17 rta_late, 4 high) = the independent computation; 0 of the 57 S2 golden questions re-routed; **the real
+  model: 8 / 8 advices pass the Validator, each = the rule** (flash-lite, 7 patches on the first run), two supervisor
+  questions (EN + AR) answered from the tool, the watch brief over arrival alerts passed. **D-J8:** the first real
+  texts passed but read wrong ("saving −123.0 t"; the JIT arrival called "the RTA") → two code rules
+  (`arrival.sign_problems`, `arrival.rta_label_problems`) in the arrival Validator, the watch brief's Validator (sign)
+  and the supervisor's check only when the arrival tool is cited. Regressions all ✅ (`Supervisor_check`,
+  `Supervisor_tools_check` union 15, `Stage2_eval` Phases 1–3, `Stage2_tools_check`, `Tools_check`,
+  `Scheduler_check`, `Voyage_watch_check` with its fixtures / live counts updated, `Route_advice_check`, lint 0).
+  Read honestly: the synthetic voyages sail at a constant speed and the RTAs are drawn from the schedule, so the
+  checks prove the arithmetic and the reading rule, not how often JIT pays at sea. Not built: an API route (the plan's
+  "later"), a CO₂ column (owner), the watch's brief skill text for the new alerts (owner-reviewed; unchanged).
+- **Rejected:** a berth schedule table per port call (the RTA message carries the same fact with its send time and
+  revisions — the way real data comes); IMF PortWatch congestion as the berth time (a signal, not a time); always
+  showing the Cape; a code template with no model (J5); a CO₂ factor table now (owner); widening the supervisor's
+  `SLOT_RULES` for the new rows (every question's prompt would change — the row keys travel in the tool's note).
 
 ## Dropped (history)
 - Danish Maritime Authority AIS template (`ais_real_sample_template.csv`): dropped. AIS sources are `AISHub sample.json` (type/status diversity) and `NOAA AccessAIS.csv` (movement behaviour).

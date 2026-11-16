@@ -23,9 +23,9 @@ export function PackList({ canDecide }: { canDecide: boolean }) {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end gap-3">
         <div className="me-auto">
-          <h1 className="text-2xl font-semibold">Weekly finance packs</h1>
+          <h1 className="text-2xl font-semibold">Reports</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Drafted on Monday, checked by code, decided by a manager.
+            The weekly finance packs: drafted on Monday, checked by code, decided by a manager.
           </p>
         </div>
         {canDecide ? (

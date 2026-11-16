@@ -197,6 +197,40 @@ export interface BodyUploadApiV1ConversationsConversationIdUploadsPost {
   file: Blob | File;
 }
 
+export type BreakdownRowsDimension = typeof BreakdownRowsDimension[keyof typeof BreakdownRowsDimension];
+
+
+export const BreakdownRowsDimension = {
+  vessel_category: 'vessel_category',
+  toll_band: 'toll_band',
+  route: 'route',
+  priced_condition: 'priced_condition',
+  customer_segment: 'customer_segment',
+  customer_country: 'customer_country',
+  credit_rating: 'credit_rating',
+} as const;
+
+export type BreakdownRowsRowsItem = { [key: string]: unknown };
+
+export type BreakdownRowsStatus = typeof BreakdownRowsStatus[keyof typeof BreakdownRowsStatus];
+
+
+export const BreakdownRowsStatus = {
+  ok: 'ok',
+  no_data: 'no_data',
+} as const;
+
+/**
+ * `finance.kpi_weekly_breakdown` (M18) for one week and one dimension, largest member first.
+ */
+export interface BreakdownRows {
+  dimension: BreakdownRowsDimension;
+  note?: string | null;
+  rows?: BreakdownRowsRowsItem[];
+  source?: SourceOut | null;
+  status: BreakdownRowsStatus;
+}
+
 export type ChartCataloguePack = { [key: string]: unknown };
 
 export type ChartCatalogueViews = { [key: string]: unknown };
@@ -287,7 +321,8 @@ export interface Edit {
 
 /**
  * approve / edit (text edits, additions, chart variants) / revise (analysis edits and / or a steer, chart
- * variants; the deck is drafted again) / reject — one kind per decision (approver-additions plan D1).
+ * variants; the related slides are drafted again, the rest kept — targeted-revise plan) / reject — one kind per
+ * decision (approver-additions plan D1).
  */
 export interface DecisionIn {
   /** @maxItems 14 */
@@ -679,6 +714,9 @@ export type PackViewCharts = { [key: string]: unknown };
  */
 export type PackViewChartsDrawn = { [key: string]: unknown };
 
+/**
+ * the draft with its slots filled; a bullet or slide title code wrote after the Writer's rewrites failed has origin 'code', an approver's edit has edited true, and `removed` lists the Writer texts code took out ({slide, text, by: code | fallback, why}) — shown on their slide (targeted-revise plan B4)
+ */
 export type PackViewDraft = { [key: string]: unknown } | null;
 
 export type PackViewInsight = { [key: string]: unknown } | null;
@@ -705,9 +743,12 @@ export interface PackView {
   charts_drawn?: PackViewChartsDrawn;
   decisions: string[];
   degraded?: unknown;
+  /** the draft with its slots filled; a bullet or slide title code wrote after the Writer's rewrites failed has origin 'code', an approver's edit has edited true, and `removed` lists the Writer texts code took out ({slide, text, by: code | fallback, why}) — shown on their slide (targeted-revise plan B4) */
   draft: PackViewDraft;
   /** Review version; send unchanged with a direct decision */
   draft_sha: string;
+  /** of the model calls answered for this pack, the share a fallback model answered (Model flexibility plan W10) */
+  fallback_share?: number | null;
   form_fixes: number;
   has_preview: boolean;
   insight?: PackViewInsight;
@@ -716,6 +757,8 @@ export interface PackView {
   published: boolean;
   readiness: unknown[];
   redrafted?: boolean;
+  /** the slides the last revise re-drafted; every other slide, the additions and the chart variants were kept (targeted-revise plan A5) */
+  redrafted_slides?: number[];
   revision?: unknown;
   status: string | null;
   thread_id: string;
@@ -1143,6 +1186,129 @@ export interface WatchRunRow {
   thread_id: string;
 }
 
+export type BreakdownApiV1FinanceBreakdownGetParams = {
+/**
+ * ISO week of 2025 (as of its Sunday 23:59)
+ * @minimum 1
+ * @maximum 52
+ */
+week: number;
+dimension: BreakdownApiV1FinanceBreakdownGetDimension;
+};
+
+export type BreakdownApiV1FinanceBreakdownGetDimension = typeof BreakdownApiV1FinanceBreakdownGetDimension[keyof typeof BreakdownApiV1FinanceBreakdownGetDimension];
+
+
+export const BreakdownApiV1FinanceBreakdownGetDimension = {
+  vessel_category: 'vessel_category',
+  toll_band: 'toll_band',
+  route: 'route',
+  priced_condition: 'priced_condition',
+  customer_segment: 'customer_segment',
+  customer_country: 'customer_country',
+  credit_rating: 'credit_rating',
+} as const;
+
+export type ExportApiV1FinanceExportGetParams = {
+/**
+ * ISO week of 2025 (as of its Sunday 23:59)
+ * @minimum 1
+ * @maximum 52
+ */
+week: number;
+page: ExportApiV1FinanceExportGetPage;
+};
+
+export type ExportApiV1FinanceExportGetPage = typeof ExportApiV1FinanceExportGetPage[keyof typeof ExportApiV1FinanceExportGetPage];
+
+
+export const ExportApiV1FinanceExportGetPage = {
+  overview: 'overview',
+  revenue: 'revenue',
+  receivables: 'receivables',
+  customers: 'customers',
+  exceptions: 'exceptions',
+  executive: 'executive',
+} as const;
+
+export type ExportFigureApiV1FinanceExportFigureGetParams = {
+/**
+ * ISO week of 2025 (as of its Sunday 23:59)
+ * @minimum 1
+ * @maximum 52
+ */
+week: number;
+figure: ExportFigureApiV1FinanceExportFigureGetFigure;
+format?: ExportFigureApiV1FinanceExportFigureGetFormat;
+/**
+ * kpis: the page whose tiles are exported
+ */
+page?: ExportFigureApiV1FinanceExportFigureGetPage;
+/**
+ * breakdown: the dimension shown
+ */
+dimension?: ExportFigureApiV1FinanceExportFigureGetDimension;
+/**
+ * breakdown: the compare week
+ */
+compare?: number | null;
+/**
+ * audit_*: the year to date
+ */
+ytd?: boolean;
+/**
+ * ranked lists: the rows the card shows
+ */
+limit?: number | null;
+};
+
+export type ExportFigureApiV1FinanceExportFigureGetFigure = typeof ExportFigureApiV1FinanceExportFigureGetFigure[keyof typeof ExportFigureApiV1FinanceExportFigureGetFigure];
+
+
+export const ExportFigureApiV1FinanceExportFigureGetFigure = {
+  kpis: 'kpis',
+  trend: 'trend',
+  category: 'category',
+  overdue: 'overdue',
+  customers: 'customers',
+  breakdown: 'breakdown',
+  audit_summary: 'audit_summary',
+  audit_findings: 'audit_findings',
+} as const;
+
+export type ExportFigureApiV1FinanceExportFigureGetFormat = typeof ExportFigureApiV1FinanceExportFigureGetFormat[keyof typeof ExportFigureApiV1FinanceExportFigureGetFormat];
+
+
+export const ExportFigureApiV1FinanceExportFigureGetFormat = {
+  xlsx: 'xlsx',
+  csv: 'csv',
+} as const;
+
+export type ExportFigureApiV1FinanceExportFigureGetPage = typeof ExportFigureApiV1FinanceExportFigureGetPage[keyof typeof ExportFigureApiV1FinanceExportFigureGetPage] | null;
+
+
+export const ExportFigureApiV1FinanceExportFigureGetPage = {
+  overview: 'overview',
+  revenue: 'revenue',
+  receivables: 'receivables',
+  customers: 'customers',
+  exceptions: 'exceptions',
+  executive: 'executive',
+} as const;
+
+export type ExportFigureApiV1FinanceExportFigureGetDimension = typeof ExportFigureApiV1FinanceExportFigureGetDimension[keyof typeof ExportFigureApiV1FinanceExportFigureGetDimension] | null;
+
+
+export const ExportFigureApiV1FinanceExportFigureGetDimension = {
+  vessel_category: 'vessel_category',
+  toll_band: 'toll_band',
+  route: 'route',
+  priced_condition: 'priced_condition',
+  customer_segment: 'customer_segment',
+  customer_country: 'customer_country',
+  credit_rating: 'credit_rating',
+} as const;
+
 export type InvoiceAuditApiV1FinanceInvoiceAuditGetParams = {
 /**
  * ISO week of 2025 (as of its Sunday 23:59)
@@ -1522,6 +1688,104 @@ return apiFetch<PromotionOut>(getPromoteApiV1ConversationsConversationIdUploadsD
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(promotionIn)
+  }
+);}
+
+
+
+export const getBreakdownApiV1FinanceBreakdownGetUrl = (params: BreakdownApiV1FinanceBreakdownGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/finance/breakdown?${stringifiedParams}` : `/api/v1/finance/breakdown`
+}
+
+/**
+ * The week's billing by one dimension (web dashboards plan, D-WD-4): count, SDR, tons, share, rank.
+ * @summary Breakdown
+ */
+export const breakdownApiV1FinanceBreakdownGet = async (params: BreakdownApiV1FinanceBreakdownGetParams, options?: Parameters<typeof apiFetch>[1]): Promise<BreakdownRows> => {
+
+  return apiFetch<BreakdownRows>(getBreakdownApiV1FinanceBreakdownGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getExportApiV1FinanceExportGetUrl = (params: ExportApiV1FinanceExportGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/finance/export?${stringifiedParams}` : `/api/v1/finance/export`
+}
+
+/**
+ * One dashboard page of one week as an Excel workbook (D-WD-2); allowed to whoever may read the dashboard
+ * (D-WD-3); every export is one `audit_log` row (action `export`).
+ * @summary Export
+ */
+export const exportApiV1FinanceExportGet = async (params: ExportApiV1FinanceExportGetParams, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
+
+  return apiFetch<Blob>(getExportApiV1FinanceExportGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getExportFigureApiV1FinanceExportFigureGetUrl = (params: ExportFigureApiV1FinanceExportFigureGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/finance/export/figure?${stringifiedParams}` : `/api/v1/finance/export/figure`
+}
+
+/**
+ * One figure of the dashboard (web dashboards plan amendment 1, D-WD-6): its rows exactly as the view gives them
+ * with the source view and filter; the same access rule as the dashboard (D-WD-3), one `audit_log` row each.
+ * @summary Export Figure
+ */
+export const exportFigureApiV1FinanceExportFigureGet = async (params: ExportFigureApiV1FinanceExportFigureGetParams, options?: Parameters<typeof apiFetch>[1]): Promise<Blob | string> => {
+
+  return apiFetch<Blob | string>(getExportFigureApiV1FinanceExportFigureGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 

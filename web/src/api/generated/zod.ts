@@ -240,6 +240,78 @@ export const PromoteApiV1ConversationsConversationIdUploadsDocumentIdPromotionPo
 
 
 /**
+ * The week's billing by one dimension (web dashboards plan, D-WD-4): count, SDR, tons, share, rank.
+ * @summary Breakdown
+ */
+export const breakdownApiV1FinanceBreakdownGetQueryWeekMax = 52;
+
+
+
+export const BreakdownApiV1FinanceBreakdownGetQueryParams = zod.object({
+  "week": zod.int().min(1).max(breakdownApiV1FinanceBreakdownGetQueryWeekMax).describe('ISO week of 2025 (as of its Sunday 23:59)'),
+  "dimension": zod.enum(['vessel_category', 'toll_band', 'route', 'priced_condition', 'customer_segment', 'customer_country', 'credit_rating'])
+})
+
+export const BreakdownApiV1FinanceBreakdownGetResponse = zod.object({
+  "dimension": zod.enum(['vessel_category', 'toll_band', 'route', 'priced_condition', 'customer_segment', 'customer_country', 'credit_rating']),
+  "note": zod.union([zod.string(),zod.null()]).optional(),
+  "rows": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "source": zod.union([zod.object({
+  "filter": zod.string(),
+  "kind": zod.string(),
+  "name": zod.string()
+}),zod.null()]).optional(),
+  "status": zod.enum(['ok', 'no_data'])
+}).describe('`finance.kpi_weekly_breakdown` (M18) for one week and one dimension, largest member first.')
+
+
+/**
+ * One dashboard page of one week as an Excel workbook (D-WD-2); allowed to whoever may read the dashboard
+ * (D-WD-3); every export is one `audit_log` row (action `export`).
+ * @summary Export
+ */
+export const exportApiV1FinanceExportGetQueryWeekMax = 52;
+
+
+
+export const ExportApiV1FinanceExportGetQueryParams = zod.object({
+  "week": zod.int().min(1).max(exportApiV1FinanceExportGetQueryWeekMax).describe('ISO week of 2025 (as of its Sunday 23:59)'),
+  "page": zod.enum(['overview', 'revenue', 'receivables', 'customers', 'exceptions', 'executive'])
+})
+
+export const ExportApiV1FinanceExportGetResponse = zod.unknown()
+
+
+/**
+ * One figure of the dashboard (web dashboards plan amendment 1, D-WD-6): its rows exactly as the view gives them
+ * with the source view and filter; the same access rule as the dashboard (D-WD-3), one `audit_log` row each.
+ * @summary Export Figure
+ */
+export const exportFigureApiV1FinanceExportFigureGetQueryWeekMax = 52;
+
+export const exportFigureApiV1FinanceExportFigureGetQueryFormatDefault = `xlsx`;
+export const exportFigureApiV1FinanceExportFigureGetQueryCompareOneMax = 52;
+
+export const exportFigureApiV1FinanceExportFigureGetQueryYtdDefault = false;
+export const exportFigureApiV1FinanceExportFigureGetQueryLimitOneMax = 50;
+
+
+
+export const ExportFigureApiV1FinanceExportFigureGetQueryParams = zod.object({
+  "week": zod.int().min(1).max(exportFigureApiV1FinanceExportFigureGetQueryWeekMax).describe('ISO week of 2025 (as of its Sunday 23:59)'),
+  "figure": zod.enum(['kpis', 'trend', 'category', 'overdue', 'customers', 'breakdown', 'audit_summary', 'audit_findings']),
+  "format": zod.enum(['xlsx', 'csv']).default(exportFigureApiV1FinanceExportFigureGetQueryFormatDefault),
+  "page": zod.union([zod.enum(['overview', 'revenue', 'receivables', 'customers', 'exceptions', 'executive']),zod.null()]).optional().describe('kpis: the page whose tiles are exported'),
+  "dimension": zod.union([zod.enum(['vessel_category', 'toll_band', 'route', 'priced_condition', 'customer_segment', 'customer_country', 'credit_rating']),zod.null()]).optional().describe('breakdown: the dimension shown'),
+  "compare": zod.union([zod.int().min(1).max(exportFigureApiV1FinanceExportFigureGetQueryCompareOneMax),zod.null()]).optional().describe('breakdown: the compare week'),
+  "ytd": zod.boolean().default(exportFigureApiV1FinanceExportFigureGetQueryYtdDefault).describe('audit_*: the year to date'),
+  "limit": zod.union([zod.int().min(1).max(exportFigureApiV1FinanceExportFigureGetQueryLimitOneMax),zod.null()]).optional().describe('ranked lists: the rows the card shows')
+})
+
+export const ExportFigureApiV1FinanceExportFigureGetResponse = zod.unknown()
+
+
+/**
  * @summary Invoice Audit
  */
 export const invoiceAuditApiV1FinanceInvoiceAuditGetQueryWeekMax = 52;
@@ -461,8 +533,9 @@ export const GetPackApiV1PacksThreadIdGetResponse = zod.looseObject({
   "charts_drawn": zod.record(zod.string(), zod.unknown()).optional().describe('the series each chart slide draws (render.build_spec), by slide'),
   "decisions": zod.array(zod.string()),
   "degraded": zod.unknown().optional(),
-  "draft": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "draft": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).describe('the draft with its slots filled; a bullet or slide title code wrote after the Writer\'s rewrites failed has origin \'code\', an approver\'s edit has edited true, and `removed` lists the Writer texts code took out ({slide, text, by: code | fallback, why}) — shown on their slide (targeted-revise plan B4)'),
   "draft_sha": zod.string().describe('Review version; send unchanged with a direct decision'),
+  "fallback_share": zod.union([zod.number(),zod.null()]).optional().describe('of the model calls answered for this pack, the share a fallback model answered (Model flexibility plan W10)'),
   "form_fixes": zod.int(),
   "has_preview": zod.boolean(),
   "insight": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional(),
@@ -471,6 +544,7 @@ export const GetPackApiV1PacksThreadIdGetResponse = zod.looseObject({
   "published": zod.boolean(),
   "readiness": zod.array(zod.unknown()),
   "redrafted": zod.boolean().default(getPackApiV1PacksThreadIdGetResponseRedraftedDefault),
+  "redrafted_slides": zod.array(zod.int()).optional().describe('the slides the last revise re-drafted; every other slide, the additions and the chart variants were kept (targeted-revise plan A5)'),
   "revision": zod.unknown().optional(),
   "status": zod.union([zod.string(),zod.null()]),
   "thread_id": zod.string(),
@@ -675,7 +749,7 @@ export const ConfirmRequestApiV1PacksThreadIdRequestConfirmPostBody = zod.object
   "text": zod.string().min(1).max(confirmRequestApiV1PacksThreadIdRequestConfirmPostBodyProposalStepsItemEditsItemTextMax)
 })).max(confirmRequestApiV1PacksThreadIdRequestConfirmPostBodyProposalStepsItemEditsMax).optional(),
   "steer": zod.union([zod.string().min(1).max(confirmRequestApiV1PacksThreadIdRequestConfirmPostBodyProposalStepsItemSteerOneMax),zod.null()]).optional()
-}).describe('approve / edit (text edits, additions, chart variants) / revise (analysis edits and / or a steer, chart\nvariants; the deck is drafted again) / reject — one kind per decision (approver-additions plan D1).')).min(1).max(confirmRequestApiV1PacksThreadIdRequestConfirmPostBodyProposalStepsMax),
+}).describe('approve / edit (text edits, additions, chart variants) / revise (analysis edits and / or a steer, chart\nvariants; the related slides are drafted again, the rest kept — targeted-revise plan) / reject — one kind per\ndecision (approver-additions plan D1).')).min(1).max(confirmRequestApiV1PacksThreadIdRequestConfirmPostBodyProposalStepsMax),
   "understood": zod.string().min(1).max(confirmRequestApiV1PacksThreadIdRequestConfirmPostBodyProposalUnderstoodMax)
 }).describe('The proposal as the request run returned it. Re-checked here and by the graph: a changed proposal can only\nhold what `POST /decision` accepts from this approver anyway.'),
   "request": zod.string().min(confirmRequestApiV1PacksThreadIdRequestConfirmPostBodyRequestMin).max(confirmRequestApiV1PacksThreadIdRequestConfirmPostBodyRequestMax)

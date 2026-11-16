@@ -22,7 +22,9 @@ from pydantic import Field, model_validator
 from pipelines.agents import approver_request as ar
 from pipelines.agents import checkpointer, publications, scheduling, tracing, views
 from pipelines.agents.graphs import models as gm
+from pipelines.agents.deck.slots import SlotError
 from pipelines.agents.graphs import weekly_pack as wp
+from pipelines.agents.roles import fallback_share
 from pipelines.agents.tools import context
 from pipelines.api import audit, runs
 from pipelines.api.auth import Principal, Signed
@@ -44,7 +46,8 @@ class Edit(Strict):
 
 class DecisionIn(Strict):
     """approve / edit (text edits, additions, chart variants) / revise (analysis edits and / or a steer, chart
-    variants; the deck is drafted again) / reject — one kind per decision (approver-additions plan D1)."""
+    variants; the related slides are drafted again, the rest kept — targeted-revise plan) / reject — one kind per
+    decision (approver-additions plan D1)."""
     decision: Literal["approve", "edit", "revise", "reject"]
     edits: list[Edit] = Field(default_factory=list, max_length=40)
     additions: list[gm.Addition] = Field(default_factory=list, max_length=14)
@@ -99,11 +102,16 @@ def _inside(request: Request, path: str | None) -> Path:
 
 def charts_drawn(st: dict) -> dict[str, list[dict]]:
     """The series each chart slide of the draft draws (`render.build_spec`, the renderer's own data): the web draws the
-    same numbers the PPTX will show (Frontend plan F0). Empty when there is no draft."""
+    same numbers the PPTX will show (Frontend plan F0). Empty when there is no draft, or when the renderer of today
+    cannot lay out an older pack: W08 and W10–W13 (2026-10) were saved before migration 021, so their evidence lacks
+    `budget_variance_13w_pct` the KPI tile now draws, and the whole page answered 500 (local-stack E2E, 2026-11-16)."""
     if not st.get("draft") or not st.get("evidence"):
         return {}
-    spec = wp.render.build_spec(st["draft"], st["evidence"], st.get("readiness") or {}, wp.DRAFT_LABEL,
-                                st.get("charts"))
+    try:
+        spec = wp.render.build_spec(st["draft"], st["evidence"], st.get("readiness") or {}, wp.DRAFT_LABEL,
+                                    st.get("charts"))
+    except SlotError:
+        return {}
     out: dict[str, list[dict]] = {}
     for n, els in enumerate(spec, 1):
         for el in els:
@@ -148,7 +156,9 @@ def view(g, thread_id: str, employee_id: int | None = None) -> dict:
             "publication_sync": publication_status(st, thread_id),
             # approver-additions plan: the analysis behind the deck, the chart variants, whether it was re-drafted
             "insight": st.get("insight"), "charts": st.get("charts") or {}, "redrafted": bool(st.get("redrafted")),
+            "redrafted_slides": st.get("redrafted_slides") or [],
             "revision": st.get("revision"),
+            "fallback_share": fallback_share(st.get("llm_usage") or []),
             **({"allowed": allowed(st, bool(snap.interrupts), employee_id), "charts_drawn": charts_drawn(st)}
                if employee_id is not None else {})}
 

@@ -34,7 +34,7 @@ function startersFor(me: Me): string[] {
   return out.slice(0, 4);
 }
 
-function Conversations({ current }: { current: string | null }) {
+function Conversations({ current, onNew }: { current: string | null; onNew?: () => void }) {
   const { data, isPending } = useQuery({ queryKey: ["conversations"], queryFn: () => listConversations() });
   const items = [...(data ?? [])].sort((a, b) =>
     (b.last_turn_at ?? b.created_at).localeCompare(a.last_turn_at ?? a.created_at),
@@ -42,7 +42,17 @@ function Conversations({ current }: { current: string | null }) {
   return (
     <nav aria-label="Conversations" className="flex flex-col gap-2">
       <Button asChild variant="outline" className="justify-start">
-        <Link href="/ask">
+        <Link
+          href="/ask"
+          onClick={
+            onNew
+              ? (e) => {
+                  e.preventDefault();
+                  onNew();
+                }
+              : undefined
+          }
+        >
           <MessageSquarePlus aria-hidden /> New conversation
         </Link>
       </Button>
@@ -145,7 +155,34 @@ function Documents({ conversationId, me }: { conversationId: string | null; me: 
   );
 }
 
+// On /ask the first question moves the address to /ask/<id> in place (history.replaceState), so the router still has
+// /ask mounted and a link to /ask would land on the same page with the old conversation in its state. There, "New
+// conversation" puts the address back and mounts the workspace afresh (a new key); on /ask/<id> the link navigates.
 export function AskWorkspace({ me, conversationId }: { me: Me; conversationId: string | null }) {
+  const [fresh, setFresh] = useState(0);
+  const onNew = useCallback(() => {
+    window.history.replaceState(null, "", "/ask");
+    setFresh((n) => n + 1);
+  }, []);
+  return (
+    <Workspace
+      key={fresh}
+      me={me}
+      conversationId={conversationId}
+      onNew={conversationId === null ? onNew : undefined}
+    />
+  );
+}
+
+function Workspace({
+  me,
+  conversationId,
+  onNew,
+}: {
+  me: Me;
+  conversationId: string | null;
+  onNew?: () => void;
+}) {
   const qc = useQueryClient();
   const [current, setCurrent] = useState<string | null>(conversationId);
   const onCreated = useCallback(
@@ -171,7 +208,7 @@ export function AskWorkspace({ me, conversationId }: { me: Me; conversationId: s
   return (
     <main className="mx-auto grid h-[calc(100dvh-4rem)] max-w-7xl grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[15rem_minmax(0,1fr)_16rem]">
       <aside className="hidden overflow-y-auto lg:block">
-        <Conversations current={current} />
+        <Conversations current={current} onNew={onNew} />
       </aside>
       <section aria-label="Conversation" className="flex min-h-0 min-w-0 flex-col">
         {loadError ? (

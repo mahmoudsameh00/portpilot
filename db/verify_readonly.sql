@@ -468,4 +468,22 @@ SELECT (SELECT count(*) FROM pg_views WHERE viewname = 'kpi_traffic_link'
        has_table_privilege('finance_bi', 'finance_scenario.kpi_traffic_link', 'SELECT') AS bi_scenario,
        has_table_privilege('finance_bi', 'finance_test.kpi_traffic_link', 'SELECT') AS bi_test;
 
+\echo '### 29. PORT-CALL MESSAGES (migration 030, JIT arrival plan D-J1)'
+-- expected: 680 | 500 | 25 | 155 | 0 | 0 | 0 | t | f | f
+-- messages | port calls | cancelled | calls with a revision | sent at or after the requested time | port call not the
+-- vessel's own destination | uncommented columns | ports_readonly reads / finance_bi reads / ports_readonly inserts
+SELECT (SELECT count(*) FROM public.port_call_messages) AS messages,
+       (SELECT count(DISTINCT (vessel_id, voyage_no, port_locode)) FROM public.port_call_messages) AS calls,
+       (SELECT count(*) FROM public.port_call_messages WHERE message_status = 'cancelled') AS cancelled,
+       (SELECT count(*) FROM (SELECT vessel_id FROM public.port_call_messages GROUP BY vessel_id, voyage_no, port_locode
+          HAVING count(*) = 2 AND bool_and(message_status = 'requested')) r) AS revised,
+       (SELECT count(*) FROM public.port_call_messages WHERE sent_at >= requested_time) AS bad_order,
+       (SELECT count(*) FROM public.port_call_messages m JOIN public.vessels v USING (vessel_id)
+          WHERE m.real_or_synthetic = 'synthetic' AND m.port_locode <> v.destination_locode) AS not_destination,
+       (SELECT count(*) FROM pg_attribute a WHERE a.attrelid = 'public.port_call_messages'::regclass AND a.attnum > 0
+          AND NOT a.attisdropped AND col_description(a.attrelid, a.attnum) IS NULL) AS uncommented,
+       has_table_privilege('ports_readonly', 'public.port_call_messages', 'SELECT') AS ro_select,
+       has_table_privilege('finance_bi', 'public.port_call_messages', 'SELECT') AS bi_select,
+       has_table_privilege('ports_readonly', 'public.port_call_messages', 'INSERT') AS ro_insert;
+
 \echo '### END'

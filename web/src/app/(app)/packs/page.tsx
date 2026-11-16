@@ -5,7 +5,7 @@ import { PackList } from "@/components/packs/PackList";
 import { AppTopBar } from "@/components/shell/AppTopBar";
 import { getSession } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Weekly pack — PortPilot" };
+export const metadata: Metadata = { title: "Reports — PortPilot" };
 
 export default async function PacksPage() {
   const session = await getSession();

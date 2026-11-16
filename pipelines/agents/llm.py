@@ -22,6 +22,10 @@
   on a miss; the same request at the same moment is sent once (single-flight), the others read its cached reply.
 - Secrets: keys go only into the client objects or request headers, never into a URL, a cache key or a log line;
   every error text passes through `redact()`.
+- Models and providers (Model flexibility plan, 2026-11-15): read from `pipelines/agents/models.toml` through
+  `model_config` — the adapter, key variable and quota day per provider; the limits, temperature, timeout and
+  structured-output method per model. A provider is an entry, not a code branch (M2). The cache key payload is unchanged
+  for a model with temperature 0 (today's four), so existing caches and recorded baselines stay valid.
 """
 import hashlib
 import json
@@ -40,7 +44,7 @@ from langchain_core.messages import AIMessage, BaseMessage, message_to_dict, mes
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from pydantic import BaseModel
 
-from pipelines.agents import shared_quota
+from pipelines.agents import model_config, shared_quota
 from pipelines.lib import shared_files
 from pipelines.lib.common import project_root, redact
 from pipelines.lib.embeddings import Budget, est_tokens
@@ -51,20 +55,42 @@ TIMEOUT_S = 120
 MAX_RATE_WAIT_S = 60                                # longest single wait on a per-minute limit
 OUTPUT_RESERVE_TOKENS = 1_500                       # counted against the token budget before the reply is known
 REPEATED_SERVER_RUNS = 2                            # runs in which one request fails with 5xx before it is cached as failed
+RECENT_OK_S = 1_800                                 # W7 / M7: "the model answered another request" = within 30 min here
+_LAST_OK: dict[str, float] = {}                     # model name → monotonic time of its last fresh answer (this process)
 
-# Limits verified 2026-10-09 (Agents plan §7a). Gemini's free limits are shown only in AI Studio: conservative local
-# values, the provider's 429 decides. `scope` = what a limit is shared by: one model, or every model of the provider.
-PROVIDERS = {
-    "gemini": {"key": "GEMINI_API_KEY", "rpm": 10, "tpm": 250_000, "rpd": None, "scope": "model",
-               "day_tz": "America/Los_Angeles",
-               "candidates": ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemma-4-31b-it"]},
-    "groq": {"key": "GROQ_API_KEY", "rpm": 30, "tpm": 8_000, "rpd": 1_000, "scope": "model", "day_tz": "UTC",
-             "candidates": ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"]},
-    "openrouter": {"key": "OPENROUTER_API_KEY", "rpm": 20, "tpm": 1_000_000, "rpd": 50, "scope": "provider",
-                   "day_tz": "UTC", "base_url": "https://openrouter.ai/api/v1",
-                   "candidates": ["nvidia/nemotron-3-super-120b-a12b:free", "thinkingmachines/inkling:free",
-                                  "poolside/laguna-s-2.1:free"]},
-}
+# The providers come from models.toml: adapter, key variable, quota day, base URL, the default limits of a model without
+# its own entry (bake-off candidates) and the bake-off candidates. Kept as a dict so the bake-off scripts and the load
+# test (which adds a stub provider) read it as before; `limits()` is what the quota code uses.
+PROVIDERS: dict[str, dict] = {}
+
+
+def reload_providers() -> None:
+    """Rebuild PROVIDERS from the current models file (after `model_config.use`, evaluation scripts only)."""
+    PROVIDERS.clear()
+    PROVIDERS.update({k: dict(v) for k, v in model_config.current().providers.items()})
+
+
+reload_providers()
+
+
+def limits(provider: str, model: str) -> dict:
+    """rpm, tpm, rpd (None = no local daily stop) and scope ("model" | "provider") of one model: its own entry in
+    models.toml, else its provider's defaults."""
+    e = model_config.model_for(provider, model)
+    if e is not None:
+        return e.limits
+    p = PROVIDERS[provider]
+    return {"rpm": p["rpm"], "tpm": p["tpm"], "rpd": p.get("rpd"), "scope": p.get("scope", "model")}
+
+
+def cost_usd(provider: str, model: str, usage: dict | None) -> float:
+    """W8 / M5: the price of one fresh call from its token usage and the entry's hand-entered prices (0 for a free
+    model, a cached reply or a model without an entry)."""
+    e = model_config.model_for(provider, model)
+    if e is None or e.price_in is None or not usage:
+        return 0.0
+    return round(((usage.get("input_tokens") or 0) * e.price_in
+                  + (usage.get("output_tokens") or 0) * (e.price_out or 0)) / 1e6, 6)
 
 
 class Exhausted(RuntimeError):
@@ -89,7 +115,7 @@ def slug(model: str) -> str:
 def available_models(provider: str, client: httpx.Client) -> set[str]:
     """Model ids the provider serves right now (a vanished candidate is skipped and reported by the caller)."""
     key = os.environ[PROVIDERS[provider]["key"]]
-    if provider == "gemini":
+    if PROVIDERS[provider]["adapter"] == "gemini":
         out, token = set(), None
         while True:
             r = client.get("https://generativelanguage.googleapis.com/v1beta/models",
@@ -101,9 +127,10 @@ def available_models(provider: str, client: httpx.Client) -> set[str]:
             token = js.get("nextPageToken")
             if not token:
                 return out
-    url = {"groq": "https://api.groq.com/openai/v1/models",
-           "openrouter": "https://openrouter.ai/api/v1/models"}[provider]
-    r = client.get(url, headers={"Authorization": f"Bearer {key}"})
+    base = PROVIDERS[provider].get("base_url")
+    if not base:
+        raise RuntimeError(f"{provider}: no base_url in models.toml, so no model list")
+    r = client.get(base.rstrip("/") + "/models", headers={"Authorization": f"Bearer {key}"})
     _raise_for(provider, r)
     return {m["id"] for m in r.json()["data"]}
 
@@ -124,19 +151,36 @@ def _raise_for(provider: str, r: httpx.Response) -> None:
 
 # --- model factory ----------------------------------------------------------------------------------------------------
 
+def chat_kwargs(provider: str, model: str, **params) -> dict:
+    """What every client gets: no library retries, the model's timeout and temperature (models.toml; a model without
+    an entry: 120 s and 0, as before; an entry without `temperature` sends none — W4)."""
+    e = model_config.model_for(provider, model)
+    temperature = e.temperature if e is not None else 0
+    common: dict = {**({"temperature": temperature} if temperature is not None else {}), "max_retries": 0,
+                    "timeout": e.timeout_s if e is not None else TIMEOUT_S}
+    return {**common, **params}
+
+
 def chat_model(provider: str, model: str, **params):
-    """The LangChain chat model for one candidate: temperature 0, no library retries, a request timeout."""
+    """The LangChain chat model for one candidate, built by its provider's adapter (models.toml)."""
     p = PROVIDERS[provider]
     key = os.environ[p["key"]]
-    common = {"temperature": 0, "max_retries": 0, "timeout": TIMEOUT_S, **params}
-    if provider == "gemini":
+    common = chat_kwargs(provider, model, **params)
+    adapter = p.get("adapter")
+    if adapter == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
         return ChatGoogleGenerativeAI(model=model, google_api_key=key, **common)
-    if provider == "groq":
+    if adapter == "groq":
         from langchain_groq import ChatGroq
         return ChatGroq(model=model, api_key=cast(Any, key), **common)
-    from langchain_openai import ChatOpenAI
-    return ChatOpenAI(model=model, api_key=cast(Any, key), base_url=p["base_url"], **common)
+    if adapter == "openai_compatible":          # OpenRouter, OpenAI, Together, DeepSeek, a local Ollama / vLLM server…
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(model=model, api_key=cast(Any, key), base_url=p["base_url"], **common)
+    if adapter == "langchain":                  # any provider whose LangChain package is installed (M6: `uv add` first)
+        from langchain.chat_models import init_chat_model
+        return init_chat_model(model, model_provider=p["lc_provider"], api_key=key,
+                               **({"base_url": p["base_url"]} if p.get("base_url") else {}), **common)
+    raise ValueError(f"{provider}: unknown adapter {adapter!r}")
 
 
 # --- error classification -------------------------------------------------------------------------------------------
@@ -216,6 +260,7 @@ class QuotaState:
         folder.mkdir(parents=True, exist_ok=True)
         self.usage_file, self.state_file = folder / "usage.json", folder / "quota_state.json"
         self.fail_file = folder / "server_failures.json"
+        self.spend_file = folder / "spend.json"          # W8: USD per provider day and model (paid models only)
         self.counters = cast(shared_quota.SharedCounters | None,
                              shared_quota.shared() if counters is _AUTO else counters)
 
@@ -244,7 +289,7 @@ class QuotaState:
 
     @staticmethod
     def scope(provider: str, model: str) -> str:
-        return provider if PROVIDERS[provider]["scope"] == "provider" else f"{provider}/{model}"
+        return provider if limits(provider, model)["scope"] == "provider" else f"{provider}/{model}"
 
     def count(self, provider: str, model: str) -> int:
         day, scope = provider_day(provider), self.scope(provider, model)
@@ -252,20 +297,38 @@ class QuotaState:
             return self.counters.day_count(scope, day)
         return self.usage.get(day, {}).get(scope, 0)
 
+    def spend(self, provider: str, model: str) -> float:
+        """USD spent on this model in the provider's current day (W8)."""
+        return float(shared_files.read_json(self.spend_file).get(provider_day(provider), {}).get(f"{provider}/{model}", 0))
+
+    def add_spend(self, provider: str, model: str, usd: float) -> float:
+        day, name = provider_day(provider), f"{provider}/{model}"
+
+        def change(spend: dict) -> float:
+            d = spend.setdefault(day, {})
+            d[name] = round(d.get(name, 0.0) + usd, 6)
+            return d[name]
+        return cast(float, shared_files.update_json(self.spend_file, change)[1])
+
     def check(self, provider: str, model: str) -> None:
-        """Refuse a model that is exhausted today (no reservation: `reserve` takes the slot just before sending)."""
+        """Refuse a model that is exhausted today (no reservation: `reserve` takes the slot just before sending), or
+        a paid model that reached its `max_usd_per_day` (M5: stopped like a quota, the fallback answers)."""
         name, day = f"{provider}/{model}", provider_day(provider)
         state = self.state
         if state.get(name, {}).get("day") == day:
             raise Exhausted(f"{name}: daily quota exhausted on {day} ({state[name]['why'][:120]})")
-        rpd = PROVIDERS[provider]["rpd"]
+        e = model_config.model_for(provider, model)
+        if e is not None and e.max_usd_per_day is not None and self.spend(provider, model) >= e.max_usd_per_day:
+            raise Exhausted(f"{name}: daily spend cap reached on {day} ({self.spend(provider, model):.4f} of "
+                            f"{e.max_usd_per_day} USD)")
+        rpd = limits(provider, model)["rpd"]
         if rpd is not None and self.count(provider, model) >= rpd:
             raise Exhausted(f"{self.scope(provider, model)}: {rpd} requests already sent on {day} (daily limit)")
 
     def reserve(self, provider: str, model: str) -> int:
         """Take one request of today's quota before sending it (every attempt, as `record` counted each one before);
         the day's count after it, or `Exhausted` when the limit is already reached."""
-        day, scope, rpd = provider_day(provider), self.scope(provider, model), PROVIDERS[provider]["rpd"]
+        day, scope, rpd = provider_day(provider), self.scope(provider, model), limits(provider, model)["rpd"]
         if self.counters is not None:
             seed = self.usage.get(day, {}).get(scope, 0)
             n = self.counters.reserve_day(scope, day, rpd, seed=seed)
@@ -303,7 +366,7 @@ class QuotaState:
         daily-quota 429 named; the second value is a lower bound when no limit is known."""
         st = self.state.get(f"{provider}/{model}", {})
         m = re.search(r"limit:\s*(\d+)", st.get("why", ""))
-        known = PROVIDERS[provider]["rpd"] or st.get("limit") or (int(m.group(1)) if m else None)
+        known = limits(provider, model)["rpd"] or st.get("limit") or (int(m.group(1)) if m else None)
         seen = max((d.get(self.scope(provider, model), 0) for d in self.usage.values()), default=0)
         return known, seen
 
@@ -381,7 +444,12 @@ class LLM:
         self._refresh()
         self.quota = quota or QuotaState(cache_dir)
         scope = QuotaState.scope(provider, model)
-        p = PROVIDERS[provider]
+        p = limits(provider, model)
+        # the cache key's params: unchanged for temperature 0 (every model before models.toml), so old caches still
+        # match; a model with another temperature (or none sent) gets it in its key
+        e = model_config.model_for(provider, model)
+        self.key_params = self.params if e is None or e.temperature == 0 else {"temperature": e.temperature,
+                                                                                **self.params}
         if self.quota.counters is not None:      # C2: one per-minute budget for every process
             self.budget = _BUDGETS.setdefault(f"shared:{scope}", shared_quota.SharedBudget(
                 self.quota.counters, scope, p["rpm"], p["tpm"]))
@@ -393,7 +461,7 @@ class LLM:
 
     def key(self, messages: list[BaseMessage], tools=None, schema: type[BaseModel] | None = None,
             method: str | None = None) -> str:
-        payload = {"provider": self.provider, "model": self.model, "params": self.params,
+        payload = {"provider": self.provider, "model": self.model, "params": self.key_params,
                    "messages": [canonical(m) for m in messages],
                    "tools": [convert_to_openai_tool(t) for t in tools or []],
                    "schema": schema.model_json_schema() if schema else None, "method": method}
@@ -419,6 +487,10 @@ class LLM:
 
     def _refresh(self) -> None:
         self._shared.refresh()
+
+    def _answered_recently(self) -> bool:
+        t = _LAST_OK.get(self.name)
+        return t is not None and time.monotonic() - t <= RECENT_OK_S
 
     def _cached(self, key: str) -> Reply | None:
         if key not in self.cache:
@@ -467,9 +539,11 @@ class LLM:
                     continue
                 if kind in ("bad_request", "model_missing", "too_large"):
                     return self._store(key, None, {"kind": kind, "text": text}, None)
-                if kind == "transient" and self.quota.server_failure(key, self.name, text) >= REPEATED_SERVER_RUNS:
-                    # the same request failed in separate runs, each after its retry: a property of the request
-                    # (e.g. gemma on a long tool result), not an outage — cached, so the item scores as failed
+                if kind == "transient" and self._answered_recently() and \
+                        self.quota.server_failure(key, self.name, text) >= REPEATED_SERVER_RUNS:
+                    # the same request failed in separate runs, each after its retry, while the model answered other
+                    # requests: a property of the request (e.g. gemma on a long tool result), not an outage — cached,
+                    # so the item scores as failed. During an outage (no answer here lately) nothing is counted (M7).
                     return self._store(key, None, {"kind": "server_error_repeated", "text": text}, None)
                 self.stopped = f"{kind}: {text[:200]}"
                 raise Exhausted(f"{self.name}: {self.stopped}") from None
@@ -479,6 +553,9 @@ class LLM:
             usage = dict(msg.usage_metadata) if getattr(msg, "usage_metadata", None) else None
             self.budget.record((usage or {}).get("total_tokens", est))
             self.calls += 1
+            _LAST_OK[self.name] = time.monotonic()
+            if (usd := cost_usd(self.provider, self.model, usage)) > 0:
+                self.quota.add_spend(self.provider, self.model, usd)
             return self._store(key, msg, None, ms, usage)
         raise AssertionError("unreachable")
 

@@ -527,6 +527,13 @@ def evidence_of(t_ev: dict, al_: list[dict]) -> dict:
 
 def _say(a: dict) -> str:
     aid = a["alert_id"]
+    if a["kind"] == "rta_late":                       # JIT arrival plan D-J3 (2026-11-15)
+        return (f"{a['vessel_name']} (to {a['destination']}, ETA {a['eta_utc']}) reaches its berth "
+                f"{{watch.alerts[{aid}]:late_h}} after the requested time {a['rta_utc']}")
+    if a["kind"] == "jit":
+        return (f"{a['vessel_name']} (to {a['destination']}, ETA {a['eta_utc']}) can slow to "
+                f"{{watch.alerts[{aid}]:jit_speed_kn}} instead of waiting {{watch.alerts[{aid}]:wait_h}} for its berth "
+                f"at {a['rta_utc']}")
     if a["kind"] == "suez_traffic":
         return (f"Suez Canal transits are {{watch.alerts[{aid}]:change_transits_pct|%1}} against a year earlier, "
                 f"with the canal still ahead of {a['vessel_name']} (to {a['destination']}, ETA {a['eta_utc']})")
@@ -542,7 +549,8 @@ def good_brief(ev: dict) -> dict:
     order = [a for a in al_ if a["severity"] == "high"] + [a for a in al_ if a["severity"] != "high"]
     suez = [a for a in order if a["kind"] == "suez_traffic"]
     wx_ = [a for a in order if a["kind"] == "weather"]
-    groups = ([suez] if suez else []) + [wx_[i:i + 8] for i in range(0, len(wx_), 8)]
+    arr = [a for a in order if a["kind"] in ("rta_late", "jit")]      # D-J3: the arrival alerts, high first
+    groups = ([suez] if suez else []) + [wx_[i:i + 8] for i in range(0, len(wx_), 8)]         + [arr[i:i + 8] for i in range(0, len(arr), 8)]
     groups = sorted(groups, key=lambda g_: -max(vw.SEVERITY[a["severity"]] for a in g_))[:6]
     items = []
     for g_ in groups:
@@ -705,8 +713,9 @@ anchored_ids = sorted(int(i) for i in voy.index[voy["status"] == "Anchored"])[:5
 port_ids = sorted(int(i) for i in voy.index[voy["status"] == "At Port"])[:3]
 planted = [d["vid"] for d in discs]
 subset = sorted(set(at_sea[:28] + planted[:12])) + anchored_ids + port_ids
+# quiet = no planted weather, no canal ahead, and (JIT arrival plan D-J3, 2026-11-15) no RTA known at the clock
 quiet = [v for v in at_sea if v not in {d["vid"] for d in discs} and not true_weather(v)
-         and not true_suez_ahead(v)][:6]
+         and not true_suez_ahead(v) and vw._rta(ops_user, fleet_status[v]) is None][:6]
 tmp_reports = Path(tempfile.mkdtemp(prefix="voyage_watch_reports_"))
 saver = checkpointer.saver()
 threads5: list[str] = []
@@ -845,7 +854,10 @@ brief_real_ok = r6["brief_status"] in ("ok", "no_alerts")
 # 5 of 810 points unknown, PortWatch +2.7 % (no traffic alert); the real brief passed the Validator on its first
 # reply. The first live run had 213 points unknown (Open-Meteo batches failed: never cached) and 7 alerts — the
 # designed degradation; the counts below are the complete answer.
-reviewed_6 = {"status": "ok", "brief": "ok", "watched": 297, "alerts": 12, "high": 3, "weather_alerts": 12,
+# 2026-11-15 (JIT arrival plan D-J3): + 41 arrival alerts from the RTAs known at the clock (24 jit, 17 rta_late, 4 of
+# them high) → 53 alerts, 7 high; the real brief (one fresh flash-lite call) passed the Validator on its first reply
+# and cited the late arrivals.
+reviewed_6 = {"status": "ok", "brief": "ok", "watched": 297, "alerts": 53, "high": 7, "weather_alerts": 12,
               "suez_alerts": 0, "change_transits_pct": 2.7, "weather_points": 810, "unknown_points": 5}
 assert {k: real6[k] for k in reviewed_6} == reviewed_6, real6
 print("✅ Phase 6 validation passed." + ("" if brief_real_ok else f" (brief: {r6['brief_status']} — reported)"))

@@ -1,6 +1,31 @@
 # PortPilot engineering review and continuation plan
 
-**Review date:** 2026-11-10 (Africa/Cairo). **Implementation status: APPROVED (2026-11-10), in progress.**
+## Implementation record
+
+**Status: IMPLEMENTED (2026-11-16)**, archived the same day on the owner's word ("أيوه، اقفلهم").
+
+- **R1–R10 fixed and verified:**
+  - R1: a validation result no longer strands a run.
+  - R2: bounded queue, deadlines and cooperative expiry checks in the graphs and the publication.
+  - R3: the shared mutation lock across the API, the CLI and the scheduler.
+  - R4: the decision is bound to the viewed draft.
+  - R5 / R6: shared EN / AR traffic-claim enforcement, V10.
+  - R7: SSE reconnect and reload / resume.
+  - R8: a scheduled business failure is reported.
+  - R9: immutable publication with sync status (`docs/publication_recovery.md`).
+  - R10: independent fixtures (`Api_integration_check.py` 5 / 5) and a guarded full-store suite.
+- **Owner gates:** application audit and schema reconciliation through 028 (2026-11-12); finance / reference
+  validation 8 / 8; the pushed CI green (run 43690050303); full-data `Api_check` 12 / 12 on the clone
+  `portpilot-api-full` (2026-11-15, again 2026-11-16 after the pack fix); Power BI parity for week 16.
+- **Phase 4 (close the feature plans):**
+  - the traffic-billing link plan (2026-11-14), the JIT plan (2026-11-15) and the frontend plan (2026-11-16) are closed;
+  - the model-flexibility plan was archived earlier.
+- **Deviation:** Phase 5 (profile measured bottlenecks, cache / pool / query tuning, rebuild / restore drill) was not
+  started. It is an optional "optimize and extend" step, so it moves to `docs/ROADMAP.md` as **DEFERRED**. JIT, its
+  other half, shipped as its own plan (ADR-070).
+- **Open, owner:** the single commit once every plan in `docs/plans/` is closed, then `/graphify . --update`.
+
+**Review date:** 2026-11-10 (Africa/Cairo). **Implementation status: IMPLEMENTED (2026-11-16)** (approved 2026-11-10).
 
 The initial review was completed within the verification scope below before application fixes began. The
 Progress / deviations section records the approved implementation since then. This plan complements the existing
@@ -492,3 +517,33 @@ design and single API process while evidence supports them.
   three scripts without the `sys.path` line, the evaluation's frozen-name comparison, the notes-stage claim guard
   (7 of 11 real packs lost → repaired), two stale reviewed snapshots after the rename, the former company name
   missing from the Q&A briefs, the citation-page rule.
+- 2026-11-15 — **Pushed CI green (gate met):** run 43690050303 on `feat/agents` (commit 68a8d3b, the `next typegen`
+  fix): `checks`, `web` (static suite + Playwright on the runner for the first time: 130 passed, 50 intentional
+  skips) and `api-integration` all ✅ — https://github.com/mahmoudsameh00/nilegate-ports-ai/actions/runs/43690050303.
+  Same day the web dashboards plan (`docs/plans/Web_dashboards_and_reports_plan.md`, ADR-069) extended the finance
+  pages; the D-FE-7 Power BI parity hand-check stays open (owner: Desktop + API running).
+- 2026-11-15 — **Full-data `Api_check` prepared (owner runs it):** `ops/tests/run_api_full_clone.ps1` — a new
+  disposable container `portpilot-api-full` from the image of `ports-postgres`, the logins copied (hashes, no
+  `postgres`), the whole database restored as `portpilot_api_test`, then `Api_check.py` with `PGHOST` / `PGPORT` /
+  `PGDATABASE` / `PGUSER` and the DSN on the clone (`load_env` never overrides a set variable). Script syntax checked;
+  not executed. `Api_check` Phase 11 also covers the new breakdown / export endpoints (web dashboards plan).
+  Remaining gates of this plan: that run, the Power BI parity (owner opens Desktop), the owner's Git checkpoint.
+- 2026-11-15 — **Full-data `Api_check` gate MET: 12 / 12 phases** (owner run, `ops/tests/run_api_full_clone.ps1`, clone
+  `portpilot-api-full`: 1,000 invoices, 100 employees, 52 finance weeks; 248 s; Data/processed and migrations
+  untouched by it). Fixed on the way (script and stale expectations, no API behaviour changed): the postgis image's
+  temporary init server cut the first restore (the script now waits for "init process complete"); Windows PowerShell
+  5.1 made docker's stderr warning fatal under `Stop` (now `Continue` + explicit exit-code checks); `-Reuse` added.
+  Two Phase 5 expectations predated stabilization: the runner now records the answer in the full `AnswerData`
+  contract shape, and a lost final record makes the run `failed` (500 `record_failed`) instead of a silent `done` —
+  `Api_check.py` lines updated to the intended behaviour. Phase 11 includes the web dashboards' breakdown / export.
+  Remaining gate of this plan: the Power BI parity hand-check (owner opens Desktop); then the owner's Git checkpoint.
+
+- 2026-11-15 — **Power BI parity, one week (D-FE-7), MET for week 16.** Power BI Desktop (`PortPilot_Finance.pbip`,
+  DirectQuery) read through the Power BI Modeling MCP (DAX) = the `finance` views the API returns = the web screens
+  (built-in browser, the owner signed in; the web rebuilt with the dashboards plan). Equal to the cent: billed
+  2,934,677.21, budget 5,639,793.97, variance −47.96 % (13 w −5.88 %), collected 4,005,943.10, AR 38,599,556.67,
+  overdue 10,250,856.93, DSO 51.7 (best 38.0 / late 13.7), 11 invoices, top-10 share 56.89 %, overdue new 2,110,152.84 /
+  paid 2,250,404.16, due-week collected 51.23 %, billed 13 w 67,895,115.94, aging current / 1–30 / 31–60; the six toll
+  bands (The Rest 1,194,836.21 …), laden / ballast 2,634,930.15 / 299,747.06, SCNT tons 627,343.20, the top 3 routes
+  and top 3 customers (Belanor 9,317,344.44 · Kororia 4,589,961.82 · Korilis 4,197,932.59). Power BI's percent
+  measures are fractions (0.4796 = 47.96 %); the web shows rounded figures with the exact value as the receipt.

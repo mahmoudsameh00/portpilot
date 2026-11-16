@@ -7,7 +7,7 @@ import {
   Loader2,
   MessageSquareText,
   PencilLine,
-  RotateCcw,
+  Send,
   ShieldCheck,
   XCircle,
   BarChart3,
@@ -36,7 +36,12 @@ import { cn } from "@/lib/utils";
 // React Flow only in the browser and only when a decision runs (plan §6.8)
 const RunGraph = dynamic(() => import("./RunGraph").then((m) => m.RunGraph), { ssr: false });
 
-export type Bullet = { slide: number; text: string; origin?: string | null };
+export type Bullet = {
+  slide: number;
+  text: string;
+  origin?: string | null;
+  edited?: boolean | null;
+};
 
 type Proposal = {
   understood: string;
@@ -50,7 +55,7 @@ const STEP_WORDS: Record<string, string> = {
   approve: "approve the pack",
   reject: "reject the pack",
   edit: "edit the deck",
-  revise: "revise the analysis and draft the deck again",
+  revise: "revise the analysis and draft its related slides again",
 };
 
 function describe(step: DecisionIn): string {
@@ -83,6 +88,18 @@ type PackCatalogue = {
 };
 const selectClass = "h-9 w-full rounded-md border bg-background px-2 text-sm focus-visible:border-primary";
 
+const MAX_REQUEST = 500; // approver_request.MAX_REQUEST_CHARS: the API keeps the first 500 characters
+
+/** The request with the question it raised and the approver's answer, inside the API's 500 characters: the request
+ * and the answer are kept whole, the question is shortened to the room left. */
+export function withAnswer(request: string, question: string, answer: string): string {
+  const head = `${request} — you asked: "`;
+  const tail = `" — my answer: ${answer}`;
+  const room = MAX_REQUEST - head.length - tail.length;
+  if (room < 12) return `${request} — my answer: ${answer}`.slice(0, MAX_REQUEST);
+  return head + (question.length > room ? `${question.slice(0, room - 1)}…` : question) + tail;
+}
+
 export function DecisionPanel({
   thread,
   draftSha,
@@ -90,8 +107,10 @@ export function DecisionPanel({
   bullets,
   slide,
   limits,
-  insight,
   onDone,
+  mode = "slide",
+  weekLabel,
+  slideCount,
 }: {
   thread: string;
   draftSha: string;
@@ -101,6 +120,11 @@ export function DecisionPanel({
   limits: Limits;
   insight?: Insight | null;
   onDone: () => void;
+  /** "slide" = the changes to the shown slide (side panel); "pack" = approve / reject the whole pack (the top bar,
+   * owner 2026-11-15: an approval made from the last slide looked like a slide's approval). */
+  mode?: "slide" | "pack";
+  weekLabel?: string;
+  slideCount?: number;
 }) {
   const catalogue = useQuery({ queryKey: ["catalogue"], queryFn: () => getCatalogue() });
   const packCat = catalogue.data?.pack as PackCatalogue | undefined;
@@ -109,28 +133,26 @@ export function DecisionPanel({
   const [trendWeeks, setTrendWeeks] = useState(13);
   const [varMeasure, setVarMeasure] = useState("budget_variance_sdr");
   const [varRows, setVarRows] = useState("all");
-  const [summaryEdits, setSummaryEdits] = useState<Record<number, string>>({});
-  const [caveat, setCaveat] = useState("");
   const [busy, setBusy] = useState(false);
   const [trace, setTrace] = useState<string[]>([]);
   const [graphRun, setGraphRun] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "warn"; text: string } | null>(null);
   const [edits, setEdits] = useState<Record<number, string>>({});
   const [addition, setAddition] = useState("");
-  const [steer, setSteer] = useState("");
   const [comment, setComment] = useState("");
   const [request, setRequest] = useState("");
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  // the answer to a question the request reader asked back (ask_back): sent with the request it answers
+  const [reply, setReply] = useState("");
+  const [confirming, setConfirming] = useState(false);
   const [formVersion, setFormVersion] = useState(draftSha);
   // A background refresh must not attach old edits to a newer review version.
   if (formVersion !== draftSha) {
     setFormVersion(draftSha);
     setEdits({});
-    setSummaryEdits({});
     setAddition("");
-    setSteer("");
-    setCaveat("");
     setComment("");
+    setConfirming(false);
     setRequest("");
     setProposal(null);
     setChartKind("trend");
@@ -179,7 +201,6 @@ export function DecisionPanel({
     if (ok) {
       setEdits({});
       setAddition("");
-      setSteer("");
       setMessage({ tone: "ok", text: `Sent: ${STEP_WORDS[body.decision] ?? body.decision}.` });
       onDone();
     }
@@ -189,6 +210,92 @@ export function DecisionPanel({
   const canAdd = allowed.addition_slides.includes(slide);
   const additionsHere = slideBullets.filter((b) => b.origin === "approver").length;
 
+  const status = (
+    <>
+      {graphRun && (busy || trace.length) ? <RunGraph trace={trace} running={busy} /> : null}
+      {busy && !graphRun ? (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
+          <Loader2 className="size-3.5 animate-spin" aria-hidden />
+          {trace.length ? `Working: ${trace.at(-1)}` : "Starting…"}
+        </p>
+      ) : null}
+      {message ? (
+        <p
+          role={message.tone === "warn" ? "alert" : "status"}
+          className={cn("text-sm", message.tone === "warn" ? "text-alert-ink" : "text-approved-ink")}
+        >
+          {message.text}
+        </p>
+      ) : null}
+    </>
+  );
+
+  if (mode === "pack") {
+    const scope = `all ${slideCount ?? "the"} slides${weekLabel ? ` of ${weekLabel}` : ""}`;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="comment" className="text-xs text-muted-foreground">
+            Comment for the whole pack (needed to reject)
+          </label>
+          <textarea
+            id="comment"
+            dir="auto"
+            rows={2}
+            maxLength={500}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            className="w-full resize-y rounded-md border bg-background p-2 text-sm focus-visible:border-primary"
+          />
+        </div>
+        {confirming ? (
+          <div
+            role="group"
+            aria-label="Confirm the approval"
+            className="flex flex-col gap-2 rounded-md border p-3"
+          >
+            <p className="text-sm">
+              Approve {scope}? This publishes the whole deck for Finance; it is not a single slide&apos;s
+              approval.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                disabled={busy}
+                onClick={() => {
+                  setConfirming(false);
+                  void submit({
+                    decision: "approve",
+                    ...(comment.trim() ? { comment: comment.trim() } : {}),
+                  });
+                }}
+              >
+                <ShieldCheck aria-hidden /> Yes, approve the whole pack
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={() => setConfirming(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <Button size="lg" className="h-11" disabled={busy} onClick={() => setConfirming(true)}>
+              <ShieldCheck aria-hidden /> Approve the whole pack
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-11 text-destructive hover:bg-alert-wash hover:text-destructive"
+              disabled={busy || !comment.trim()}
+              onClick={() => submit({ decision: "reject", comment: comment.trim() })}
+            >
+              <XCircle aria-hidden /> Reject the whole pack
+            </Button>
+          </div>
+        )}
+        {status}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <Tabs defaultValue="request">
@@ -196,13 +303,13 @@ export function DecisionPanel({
           <TabsTrigger value="request">Request</TabsTrigger>
           <TabsTrigger value="edit">Edit</TabsTrigger>
           <TabsTrigger value="chart">Chart</TabsTrigger>
-          <TabsTrigger value="revise">Revise</TabsTrigger>
-          <TabsTrigger value="decide">Decide</TabsTrigger>
         </TabsList>
 
         <TabsContent value="request" className="mt-3 flex flex-col gap-2">
           <label htmlFor="request" className="text-xs text-muted-foreground">
-            Say what to change, in English or Arabic. Nothing changes until you confirm.
+            Say what to change, in English or Arabic: the wording, a chart, or a new look at the analysis (a
+            caveat, a point to check — {allowed.revise_left} re-draft(s) left for this pack). Nothing changes
+            until you confirm.
           </label>
           <textarea
             id="request"
@@ -213,6 +320,7 @@ export function DecisionPanel({
             onChange={(e) => {
               setRequest(e.target.value);
               setProposal(null);
+              setReply("");
             }}
             className="w-full resize-y rounded-md border bg-background p-3 text-sm focus-visible:border-primary"
           />
@@ -236,9 +344,43 @@ export function DecisionPanel({
                 {proposal.understood}
               </p>
               {proposal.ask_back ? (
-                <p dir="auto" className="mt-2 text-waiting-ink">
-                  {proposal.ask_back}
-                </p>
+                <div className="mt-2 flex flex-col gap-2">
+                  <p dir="auto" className="text-waiting-ink">
+                    {proposal.ask_back}
+                  </p>
+                  <label htmlFor="request-reply" className="text-xs text-muted-foreground">
+                    Your answer
+                  </label>
+                  <textarea
+                    id="request-reply"
+                    dir="auto"
+                    rows={2}
+                    maxLength={300}
+                    autoFocus
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    className="w-full resize-y rounded-md border bg-background p-2 text-sm focus-visible:border-primary"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="self-start"
+                    disabled={busy || reply.trim().length === 0}
+                    onClick={() => {
+                      // the reader keeps no conversation: the answer goes with the request it answers, and the
+                      // combined text is what Confirm sends later (the same words that were understood)
+                      const next = withAnswer(request.trim(), proposal.ask_back ?? "", reply.trim());
+                      setRequest(next);
+                      setReply("");
+                      void run(
+                        () => sendRequest(thread, { request: next }),
+                        (a) => setProposal(a as Proposal),
+                      );
+                    }}
+                  >
+                    <Send aria-hidden /> Send my answer
+                  </Button>
+                </div>
               ) : (
                 <>
                   <ol className="mt-2 list-decimal ps-5 text-xs text-muted-foreground">
@@ -333,81 +475,6 @@ export function DecisionPanel({
             }
           >
             <PencilLine aria-hidden /> Save and check again
-          </Button>
-        </TabsContent>
-
-        <TabsContent value="revise" className="mt-3 flex flex-col gap-2">
-          <p className="text-xs text-muted-foreground">
-            The analysis is redone and the deck drafted again. {allowed.revise_left} revision(s) left for this
-            pack.
-          </p>
-          <label htmlFor="steer" className="text-xs text-muted-foreground">
-            What should the analysis focus on?
-          </label>
-          <textarea
-            id="steer"
-            dir="auto"
-            rows={3}
-            maxLength={allowed.max_steer_chars}
-            value={steer}
-            onChange={(e) => setSteer(e.target.value)}
-            className="w-full resize-y rounded-md border bg-background p-3 text-sm focus-visible:border-primary"
-          />
-          {insight?.summary?.length ? (
-            <fieldset className="flex flex-col gap-2">
-              <legend className="text-xs text-muted-foreground">Summary points (change the wording)</legend>
-              {insight.summary.map((p, i) => (
-                <textarea
-                  key={i}
-                  aria-label={`Summary point ${i + 1}`}
-                  dir="auto"
-                  rows={2}
-                  maxLength={400}
-                  defaultValue={p.text}
-                  onChange={(e) => setSummaryEdits((all) => ({ ...all, [i]: e.target.value }))}
-                  className="w-full resize-y rounded-md border bg-background p-2 text-xs focus-visible:border-primary"
-                />
-              ))}
-            </fieldset>
-          ) : null}
-          <label htmlFor="caveat" className="text-xs text-muted-foreground">
-            Add a caveat
-          </label>
-          <textarea
-            id="caveat"
-            dir="auto"
-            rows={2}
-            maxLength={400}
-            value={caveat}
-            onChange={(e) => setCaveat(e.target.value)}
-            className="w-full resize-y rounded-md border bg-background p-2 text-sm focus-visible:border-primary"
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy || allowed.revise_left === 0}
-            onClick={() => {
-              const analysis_edits = [
-                ...Object.entries(summaryEdits)
-                  .filter(([i, t]) => t.trim() && t !== insight?.summary?.[Number(i)]?.text)
-                  .map(([i, t]) => ({
-                    target: "summary" as const,
-                    op: "replace" as const,
-                    index: Number(i),
-                    text: t.trim(),
-                  })),
-                ...(caveat.trim()
-                  ? [{ target: "caveat" as const, op: "add" as const, text: caveat.trim() }]
-                  : []),
-              ];
-              void submit({
-                decision: "revise",
-                ...(steer.trim() ? { steer: steer.trim() } : {}),
-                ...(analysis_edits.length ? { analysis_edits } : {}),
-              });
-            }}
-          >
-            <RotateCcw aria-hidden /> Revise
           </Button>
         </TabsContent>
 
@@ -516,56 +583,8 @@ export function DecisionPanel({
             <BarChart3 aria-hidden /> Change the chart
           </Button>
         </TabsContent>
-
-        <TabsContent value="decide" className="mt-3 flex flex-col gap-2">
-          <label htmlFor="comment" className="text-xs text-muted-foreground">
-            Comment (needed to reject)
-          </label>
-          <textarea
-            id="comment"
-            dir="auto"
-            rows={2}
-            maxLength={500}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            className="w-full resize-y rounded-md border bg-background p-2 text-sm focus-visible:border-primary"
-          />
-          <Button
-            size="lg"
-            className="h-11"
-            disabled={busy}
-            onClick={() =>
-              submit({ decision: "approve", ...(comment.trim() ? { comment: comment.trim() } : {}) })
-            }
-          >
-            <ShieldCheck aria-hidden /> Approve the pack
-          </Button>
-          <Button
-            variant="ghost"
-            className="text-destructive hover:bg-alert-wash hover:text-destructive"
-            disabled={busy || !comment.trim()}
-            onClick={() => submit({ decision: "reject", comment: comment.trim() })}
-          >
-            <XCircle aria-hidden /> Reject
-          </Button>
-        </TabsContent>
       </Tabs>
-
-      {graphRun && (busy || trace.length) ? <RunGraph trace={trace} running={busy} /> : null}
-      {busy && !graphRun ? (
-        <p className="flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
-          <Loader2 className="size-3.5 animate-spin" aria-hidden />
-          {trace.length ? `Working: ${trace.at(-1)}` : "Starting…"}
-        </p>
-      ) : null}
-      {message ? (
-        <p
-          role={message.tone === "warn" ? "alert" : "status"}
-          className={cn("text-sm", message.tone === "warn" ? "text-alert-ink" : "text-approved-ink")}
-        >
-          {message.text}
-        </p>
-      ) : null}
+      {status}
     </div>
   );
 }

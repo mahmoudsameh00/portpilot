@@ -18,6 +18,9 @@ Phases
 7. Migration 021 (weekly-pack plan, docs/analysis/financial_intelligence/implementation_roadmap.md): the new columns
    of kpi_weekly / kpi_customer_13w / kpi_weekly_category = an independent pandas reference on all 52 weeks, the
    overdue roll-forward identity, a reviewed snapshot of week 12; reported as pending until 021 is applied.
+8. Migration 029 (web dashboards plan, M18): kpi_weekly_breakdown = an independent pandas reference from the base
+   tables on all 52 weeks × 7 dimensions (count, billed, tons, share, rank); members sum to kpi_weekly; a reviewed
+   snapshot of week 16 (the hand-check week of the web / Power BI parity).
 Final Checkpoint.
 """
 # %% Setup
@@ -215,7 +218,8 @@ n_od = compare(V["kpi_overdue_list"][["report_week", "invoice_number", "amount_s
 expected_views = ["dim_customer", "dim_date", "dim_toll_band", "dim_vessel", "dim_week", "fact_ar_snapshot",
                   "fact_invoice", "fact_payment", "invoice_audit", "kpi_customer_13w", "kpi_overdue_list",
                   "kpi_traffic_link",                                      # migration 027 (M17; checked by Traffic_link_check.py)
-                  "kpi_weekly", "kpi_weekly_category", "kpi_weekly_trend",
+                  "kpi_weekly", "kpi_weekly_breakdown",                    # migration 029 (M18; Phase 8 below)
+                  "kpi_weekly_category", "kpi_weekly_trend",
                   "pack_approved_summary", "pack_trend_long", "pack_variance_long"]   # migration 024 (ADR-067)
 assert views_in_db == expected_views, f"finance objects: {views_in_db}"
 assert tuple(undocumented) == (0, 0), f"views / columns without COMMENT: {undocumented}"
@@ -402,6 +406,50 @@ else:
     print(f"021: kpi_weekly 52 × {n7} new columns, kpi_customer_13w 2080 × {n7c}, kpi_weekly_category 676 × {n7k} = "
           f"reference; roll-forward residual {resid:.2f}; week 12 = the reviewed snapshot")
     print("✅ Phase 7 validation passed: the migration 021 columns equal the reference on all 52 weeks")
+
+
+# %% Phase 8 — Migration 029: the weekly breakdown (M18)
+# The base tables again (not the star views): invoices → vessels → customers / bands / ports' route text, the same
+# Monday-Sunday weeks. Every (week, dimension, member) row of the view must be the reference row, and nothing else.
+with pg() as conn:
+    inv8 = q(conn, "SELECT i.invoice_id, i.invoice_date, i.amount, i.scnt_tons, v.vessel_type, b.laden_ballast, "
+                   "b.band_label, v.origin_locode || '-' || v.destination_locode AS route, c.segment, c.country, "
+                   "c.credit_rating FROM invoices i JOIN vessels v USING (vessel_id) "
+                   "JOIN customers c ON c.customer_id = v.customer_id "
+                   "LEFT JOIN toll_rate_bands b ON b.id = i.toll_rate_band_id")
+    bd = q(conn, "SELECT * FROM finance.kpi_weekly_breakdown")
+inv8["report_week"] = ((inv8.invoice_date - pd.Timestamp(WEEK1_MONDAY)).dt.days // 7 + 1).astype(int)
+inv8 = inv8[inv8.report_week.between(1, 52)]
+DIMS8 = {"vessel_category": "vessel_type", "toll_band": "band_label", "route": "route", "priced_condition": "laden_ballast",
+         "customer_segment": "segment", "customer_country": "country", "credit_rating": "credit_rating"}
+parts = []
+for dim, col in DIMS8.items():
+    g = (inv8.assign(member=inv8[col].fillna("(none)")).groupby(["report_week", "member"])
+         .agg(invoices_billed=("invoice_id", "count"), billed_sdr=("amount", "sum"), scnt_tons=("scnt_tons", "sum"))
+         .reset_index())
+    g["dimension"] = dim
+    g["share_pct"] = 100 * g.billed_sdr / g.groupby("report_week").billed_sdr.transform("sum")
+    g["rank_in_week"] = (g.sort_values(["report_week", "billed_sdr", "member"], ascending=[True, False, True])
+                         .groupby("report_week").cumcount() + 1)
+    parts.append(g)
+ref8 = pd.concat(parts, ignore_index=True)
+ref8["billed_sdr"] = ref8.billed_sdr.round(2)
+n8 = compare(bd, ref8, ["report_week", "dimension", "member"], "kpi_weekly_breakdown")
+tot = bd.groupby(["report_week", "dimension"]).agg(b=("billed_sdr", "sum"), n=("invoices_billed", "sum")).reset_index()
+tot = tot.merge(V["kpi_weekly"][["report_week", "billed_sdr", "invoices_billed"]], on="report_week")
+gap = (tot.b - tot.billed_sdr).abs().max()
+assert gap <= 7 * TOL["sdr"] and (tot.n == tot.invoices_billed).all(), f"breakdown ≠ kpi_weekly: {gap}"
+w16 = bd.query("report_week == 16")
+actual8 = {"rows": len(bd), "w16_members": w16.groupby("dimension").size().to_dict(),
+           "w16_laden": float(w16.query("dimension == 'priced_condition' and member == 'Laden'").billed_sdr.iloc[0]),
+           "w16_top_band": w16.query("dimension == 'toll_band' and rank_in_week == 1").member.iloc[0]}
+REVIEWED_029 = {"rows": 2820, "w16_members": {"credit_rating": 3, "customer_country": 7, "customer_segment": 5,
+                                               "priced_condition": 2, "route": 11, "toll_band": 6, "vessel_category": 8},
+                "w16_laden": 2634930.15, "w16_top_band": "The Rest"}   # dry run + first run of 029, 2026-11-15
+assert actual8 == REVIEWED_029, actual8
+print(f"029: kpi_weekly_breakdown {len(bd)} rows × {n8} columns = reference; members = kpi_weekly on "
+      f"{len(tot)} week × dimension pairs (largest gap {gap:.2f} SDR); week 16 members {actual8['w16_members']}")
+print("✅ Phase 8 validation passed: the migration 029 breakdown equals the reference on all 52 weeks × 7 dimensions")
 
 
 # %% Final Checkpoint

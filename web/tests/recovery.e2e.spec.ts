@@ -99,8 +99,8 @@ for (const kind of ["ask", "ask_ar", "route", "view", "pack_request", "pack_deci
       await page.getByLabel(/Say what to change/).fill("Make the summary clearer");
       await page.getByRole("button", { name: "Understand my request" }).click();
     } else {
-      await page.getByRole("tab", { name: "Decide" }).click();
-      await page.getByRole("button", { name: "Approve the pack" }).click();
+      await page.getByRole("button", { name: "Approve the whole pack" }).click();
+      await page.getByRole("button", { name: "Yes, approve the whole pack" }).click();
     }
     await expect
       .poll(() => page.evaluate((key) => JSON.parse(sessionStorage.getItem(key) ?? "{}").runs?.length, KEY))

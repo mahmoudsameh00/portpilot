@@ -109,6 +109,21 @@ assert {r["customer_id"]: (r["vessels_with_alerts"], r["alerts"], r["high_alerts
     {k: (len(v["v"]), v["n"], v["h"]) for k, v in want_c.items()}
 by_cust = watch.watch_alerts(ops_emp, as_of=CLOCK, customer_ids=[34, 9])
 by_vess = watch.watch_alerts(ops_emp, as_of=CLOCK, vessel_ids=[420, 5])
+# 2026-11-16 (Frontend gate-2 finding): anchored=true = the run's `etas` rows with status Anchored, one row each with
+# its owner, as many as the fleet row's `anchored` count, then the same fleet row; the vessel / customer filters apply
+anch = watch.watch_alerts(ops_emp, as_of=CLOCK, anchored=True)
+want_a = sorted(e["vessel_id"] for e in pinned["etas"] if e["status"] == "Anchored")
+assert want_a and anch.status == "ok" and anch.rows[-1] == fleet1, anch.status
+assert [r["vessel_id"] for r in anch.rows[:-1]] == want_a and len(want_a) == pinned["fleet"]["anchored"]
+assert all(r["alert_id"] == f"anchored/{r['vessel_id']}" and r["customer_id"] == owner[r["vessel_id"]]
+           for r in anch.rows[:-1])
+a_v, a_c = want_a[0], owner[want_a[0]]
+assert [r["alert_id"] for r in watch.watch_alerts(ops_emp, as_of=CLOCK, anchored=True, vessel_id=a_v).rows] == \
+    [f"anchored/{a_v}", "fleet"]
+assert [r["vessel_id"] for r in watch.watch_alerts(ops_emp, as_of=CLOCK, anchored=True, customer_ids=[a_c]).rows[:-1]] \
+    == [v for v in want_a if owner[v] == a_c]
+assert watch.watch_alerts(probe, as_of=CLOCK, anchored=True).status == "not_permitted"
+print(f"anchored: {len(want_a)} vessels = the fleet row's count; vessel and customer filters hold")
 # the clock rule on the saved runs (more runs appear as the replay fires; these instants never change their answer)
 early = watch.watch_alerts(ops_emp, as_of=datetime(2026, 9, 6, 6, tzinfo=timezone.utc))
 noon = watch.watch_alerts(ops_emp, as_of=datetime(2026, 9, 6, 12, tzinfo=timezone.utc))
@@ -483,7 +498,9 @@ actual_5 = {"employees": len(users_all), "calls_granted": granted, "matrix_misma
             "probe_leaks": len(leak), "probe_model_calls": probe_model_calls, "bad_schema": 0,
             "no_context_refused": no_ctx, "union": len(union), "union_unique": len(set(union)) == len(union)}
 REVIEWED_5 = {"employees": 100, "calls_granted": 400, "matrix_mismatch": 0, "probe_leaks": 0, "probe_model_calls": 0,
-              "bad_schema": 0, "no_context_refused": 4, "union": 14, "union_unique": True}
+              # union 15 since the JIT arrival plan (2026-11-15): + arrival_advice (its own RBAC and contract are
+              # checked by Arrival_advice_check.py Phases 5 and 7)
+              "bad_schema": 0, "no_context_refused": 4, "union": 15, "union_unique": True}
 assert actual_5 == REVIEWED_5, actual_5
 print(f"Phase 5: RBAC matrix 100 employees × 4 product tools = ADR-006 (400 granted), probe refused by all 4 with no "
       f"row and 0 model calls, no user / clock / run field in a schema, {no_ctx} / 4 wrappers refuse a missing "

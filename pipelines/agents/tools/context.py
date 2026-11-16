@@ -36,6 +36,7 @@ PORTS = Resource("ports", 1, "Operations")
 # MongoDB ais_positions / ais_vessels (§3) and their generator file voyages_synthetic.parquet (same data, same row)
 AIS_TRACKS = Resource("ais_positions + voyages_synthetic", 1, "Operations")
 VESSEL_PARAMS = Resource("vessel_performance + bunker_prices", 1, "Operations")      # migration 020
+PORT_CALLS = Resource("port_call_messages", 1, "Operations")                       # migration 030 (JIT D-J1)
 
 # the synthetic data's as-of instant (ADR-032): no fix is later than it
 DATA_AS_OF = datetime(2026, 9, 13, tzinfo=timezone.utc)

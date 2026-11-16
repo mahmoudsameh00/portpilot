@@ -131,7 +131,23 @@ function freshPack() {
       { slide: 3, text: "Billing was 262,300.50 SDR above budget.", evidence_ids: ["kpi.weekly"] },
       { slide: 3, text: "Year to date billing is 101.8% of budget.", evidence_ids: ["audit.ytd"] },
       { slide: 4, text: "Collections fell 4.1% week on week.", evidence_ids: ["kpi.weekly"] },
+      // targeted-revise plan B4: a text code wrote, marked on its slide
+      {
+        slide: 4,
+        text: "Billing moved with its usual weekly swing.",
+        evidence_ids: ["kpi.weekly"],
+        origin: "code",
+      },
     ],
+    removed: [
+      {
+        slide: 4,
+        text: "Billed 8.41 M SDR this week.",
+        by: "code",
+        why: "it repeated what the slide's tiles show",
+      },
+    ],
+    redrafted_slides: [],
   };
 }
 let pack = freshPack();
@@ -156,10 +172,12 @@ const packView = (me) => ({
           },
         ],
   degraded: false,
+  fallback_share: 0.25,
   draft: {
     title: "PortPilot Weekly Finance Pack — W45 — Draft for approval",
     slide_titles: TITLES.map((title, i) => ({ slide: i + 1, title })),
     bullets: pack.bullets,
+    removed: pack.removed,
   },
   has_preview: !pack.rejected,
   decisions: pack.published || pack.rejected ? [] : ["approve", "edit", "reject"],
@@ -177,7 +195,8 @@ const packView = (me) => ({
     caveats: [],
   },
   charts: {},
-  redrafted: false,
+  redrafted: pack.redrafted_slides.length > 0,
+  redrafted_slides: pack.redrafted_slides,
   revision: null,
   allowed: {
     decide: me.products.packs_decide && !pack.published && !pack.rejected,
@@ -199,7 +218,7 @@ const packView = (me) => ({
           { name: "Budget", values: [8.1, 8.15, 8.15, 8.15, 8.15, 8.15] },
         ],
         fmt: "M",
-        highlight: null,
+        highlight: 5,
       },
     ],
   },
@@ -212,6 +231,7 @@ function applyStep(step) {
   const outcome = { approve: "approved", reject: "rejected", edit: "edited", revise: "revised" }[
     step.decision
   ];
+  if (step.decision === "revise") pack.redrafted_slides = [2];
   if (step.decision === "approve") pack.published = true;
   if (step.decision === "reject") pack.rejected = true;
   pack.sha += 1;
@@ -350,6 +370,35 @@ async function packRoutes(req, res, url, me) {
     return true;
   }
   if (rest === "/request") {
+    // "look again" without an answer yet: the reader asks back (ask_back) before proposing any step
+    if (/look again/i.test(body.request) && !/my answer:/.test(body.request)) {
+      packRun(res, me, {
+        understood: "You want a part of the deck looked at again.",
+        steps: [],
+        ask_back: "Which slide should I look at again, and the title or the bullets?",
+        draft_sha: SHA(),
+        reread_text: false,
+        model_calls: 1,
+      });
+      return true;
+    }
+    // a caveat is an analysis change: one revise step (the deck is drafted again)
+    if (/caveat/i.test(body.request)) {
+      packRun(res, me, {
+        understood: "Add a caveat to the analysis and draft the deck again.",
+        steps: [
+          {
+            decision: "revise",
+            analysis_edits: [{ target: "caveat", op: "add", text: "Week 53 is not in this year." }],
+          },
+        ],
+        ask_back: null,
+        draft_sha: SHA(),
+        reread_text: false,
+        model_calls: 1,
+      });
+      return true;
+    }
     packRun(res, me, {
       understood: `Change bullet 3 as you asked: “${body.request}”`,
       steps: [
@@ -553,6 +602,12 @@ function financeRows(dataset, week) {
           billed_13w_sdr: 104000000,
           budget_variance_13w_pct: 1.8,
           ontime_13w_pct: 71.5,
+          budget_sdr: 8118750.5,
+          invoices_billed: 21,
+          top10_share_13w_pct: 58.2,
+          dso_best_days: 30.1,
+          dso_delinquency_days: 11.1,
+          due_week_collected_pct: 64.0,
         },
       ],
     };
@@ -590,6 +645,11 @@ function financeRows(dataset, week) {
           ar_sdr: 4100000,
           overdue_sdr: 900000,
           is_watchlist: false,
+          billed_13w_sdr: 12896000,
+          credit_rating: "A",
+          payment_terms_days: 30,
+          ar_to_billed_13w_pct: 31.8,
+          ontime_13w_pct: 80.0,
         },
         {
           customer_id: 12,
@@ -599,6 +659,11 @@ function financeRows(dataset, week) {
           ar_sdr: 3300000,
           overdue_sdr: 1500000,
           is_watchlist: true,
+          billed_13w_sdr: 10192000,
+          credit_rating: "B",
+          payment_terms_days: 45,
+          ar_to_billed_13w_pct: 32.4,
+          ontime_13w_pct: 55.0,
         },
       ],
     };
@@ -612,6 +677,9 @@ function financeRows(dataset, week) {
         {
           invoice_number: "INV-0004512",
           customer_name: "Red Sea Shipping",
+          vessel_name: "MV Nile Star",
+          due_date: "2025-04-15",
+          aging_bucket: "61-90",
           amount_sdr: 410000,
           days_past_due: 64,
         },
@@ -634,9 +702,46 @@ function financeRows(dataset, week) {
       billed_sdr: 7800000 + i * 50000,
       budget_sdr: 8000000,
       collected_sdr: 3400000 + i * 20000,
+      dso_days: 40 + i * 0.1,
     })),
   };
 }
+
+const BREAKDOWN = {
+  vessel_category: [
+    ["Container Ships", 9, 3100000, 410000, 52.1],
+    ["Crude Oil Tankers", 6, 2200000, 380000, 36.9],
+    ["Dry Bulk Vessels", 3, 650000, 120000, 11.0],
+  ],
+  toll_band: [
+    ["The Rest", 4, 2400000, 300000, 40.3],
+    ["Next 30000 Tons", 7, 1900000, 280000, 31.9],
+    ["First 5000 Tons", 10, 1650000, 330000, 27.8],
+  ],
+  route: Array.from({ length: 12 }, (_, i) => [
+    `EGSUZ-${["NLRTM", "SGSIN", "CNSHA", "USNYC", "DEHAM", "AEJEA", "INNSA", "GRPIR", "ESALG", "BEANR", "ITGOA", "TRMER"][i]}`,
+    1 + (i % 3),
+    900000 - i * 60000,
+    50000,
+    8 - i * 0.4,
+  ]),
+  priced_condition: [
+    ["Laden", 15, 5300000, 700000, 89.1],
+    ["Ballast", 6, 650000, 210000, 10.9],
+  ],
+  customer_segment: [
+    ["Liner", 11, 3500000, 450000, 58.8],
+    ["Tramp", 10, 2450000, 460000, 41.2],
+  ],
+  customer_country: [
+    ["Egypt", 8, 2600000, 400000, 43.7],
+    ["Greece", 13, 3350000, 510000, 56.3],
+  ],
+  credit_rating: [
+    ["A", 12, 3900000, 520000, 65.5],
+    ["B", 9, 2050000, 390000, 34.5],
+  ],
+};
 
 async function financeRoutes(req, res, url, me) {
   const p = url.pathname.replace("/api/v1", "");
@@ -675,6 +780,100 @@ async function financeRoutes(req, res, url, me) {
         ],
         degraded: false,
       });
+    return true;
+  }
+  if (p === "/finance/breakdown") {
+    const dimension = url.searchParams.get("dimension");
+    const members = BREAKDOWN[dimension];
+    if (!members) {
+      send(res, 422, { title: "unknown dimension" });
+      return true;
+    }
+    // week 22 = the compare week of the tests: the same members, other numbers
+    const f = week === 22 ? 0.9 : 1;
+    send(res, 200, {
+      dimension,
+      status: "ok",
+      note: null,
+      source: {
+        kind: "view",
+        name: "finance.kpi_weekly_breakdown",
+        filter: `report_week = ${week} AND dimension = '${dimension}' ORDER BY rank_in_week`,
+      },
+      rows: members.map(([member, n, billed, tons, share], i) => ({
+        report_week: week,
+        dimension,
+        member,
+        invoices_billed: n,
+        billed_sdr: Math.round(billed * f * 100) / 100,
+        scnt_tons: tons,
+        share_pct: share,
+        rank_in_week: i + 1,
+      })),
+    });
+    return true;
+  }
+  if (p === "/finance/export/figure") {
+    // amendment 1 (D-WD-6): one figure's rows; the mock names the file as the API does and sends a stub body
+    const figure = url.searchParams.get("figure");
+    const format = url.searchParams.get("format") ?? "xlsx";
+    const known = [
+      "kpis",
+      "trend",
+      "category",
+      "overdue",
+      "customers",
+      "breakdown",
+      "audit_summary",
+      "audit_findings",
+    ];
+    const dimension = url.searchParams.get("dimension");
+    if (
+      !known.includes(figure) ||
+      !["xlsx", "csv"].includes(format) ||
+      (figure === "breakdown" && !dimension)
+    ) {
+      send(res, 422, { title: "unknown figure or format, or a breakdown without its dimension" });
+      return true;
+    }
+    const compare = url.searchParams.get("compare");
+    const stem = [
+      "PortPilot",
+      figure,
+      figure === "breakdown" ? dimension : null,
+      figure === "kpis" ? url.searchParams.get("page") : null,
+      `2025-W${week}`,
+      figure === "breakdown" && compare ? `vs-W${compare.padStart(2, "0")}` : null,
+      url.searchParams.get("ytd") === "true" && figure.startsWith("audit") ? "ytd" : null,
+    ]
+      .filter(Boolean)
+      .join("_");
+    res.writeHead(200, {
+      "content-type":
+        format === "csv"
+          ? "text/csv; charset=utf-8"
+          : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": `attachment; filename="${stem}.${format}"`,
+    });
+    res.end(
+      format === "csv"
+        ? "member,billed_sdr,source_view,source_filter\n"
+        : Buffer.from("PK\u0003\u0004mock-workbook", "binary"),
+    );
+    return true;
+  }
+  if (p === "/finance/export") {
+    const page = url.searchParams.get("page");
+    if (!["overview", "revenue", "receivables", "customers", "exceptions", "executive"].includes(page)) {
+      send(res, 422, { title: "unknown page" });
+      return true;
+    }
+    // a real workbook is built by the API (openpyxl); the mock sends the zip signature + the headers the BFF forwards
+    res.writeHead(200, {
+      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": `attachment; filename="PortPilot_dashboard_${page}_2025-W${week}.xlsx"`,
+    });
+    res.end(Buffer.from("PK\u0003\u0004mock-workbook", "binary"));
     return true;
   }
   if (p === "/finance/invoice-audit") {

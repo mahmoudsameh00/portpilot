@@ -48,6 +48,24 @@ test("a question streams its trace, then an answer whose numbers carry receipts"
   ).toEqual([]);
 });
 
+test("New conversation empties a conversation started on /ask, and the next question starts another", async ({
+  page,
+}) => {
+  await signedIn(page, finance);
+  await ask(page, "How much did PortPilot bill in week 23 of 2025?");
+  await expect(page).toHaveURL(/\/ask\/[0-9a-f-]{36}$/);
+  const first = page.url();
+  await expect(page.getByRole("button", { name: /8,394,785\.98 SDR/ })).toBeVisible();
+  await page.getByRole("link", { name: "New conversation" }).click();
+  await expect(page).toHaveURL(/\/ask$/);
+  await expect(page.getByRole("heading", { name: "Ask about any number" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /SDR/ })).toHaveCount(0);
+  await ask(page, "How much did PortPilot bill in week 23 of 2025?");
+  await expect(page).toHaveURL(/\/ask\/[0-9a-f-]{36}$/);
+  expect(page.url()).not.toBe(first);
+  await expect(page.getByRole("button", { name: /8,394,785\.98 SDR/ })).toHaveCount(1);
+});
+
 test("an Arabic follow-up is answered in Arabic, right to left, and the history reloads with its receipts", async ({
   page,
 }) => {

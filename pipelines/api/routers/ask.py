@@ -134,6 +134,18 @@ def _save_turn(conversation_id: str, tid: str, res, frame: dict, answer_masked: 
 
 
 
+def _next_thread(employee_id: int, as_of) -> str:
+    """The next free `ask:` thread id. A turn that asked back holds its id but never wrote a checkpoint, so the
+    checkpoints alone would hand that id out again (2026-11-16: two turns shared `…:13`); the turns' ids count too."""
+    tid = sv.new_thread_id(checkpointer.pool(), employee_id, as_of)
+    head, _, n = tid.rpartition(":")
+    with store.pool().connection() as conn:
+        rows = conn.execute("SELECT thread_id FROM conversation_turns WHERE thread_id LIKE %s",
+                            (head.replace("_", r"\_") + ":%",)).fetchall()
+    used = [int(t) for r in rows if (t := cast(dict, r)["thread_id"].rpartition(":")[2]).isdigit()]
+    return f"{head}:{max([int(n) - 1, *used]) + 1}"
+
+
 @router.post("/conversations/{conversation_id}/questions", response_model=RunAccepted, status_code=202)
 def ask_question(conversation_id: str, body: QuestionIn, p: Signed, request: Request) -> RunAccepted:
     conversation_for(conversation_id, p, write=True)
@@ -147,7 +159,7 @@ def ask_question(conversation_id: str, body: QuestionIn, p: Signed, request: Req
     runner: runs.Runner = request.app.state.runner
     make_roles = request.app.state.roles_factory
     sessions = request.app.state.uploads
-    tid = runner.reserve_thread(lambda: sv.new_thread_id(checkpointer.pool(), user.employee_id, as_of))
+    tid = runner.reserve_thread(lambda: _next_thread(user.employee_id, as_of))
 
     def work(run: runs.Run) -> dict:
         with store.pool().connection() as conn:
@@ -161,12 +173,22 @@ def ask_question(conversation_id: str, body: QuestionIn, p: Signed, request: Req
                                 "conversation_turns WHERE conversation_id::text = %s AND thread_id <> %s AND status "
                                 "NOT IN ('clarify', 'failed', 'not_permitted') ORDER BY turn_no DESC LIMIT %s",
                                 (conversation_id, tid, memory.HISTORY)).fetchall()
+            last = cast(dict | None, conn.execute(
+                "SELECT status, frame FROM conversation_turns WHERE conversation_id::text = %s AND thread_id <> %s "
+                "ORDER BY turn_no DESC LIMIT 1", (conversation_id, tid)).fetchone())
         history = [memory.Turn(h["question"], h["standalone"], h["frame"] or {})
                    for h in (cast(dict, x) for x in reversed(past))]          # dict_row pool
         roles = make_roles()
-        res = memory.resolve(question, lang, history, rewrite=memory.model_rewrite(roles))
+        rewrite = memory.model_rewrite(roles)
+        # the turn before asked back: this message answers it, so it completes the question that was pending
+        pending = (last["frame"] or {}).get("clarify") if last and last["status"] == "clarify" else None
+        res = memory.answer_clarify(question, pending, lang, history, rewrite) if pending else None
+        if res is None:
+            res = memory.resolve(question, lang, history, rewrite=rewrite)
         if res.by == "clarify":                    # §6a.2: ask back, no tool runs
-            _save_turn(conversation_id, tid, res, {}, None)
+            _save_turn(conversation_id, tid, res, {"clarify": {
+                "kind": res.kind, "options": res.options, "labels": res.labels,
+                "question": pending["question"] if pending else question}}, None)
             return {"thread": None, "status": "clarify", "answer": res.clarify, "not_permitted": [], "evidence": {},
                     "problems": [], "stop_reason": None, "model_calls": 0, "cached": 0}
         if res.by != "none":

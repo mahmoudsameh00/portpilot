@@ -287,7 +287,10 @@ class PackView(Open):
     readiness: list[Any]
     validator_problems: list[Any]
     degraded: Any = None
-    draft: dict[str, Any] | None
+    draft: dict[str, Any] | None = Field(description=(
+        "the draft with its slots filled; a bullet or slide title code wrote after the Writer's rewrites failed has "
+        "origin 'code', an approver's edit has edited true, and `removed` lists the Writer texts code took out "
+        "({slide, text, by: code | fallback, why}) — shown on their slide (targeted-revise plan B4)"))
     has_preview: bool
     decisions: list[str]
     approval_log: list[dict[str, Any]]
@@ -297,7 +300,12 @@ class PackView(Open):
     insight: dict[str, Any] | None = None
     charts: dict[str, Any] = Field(default_factory=dict)
     redrafted: bool = False
+    redrafted_slides: list[int] = Field(default_factory=list, description=(
+        "the slides the last revise re-drafted; every other slide, the additions and the chart variants were kept "
+        "(targeted-revise plan A5)"))
     revision: Any = None
+    fallback_share: float | None = Field(default=None, description=(
+        "of the model calls answered for this pack, the share a fallback model answered (Model flexibility plan W10)"))
     allowed: PackAllowed
     charts_drawn: dict[str, Any] = Field(default_factory=dict, description="the series each chart slide draws "
                                                                            "(render.build_spec), by slide")

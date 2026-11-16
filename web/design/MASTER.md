@@ -29,21 +29,24 @@ Inside every tile the signature stays: **each number has a receipt** (field, vie
 
 ## 2. Colour (tokens in `src/app/globals.css`, shadcn names + ours)
 
-| Token                       | Value                                                                           | Use                                                |
-| --------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `background` / `card`       | `#F6F8FB` / `#FFFFFF`                                                           | page / panels                                      |
-| `foreground` / `navy`       | `#0B2545`                                                                       | text, the night-ops band, the question bubble      |
-| `navy-deep`                 | `#06162B`                                                                       | top of the band gradient                           |
-| `primary`                   | `#1F66C9`                                                                       | actions, links, focus ring (5.5:1 on white)        |
-| `muted-foreground`          | `#5A6B82`                                                                       | secondary text (5.4:1)                             |
-| `border` / `input`          | `#E3E9F2` / `#D5DEEA`                                                           | hairlines                                          |
-| `accent` / `secondary`      | `#EEF4FD`                                                                       | hover, chips, the receipt highlight                |
-| `lane`                      | `#6FB1FF`                                                                       | lanes, vessels, live dots on navy                  |
-| `on-navy` / `on-navy-muted` | `#FFFFFF` / `#B8C7DB`                                                           | text on navy (10:1)                                |
-| `chart-1`                   | `#2A78D6`                                                                       | billed (the deck's series colour)                  |
-| `chart-2`                   | `#A3A29C` dashed                                                                | budget                                             |
-| `marker`                    | `#EB6834`                                                                       | the report week, the oldest debt                   |
-| status                      | amber `#EDA100` / green `#1BAF7A` / orange `#EB6834` with their washes and inks | draft / approved / high alert — always icon + text |
+| Token                       | Value                                                                           | Use                                                                           |
+| --------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `background` / `card`       | `#F6F8FB` / `#FFFFFF`                                                           | page / panels                                                                 |
+| `foreground` / `navy`       | `#0B2545`                                                                       | text, the night-ops band, the question bubble                                 |
+| `navy-deep`                 | `#06162B`                                                                       | top of the band gradient                                                      |
+| `primary`                   | `#1F66C9`                                                                       | actions, links, focus ring (5.5:1 on white)                                   |
+| `muted-foreground`          | `#5A6B82`                                                                       | secondary text (5.4:1)                                                        |
+| `border` / `input`          | `#E3E9F2` / `#D5DEEA`                                                           | hairlines                                                                     |
+| `accent` / `secondary`      | `#EEF4FD`                                                                       | hover, chips, the receipt highlight                                           |
+| `lane`                      | `#6FB1FF`                                                                       | lanes, vessels, live dots on navy                                             |
+| `on-navy` / `on-navy-muted` | `#FFFFFF` / `#B8C7DB`                                                           | text on navy (10:1)                                                           |
+| `chart-1`                   | `#2A78D6`                                                                       | billed (the deck's series colour)                                             |
+| `chart-2`                   | `#A3A29C` dashed                                                                | budget                                                                        |
+| `marker`                    | `#EB6834`                                                                       | the report week, the oldest debt                                              |
+| status                      | amber `#EDA100` / green `#1BAF7A` / orange `#EB6834` with their washes and inks | draft / approved / high alert — always icon + text                            |
+| `chart-muted`               | `#C5D1E0`                                                                       | emphasis: the marks that are context (dashboards amendment 1)                 |
+| `chart-compare`             | `#9EC5F4`                                                                       | the compare week beside the shown week                                        |
+| `ramp-1…4`                  | `#86B6EF` / `#5598E7` / `#2A78D6` / `#184F95`                                   | receivables by age, older = darker (validator: ordinal pass); 90+ in `marker` |
 
 Light only (the band is the one dark surface). Raw hex only in `globals.css`; the slide replica keeps the deck's
 own colours because it shows what the PPTX will look like.

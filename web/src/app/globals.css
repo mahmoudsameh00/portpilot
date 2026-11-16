@@ -33,6 +33,15 @@
   --chart-4: #eda100;
   --chart-5: #8b5cf6;
   --marker: #eb6834; /* the report week */
+  /* web dashboards amendment 1 (D-WD-5): emphasis = the item that matters in colour, the rest muted; the compare week
+     a light step of the same blue; receivables age = an ordinal one-hue ramp (validator: monotone, 2.11:1 light end),
+     90+ breaks it in the marker orange */
+  --chart-muted: #c5d1e0;
+  --chart-compare: #9ec5f4;
+  --ramp-1: #86b6ef;
+  --ramp-2: #5598e7;
+  --ramp-3: #2a78d6;
+  --ramp-4: #184f95;
 
   /* the night-ops band */
   --navy: #0b2545;
@@ -86,6 +95,12 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
   --color-marker: var(--marker);
+  --color-chart-muted: var(--chart-muted);
+  --color-chart-compare: var(--chart-compare);
+  --color-ramp-1: var(--ramp-1);
+  --color-ramp-2: var(--ramp-2);
+  --color-ramp-3: var(--ramp-3);
+  --color-ramp-4: var(--ramp-4);
   --color-navy: var(--navy);
   --color-navy-deep: var(--navy-deep);
   --color-on-navy: var(--on-navy);

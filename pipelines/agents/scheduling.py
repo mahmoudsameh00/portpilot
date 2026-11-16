@@ -140,6 +140,14 @@ def describe_route_advice(g, pool, prefix: str = ROUTE_ADVICE_PREFIX) -> list[Th
     return _describe_questions(g, pool, prefix, ROUTE_ADVICE_PREFIX)
 
 
+ARRIVAL_ADVICE_PREFIX = "arrival_advice:"   # JIT arrival plan: one thread per arrival question
+
+
+def describe_arrival_advice(g, pool, prefix: str = ARRIVAL_ADVICE_PREFIX) -> list[ThreadInfo]:
+    """The arrival-advice threads `arrival_advice:<employee>:<as_of>:<vessel>:<n>` (`g` = the compiled graph)."""
+    return _describe_questions(g, pool, prefix, ARRIVAL_ADVICE_PREFIX)
+
+
 ASK_PREFIX = "ask:"                 # Agents plan §6d S4: one thread per supervisor question (Ask.py)
 
 
@@ -433,7 +441,7 @@ def as_log(obj) -> dict:
 
 
 def fire(g, saver, pool, user, reports_dir: Path, prefix: str = LIVE_PREFIX, notify: bool = True,
-         now: datetime | None = None, tracer=None, route_graph=None, ask_graph=None) -> dict:
+         now: datetime | None = None, tracer=None, route_graph=None, ask_graph=None, arrival_graph=None) -> dict:
     """One scheduled firing: plan → start / resume / wait / done → retention. `user` = the scheduled run identity
     (a Finance manager, P5-5); a resumed thread keeps the identity it started with. `tracer(thread_id, run_as)` → a
     context manager around the graph run (LangSmith, `tracing.trace`; None = untraced). Returns the log record; an
@@ -477,4 +485,7 @@ def fire(g, saver, pool, user, reports_dir: Path, prefix: str = LIVE_PREFIX, not
     if ask_graph is not None:                    # §6d S4: the supervisor's question threads, the same 30-day rule
         rec["retention_ask"] = prune(ask_graph, saver, describe_ask(ask_graph, pool),
                                      reports_dir / LOG_DIR / "threads_archive.jsonl", now=now)
+    if arrival_graph is not None:                # JIT arrival plan: the arrival-advice threads, the same 30-day rule
+        rec["retention_arrival_advice"] = prune(arrival_graph, saver, describe_arrival_advice(arrival_graph, pool),
+                                                reports_dir / LOG_DIR / "threads_archive.jsonl", now=now)
     return rec

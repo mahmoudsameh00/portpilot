@@ -17,7 +17,7 @@ const TILES: Record<string, { icon: React.ComponentType<{ className?: string }>;
   },
   "/packs": {
     icon: FileCheck2,
-    text: "Review the weekly finance pack slide by slide, edit, then approve or ask for a rewrite.",
+    text: "Reports: review the weekly finance pack slide by slide, edit, then approve the whole pack or ask for a rewrite.",
   },
   "/views": {
     icon: ChartColumnBig,
@@ -25,7 +25,7 @@ const TILES: Record<string, { icon: React.ComponentType<{ className?: string }>;
   },
   "/finance": {
     icon: ChartColumnBig,
-    text: "The finance dashboard pages — overview, revenue, receivables, customers, exceptions — from the same views as Power BI.",
+    text: "Dashboards: the finance pages — overview, revenue, receivables, customers, exceptions — from the same views as Power BI.",
   },
   "/voyages": { icon: Radar, text: "Voyage alerts by severity, the latest watch run and its brief." },
   "/routes": { icon: Route, text: "Compare Suez and the Cape on cost and time for a port pair." },

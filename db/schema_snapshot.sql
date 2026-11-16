@@ -3722,6 +3722,121 @@ COMMENT ON COLUMN finance.kpi_traffic_link.link_lag IS 'The lag that passes (0 o
 
 
 --
+-- Name: kpi_weekly_breakdown; Type: VIEW; Schema: finance; Owner: -
+--
+
+CREATE VIEW finance.kpi_weekly_breakdown AS
+ WITH inv AS (
+         SELECT w.report_week,
+            f.invoice_id,
+            f.amount_sdr,
+            f.scnt_tons,
+            f.vessel_category,
+            f.priced_condition,
+            tb.band_label AS toll_band,
+            v.route,
+            c.segment AS customer_segment,
+            c.country AS customer_country,
+            c.credit_rating
+           FROM ((((finance.dim_week w
+             JOIN finance.fact_invoice f ON (((f.invoice_date >= w.week_start) AND (f.invoice_date <= w.week_end))))
+             LEFT JOIN finance.dim_toll_band tb ON ((tb.toll_rate_band_id = f.toll_rate_band_id)))
+             LEFT JOIN finance.dim_vessel v ON ((v.vessel_id = f.vessel_id)))
+             LEFT JOIN finance.dim_customer c ON ((c.customer_id = f.customer_id)))
+        ), long AS (
+         SELECT inv.report_week,
+            inv.invoice_id,
+            inv.amount_sdr,
+            inv.scnt_tons,
+            d.dimension,
+            COALESCE(d.member, '(none)'::text) AS member
+           FROM (inv
+             CROSS JOIN LATERAL ( VALUES ('vessel_category'::text,inv.vessel_category), ('toll_band'::text,inv.toll_band), ('route'::text,inv.route), ('priced_condition'::text,inv.priced_condition), ('customer_segment'::text,inv.customer_segment), ('customer_country'::text,inv.customer_country), ('credit_rating'::text,inv.credit_rating)) d(dimension, member))
+        ), agg AS (
+         SELECT long.report_week,
+            long.dimension,
+            long.member,
+            count(long.invoice_id) AS invoices_billed,
+            sum(long.amount_sdr) AS billed_sdr,
+            sum(long.scnt_tons) AS scnt_tons
+           FROM long
+          GROUP BY long.report_week, long.dimension, long.member
+        )
+ SELECT report_week,
+    dimension,
+    member,
+    invoices_billed,
+    round(billed_sdr, 2) AS billed_sdr,
+    scnt_tons,
+    round((((100)::numeric * billed_sdr) / NULLIF(sum(billed_sdr) OVER (PARTITION BY report_week, dimension), (0)::numeric)), 2) AS share_pct,
+    rank() OVER (PARTITION BY report_week, dimension ORDER BY agg.billed_sdr DESC, member) AS rank_in_week
+   FROM agg;
+
+
+--
+-- Name: VIEW kpi_weekly_breakdown; Type: COMMENT; Schema: finance; Owner: -
+--
+
+COMMENT ON VIEW finance.kpi_weekly_breakdown IS 'M18: the week''s billing by one dimension at a time (long format); members sum to kpi_weekly per week and dimension';
+
+
+--
+-- Name: COLUMN kpi_weekly_breakdown.report_week; Type: COMMENT; Schema: finance; Owner: -
+--
+
+COMMENT ON COLUMN finance.kpi_weekly_breakdown.report_week IS 'Report week 1-52 (ISO 2025)';
+
+
+--
+-- Name: COLUMN kpi_weekly_breakdown.dimension; Type: COMMENT; Schema: finance; Owner: -
+--
+
+COMMENT ON COLUMN finance.kpi_weekly_breakdown.dimension IS 'vessel_category | toll_band | route | priced_condition | customer_segment | customer_country | credit_rating';
+
+
+--
+-- Name: COLUMN kpi_weekly_breakdown.member; Type: COMMENT; Schema: finance; Owner: -
+--
+
+COMMENT ON COLUMN finance.kpi_weekly_breakdown.member IS 'The dimension''s value (toll band = the top band reached, band_label; route = origin-destination UN/LOCODE; (none) when the invoice has no value)';
+
+
+--
+-- Name: COLUMN kpi_weekly_breakdown.invoices_billed; Type: COMMENT; Schema: finance; Owner: -
+--
+
+COMMENT ON COLUMN finance.kpi_weekly_breakdown.invoices_billed IS 'Invoices dated in the week with this member';
+
+
+--
+-- Name: COLUMN kpi_weekly_breakdown.billed_sdr; Type: COMMENT; Schema: finance; Owner: -
+--
+
+COMMENT ON COLUMN finance.kpi_weekly_breakdown.billed_sdr IS 'Sum of their amount_sdr (2 decimals)';
+
+
+--
+-- Name: COLUMN kpi_weekly_breakdown.scnt_tons; Type: COMMENT; Schema: finance; Owner: -
+--
+
+COMMENT ON COLUMN finance.kpi_weekly_breakdown.scnt_tons IS 'Sum of their Suez Canal net tons';
+
+
+--
+-- Name: COLUMN kpi_weekly_breakdown.share_pct; Type: COMMENT; Schema: finance; Owner: -
+--
+
+COMMENT ON COLUMN finance.kpi_weekly_breakdown.share_pct IS 'billed_sdr / the week''s billed_sdr over all members of this dimension, percent (2 decimals)';
+
+
+--
+-- Name: COLUMN kpi_weekly_breakdown.rank_in_week; Type: COMMENT; Schema: finance; Owner: -
+--
+
+COMMENT ON COLUMN finance.kpi_weekly_breakdown.rank_in_week IS '1 = the largest billed_sdr of the week for this dimension (ties by member name)';
+
+
+--
 -- Name: kpi_weekly_category; Type: VIEW; Schema: finance; Owner: -
 --
 
@@ -7889,6 +8004,123 @@ ALTER SEQUENCE public.invoices_invoice_id_seq OWNED BY public.invoices.invoice_i
 
 
 --
+-- Name: port_call_messages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.port_call_messages (
+    message_id text NOT NULL,
+    vessel_id integer NOT NULL,
+    voyage_no text NOT NULL,
+    port_locode character varying(5) NOT NULL,
+    time_type text NOT NULL,
+    location text NOT NULL,
+    requested_time timestamp with time zone NOT NULL,
+    sent_at timestamp with time zone NOT NULL,
+    message_status text NOT NULL,
+    sender text NOT NULL,
+    real_or_synthetic text NOT NULL,
+    source text NOT NULL,
+    CONSTRAINT port_call_messages_location_chk CHECK ((location = ANY (ARRAY['berth'::text, 'pilot_boarding_place'::text]))),
+    CONSTRAINT port_call_messages_order_chk CHECK ((sent_at < requested_time)),
+    CONSTRAINT port_call_messages_origin_chk CHECK ((real_or_synthetic = ANY (ARRAY['real'::text, 'synthetic'::text]))),
+    CONSTRAINT port_call_messages_sender_chk CHECK ((sender = ANY (ARRAY['port'::text, 'agent'::text, 'terminal'::text]))),
+    CONSTRAINT port_call_messages_status_chk CHECK ((message_status = ANY (ARRAY['requested'::text, 'cancelled'::text]))),
+    CONSTRAINT port_call_messages_time_type_chk CHECK ((time_type = 'RTA'::text))
+);
+
+
+--
+-- Name: TABLE port_call_messages; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.port_call_messages IS 'Port-call messages: the Requested Time of Arrival (RTA) a port or agent sends a vessel; the RTA known at a clock = the latest message with sent_at <= the clock for the port call (JIT arrival plan D-J1); level 1 / Operations (migration 030)';
+
+
+--
+-- Name: COLUMN port_call_messages.message_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.port_call_messages.message_id IS 'the message identifier (synthetic: PCM-<vessel>-<voyage>-<n>)';
+
+
+--
+-- Name: COLUMN port_call_messages.vessel_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.port_call_messages.vessel_id IS 'the vessel the message is for (FK vessels)';
+
+
+--
+-- Name: COLUMN port_call_messages.voyage_no; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.port_call_messages.voyage_no IS 'the voyage number of the port call (the voyage file''s voyage_no)';
+
+
+--
+-- Name: COLUMN port_call_messages.port_locode; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.port_call_messages.port_locode IS 'the port of the call, UN/LOCODE (FK ports)';
+
+
+--
+-- Name: COLUMN port_call_messages.time_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.port_call_messages.time_type IS 'RTA = Requested Time of Arrival (IMO JIT Arrival Guide)';
+
+
+--
+-- Name: COLUMN port_call_messages.location; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.port_call_messages.location IS 'where the requested time applies: berth (all fast) or pilot_boarding_place';
+
+
+--
+-- Name: COLUMN port_call_messages.requested_time; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.port_call_messages.requested_time IS 'the requested time of arrival at the location, UTC';
+
+
+--
+-- Name: COLUMN port_call_messages.sent_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.port_call_messages.sent_at IS 'when the message was sent, UTC: a tool at clock t reads only messages with sent_at <= t';
+
+
+--
+-- Name: COLUMN port_call_messages.message_status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.port_call_messages.message_status IS 'requested, or cancelled (the call has no RTA from then on)';
+
+
+--
+-- Name: COLUMN port_call_messages.sender; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.port_call_messages.sender IS 'port, agent or terminal';
+
+
+--
+-- Name: COLUMN port_call_messages.real_or_synthetic; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.port_call_messages.real_or_synthetic IS 'real (a received message) or synthetic (the generator)';
+
+
+--
+-- Name: COLUMN port_call_messages.source; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.port_call_messages.source IS 'where the row comes from (feed, file or generator)';
+
+
+--
 -- Name: port_connections; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -8517,6 +8749,14 @@ ALTER TABLE ONLY public.payments
 
 
 --
+-- Name: port_call_messages port_call_messages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.port_call_messages
+    ADD CONSTRAINT port_call_messages_pkey PRIMARY KEY (message_id);
+
+
+--
 -- Name: port_connections port_connections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8709,6 +8949,13 @@ CREATE INDEX invoices_vessel_id_idx ON public.invoices USING btree (vessel_id);
 
 
 --
+-- Name: port_call_messages_call_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX port_call_messages_call_idx ON public.port_call_messages USING btree (vessel_id, port_locode, voyage_no, sent_at DESC);
+
+
+--
 -- Name: port_connections_geom_gist; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8892,6 +9139,22 @@ ALTER TABLE ONLY public.invoices
 
 ALTER TABLE ONLY public.payments
     ADD CONSTRAINT payments_invoice_number_fkey FOREIGN KEY (invoice_number) REFERENCES public.invoices(invoice_number);
+
+
+--
+-- Name: port_call_messages port_call_messages_port_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.port_call_messages
+    ADD CONSTRAINT port_call_messages_port_fk FOREIGN KEY (port_locode) REFERENCES public.ports(locode);
+
+
+--
+-- Name: port_call_messages port_call_messages_vessel_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.port_call_messages
+    ADD CONSTRAINT port_call_messages_vessel_fk FOREIGN KEY (vessel_id) REFERENCES public.vessels(vessel_id);
 
 
 --

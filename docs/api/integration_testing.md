@@ -42,5 +42,29 @@ seven fixture employees instead of searching for employees without logins. It re
 clone at `127.0.0.1:55432/portpilot_api_test`, `PORTPILOT_API_TEST_DSN`, explicit matching `PGHOST`, `PGPORT`,
 `PGDATABASE`, and `PORTPILOT_FULL_STACK_ISOLATED=1`. All API/read/agent credentials must work on that clone; the
 full suite also needs its other store/model fixtures. The thin CI fixture is deliberately insufficient for it.
-Full-clone preparation and execution remain pending; do not point it at the application database. Normal cleanup
+Full-clone preparation is scripted (2026-11-15): `powershell -NoProfile -File .\ops\tests\run_api_full_clone.ps1`
+starts a new container `portpilot-api-full` (the image of `ports-postgres`) on 127.0.0.1:55432, copies the logins
+(password hashes, without `postgres`) and the whole `ports_logistics` as `portpilot_api_test` (ports-postgres is only
+read), then runs `Api_check.py` with every runtime pool pointed at the clone; execution is the owner's. First full run 2026-11-15: 12 / 12 phases (`-Reuse` re-runs it on the same clone). Never point it
+at the application database. Normal cleanup
 removes only its dedicated employees/logins/conversations/threads and test audit rows in the isolated database.
+
+## The web over the real API (local-stack E2E)
+
+Frontend plan §10.4, 2026-11-16. `web/playwright.stack.config.ts` runs the Playwright suite `web/tests/stack/`
+(`*.stack.spec.ts`, outside CI and outside `npm run check`) against the real API in its test mode
+(`Serve.py --fake-roles --port 8011`: a scripted model, no LLM quota, Sentry and LangSmith off) over the same
+full-data clone `portpilot-api-full`, and a production build of the web on port 3101. The owner runs it with:
+
+```powershell
+powershell -NoProfile -File .\ops\tests\run_web_stack.ps1
+```
+
+The config refuses to start unless the clone's variables are set (the runner sets them from the container). Global
+setup / teardown call `pipelines/scripts/api/Web_stack_fixture.py setup | cleanup`: eight employees 910001–910008
+(`web-stack-N@nilegate.com`, random passwords in the git-ignored `web/tests/stack/.fixture/people.json`) and,
+afterwards, everything they made (conversations, tokens, audit rows, `ask:` / `route_advice:` threads). Coverage:
+the access matrix of the seven profiles (menu, pages, BFF reads of finance and packs; another employee's
+conversation and answer refused — the CEO reads them, as designed), sign-in messages, the silent lockout, sign-out,
+a follow-up resolved by code, a refused tool, the real upload screening (`clean_D1.pdf` accepted,
+`inj_metadata_block.pdf` refused), route advice without the canal, the voyage watch. First run: 15 / 15 (3.3 min).

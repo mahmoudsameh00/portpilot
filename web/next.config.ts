@@ -14,6 +14,14 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   reactStrictMode: true,
+  // Owner 2026-11-15: the tabs are named Reports and Dashboards; their pages keep /packs and /finance
+  async redirects() {
+    return [
+      { source: "/reports", destination: "/packs", permanent: false },
+      { source: "/reports/:path*", destination: "/packs/:path*", permanent: false },
+      { source: "/dashboards", destination: "/finance", permanent: false },
+    ];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

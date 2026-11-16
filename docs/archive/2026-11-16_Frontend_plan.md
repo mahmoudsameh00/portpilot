@@ -1,5 +1,28 @@
 # Plan — the NileGate web frontend (ADR-060)
 
+## Implementation record
+
+**Status: IMPLEMENTED (2026-11-16)**, archived the same day on the owner's word ("أيوه، اقفلهم").
+
+- **Built (F0–F7, 2026-11-06 – 2026-11-08, then D-FE-7 / D-FE-11 and the stabilization's R7):** the Next.js 16 web
+  behind a BFF (httpOnly cookie session, CSRF in three layers, the OpenAPI allow-list proxy, a nonce CSP), the typed
+  F0 contract (Orval client, typed run events, number spans), pages `/`, `/ask`, `/packs` (Reports), `/views`
+  (Charts), `/finance` (Dashboards), `/voyages`, `/routes`, `compose.yaml` (service `web`). ADR-060 amendment 3 +
+  closing note 2026-11-16.
+- **Done-when, all met:** (1) a real Monday pack decided through the UI, W17 (2026-11-16); (2) EN + Egyptian Arabic
+  questions with follow-ups on the real models, met after seven memory / language fixes (ADR-065 note 2026-11-16);
+  (3) Power BI parity for week 16 (2026-11-15); (4) the pushed CI `web` job green (run 43690050303); the
+  **local-stack E2E 15 / 15, leakage 0** (2026-11-16, `web/tests/stack/`, `ops/tests/run_web_stack.ps1`);
+  `npm run check` ✅; `docker compose up web` on 127.0.0.1:3000.
+- **Deviations:** the local-stack E2E runs on the full-data clone `portpilot-api-full`, not the application
+  databases of §10.4, so the test identities and threads stay off the application data. Its scripted model cannot
+  draft, so the pack edit → approve → deck flow and the views' drawn values are proven by `Api_check` Phases 7 / 10,
+  the mocked E2E and the owner's real W17 decision. The Today tab was removed (D-FE-11). Smart View was folded into
+  Charts (2026-11-12).
+- **Found on the way and fixed (2026-11-16):** "New conversation" did nothing after a conversation started on `/ask`.
+  Old packs W08 and W10–W13 answered 500 (ADR-064 note). The anchored-vessels question had no tool (ADR-059 note).
+- **Open, owner:** the single commit once every plan in `docs/plans/` is closed, then `/graphify . --update`.
+
 **Status: APPROVED (2026-11-06, owner: "موافق")** — written PROPOSED the same day; the owner asked for the knowledge
 graph to be refreshed before any step (Progress / deviations).
 **A second active plan, on purpose:** `docs/plans/` normally holds one active plan; the owner asked on 2026-11-06 for
@@ -1115,3 +1138,80 @@ F3 and F6 can run in parallel after F2 (different routes, no shared files beyond
   now runs `npx next typegen` before `npx tsc --noEmit` (seen in the file) and prints the first tsc errors on a
   failure; that session verified typegen → tsc exit 0 in a clean copy. The file is the owner's own commit. Gate 4
   stays **open** until a pushed run is green.
+- 2026-11-15 — **Pushed CI green (gate met):** run 43690050303 on `feat/agents` (commit 68a8d3b, the `next typegen`
+  fix): `checks`, `web` (static suite + Playwright on the runner for the first time: 130 passed, 50 intentional
+  skips) and `api-integration` all ✅ — https://github.com/mahmoudsameh00/nilegate-ports-ai/actions/runs/43690050303.
+  Same day the web dashboards plan (`docs/plans/Web_dashboards_and_reports_plan.md`, ADR-069) extended the finance
+  pages; the D-FE-7 Power BI parity hand-check stays open (owner: Desktop + API running).
+
+- 2026-11-15 — **Power BI parity, one week (D-FE-7), MET for week 16.** Power BI Desktop (`PortPilot_Finance.pbip`,
+  DirectQuery) read through the Power BI Modeling MCP (DAX) = the `finance` views the API returns = the web screens
+  (built-in browser, the owner signed in; the web rebuilt with the dashboards plan). Equal to the cent: billed
+  2,934,677.21, budget 5,639,793.97, variance −47.96 % (13 w −5.88 %), collected 4,005,943.10, AR 38,599,556.67,
+  overdue 10,250,856.93, DSO 51.7 (best 38.0 / late 13.7), 11 invoices, top-10 share 56.89 %, overdue new 2,110,152.84 /
+  paid 2,250,404.16, due-week collected 51.23 %, billed 13 w 67,895,115.94, aging current / 1–30 / 31–60; the six toll
+  bands (The Rest 1,194,836.21 …), laden / ballast 2,634,930.15 / 299,747.06, SCNT tons 627,343.20, the top 3 routes
+  and top 3 customers (Belanor 9,317,344.44 · Kororia 4,589,961.82 · Korilis 4,197,932.59). Power BI's percent
+  measures are fractions (0.4796 = 47.96 %); the web shows rounded figures with the exact value as the receipt.
+- 2026-11-16 — **Gate (1), the real Monday pack decided through the UI: MET for week 17.** Thread
+  `weekly_pack:live:2025-W17:1` (real models, 10 LLM calls, 2 rewrites) decided by the manager (employee 6) through
+  the web between 07:42 and 08:22 UTC: three slide-3 bullet edits, three requests in words (`/packs/{id}/request`),
+  one revise with a steer (billing vs budget, overdue movement), then approved → publication
+  `f231bb6a1fc747b5817a4f8721efd1cb` in `reports/2025-W17/`, `db_sync` synced. The API log shows the decision /
+  request POSTs as employee 6 (202 each). The scheduled 10:30 run then started the next replay week:
+  `weekly_pack:live:2025-W18:1` awaits approval (Validator passed). **Still open:** gate (2) — one EN + one Egyptian
+  Arabic question with a follow-up, one view question and one route advice on the real models (no `/ask` run today).
+- 2026-11-16 — **Gate (2) first attempt (owner, web, real models): not met; seven memory / language defects found and
+  fixed.** Asked: EN "What was collected revenue in week 17 versus the amount due?" ✅ (5.57 M vs 5.00 M SDR, 56.1 %) →
+  follow-up "And how does that compare with week 16" ❌ (only the weeks carried, the subject lost → document search,
+  "not in data"); AR "إيه أكتر 3 عملاء علينا فلوس متأخرة" ✅ (week 52, Belanor first) → "طب والمتأخرات زادت ولا قلّت
+  الأسبوع ده" ❌ asked "which customer: 15 / 9 / 10?", the reply "قصدي في العموم" ❌ asked again ("قصدي" read as the
+  pronoun "دي"); the view question "Which vessels are anchored waiting near their destination؟" ❌ asked "which
+  vessel?" in Arabic ("their" read as a reference, "؟" made it Arabic) and the reply "في العموم" was answered alone (a
+  fleet summary); route advice EGPSD → NLRTM ✅ code-only (no Suez on the route, 0 model calls — a Suez route shows
+  the writer). Fixes (owner's choices, clickable; ADR-065 note 2026-11-16): `pipelines/agents/memory.py` (compare
+  keeps the previous subject, bound demonstratives, "in general", whole-word Arabic pronouns, owned possessives,
+  `answer_clarify` + names when asking back), `supervisor.detect_lang` (letters only), `api/routers/ask.py` (a reply
+  completes the pending question; thread ids after an asked-back turn not reused). Checks: `Memory_check` 1–3 + 2b
+  (new: the day's dialogs), `Supervisor_check`, `Stage2_eval` 1–3, `Supervisor_tools_check`, `Arrival_advice_check`
+  1–7, lint ratchet 0; `Api_check` on the full clone (`-Reuse`): Phases 0–6 ✅ (Phase 5 now asserts the reply
+  completes the question on a thread of its own); Phase 7 ✗ at the chart-proposal step (`charts == {}` after the
+  targeted revise keeps `trend` 4 weeks) — the targeted-revise session's in-progress change, told; not memory.
+  Re-run after that session aligned Phase 7 (`Api_check.py` only): **12 / 12 phases** on the full clone. The API
+  (`Serve.py`, real models) restarted with the fixes 2026-11-16 ~11:20 local.
+  ~~**Next:** restart the API (`Serve.py`, no reload) and the owner asks gate (2) again.~~ done.
+- 2026-11-16 — **Gate (2) met (owner, web, real models, after the fixes).** EN "What was collected revenue in week
+  17 versus the amount due?" ✅ → "And how does that compare with week 16 ?" ✅ resolved by code to "…week 17 and
+  week 16 versus the amount due? Compare the two weeks." (both weeks answered and compared); AR "إيه أكتر 3 عملاء
+  علينا فلوس متأخرة؟" ✅ (week 52, Belanor first) → "طب والمتأخرات زادت ولا قلّت الأسبوع ده؟" ✅ resolved by code
+  (week 52 carried, no asking back), answered week over week; one thread per turn (`ask:6:…:14`–`19`), language
+  right on every turn (`api.conversation_turns`). Two findings, outside the done-when: (a) "Which vessels are anchored
+  waiting near their destination?" now goes straight to the model in English (no asking back) but answers
+  `not_in_data`: the watch run holds the anchored vessels (`etas`, status Anchored, 66 in the 2026-09-12 12:00 run),
+  yet no supervisor tool lists them (`watch_alerts` = alerts + fleet counts, `voyage_status` = one vessel) — a tool
+  gap, not memory; (b) the web's "New conversation" does nothing after a conversation was started on `/ask`
+  (`AskWorkspace` moves the URL with `history.replaceState`, so the Link to `/ask` lands on the same mounted page and
+  its state stays) — works after opening one from the list, hence "sometimes".
+- 2026-11-16 — **Both findings fixed (owner's choices, clickable).** (a) `watch_alerts(anchored=true)` lists the run's
+  anchored vessels (ADR-059 note 2026-11-16; router `watch` rule + anchor words; `supervisor-qa` one line; slot repair
+  for a swapped row / field in the supervisor's answers): `Supervisor_tools_check` 6 / 6 (78 anchored = the fleet
+  count, filters, refusal), `Supervisor_check` 9 / 9 (largest request 7,567 est tokens, 11 normaliser cases),
+  `Stage2_eval` 1–3, lint ratchet 0; real models: the question answered with 78 and the first vessel names. (b)
+  `web/src/components/ask/AskWorkspace.tsx`: on `/ask`, "New conversation" puts the address back to `/ask` and
+  remounts the workspace (a new key); on `/ask/<id>` the link navigates as before. New Playwright case in
+  `tests/ask.e2e.spec.ts` (ask on `/ask` → New conversation → empty → a second question gets another id); Ask spec
+  8 / 8 desktop, static checks ✅. Web image rebuilt (`docker compose build web`, `up -d web`), API restarted.
+- 2026-11-16 — **Local-stack E2E MET (§10.4, done-when line "local-stack E2E ✅ with leakage 0"): 15 / 15.**
+  `web/playwright.stack.config.ts` + `web/tests/stack/` (access + flows), runner `ops/tests/run_web_stack.ps1`,
+  fixture `pipelines/scripts/api/Web_stack_fixture.py` (8 employees 910001–910008 on the clone, removed after: 0
+  left). Real API in test mode on 8011 over the full-data clone `portpilot-api-full` (deviation from §10.4's "real
+  databases": the clone keeps test identities and threads off the application database; MongoDB / Qdrant read,
+  uploads in memory) + a production build on 3101. Covered: the seven profiles' menu, pages and BFF reads (finance,
+  packs, a pack) = ADR-006; another employee's conversation / answer refused (404) for all but the CEO, who reads
+  them by design (§6a.3) — **leakage 0**; wrong password, the silent lockout (the right password refused after
+  five), sign-out; a follow-up resolved by code; a refused tool; the real upload screening (`clean_D1.pdf`
+  accepted, `inj_metadata_block.pdf` refused); route advice without the canal; the voyage watch. Not in the stack
+  run (scripted model cannot draft): the pack edit → approve → deck flow and views' drawn values — covered by
+  `Api_check` Phase 7 / 10 on the clone, the mocked E2E and the owner's real W17 decision. **Found and fixed:** the
+  five packs saved before migration 021 (W08, W10–W13) answered 500 in the web (`charts_drawn` `SlotError`;
+  ADR-064 note 2026-11-16); all 15 live packs open; `Api_check` 12 / 12; API restarted.
