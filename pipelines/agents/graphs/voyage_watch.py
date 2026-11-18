@@ -505,7 +505,8 @@ def result_of(state: dict, as_of: datetime) -> dict:
                                                         "weather_errors": (state.get("weather_summary") or {})
                                                         .get("weather_errors") or {}},
             "etas": eta_table(state.get("etas") or []), "alerts": _rows(ev.get("watch.alerts")),
-            "brief_status": state.get("brief_status"), "assumptions": assumptions(ev)}
+            "brief_status": state.get("brief_status"), "assumptions": assumptions(ev),
+            "arrivals": state.get("arrivals") or {}}
     if state.get("brief_status") == "ok":
         fill = lambda t: slots.render_text(t, ev)[0]          # noqa: E731
         b = state["brief"]
@@ -533,7 +534,36 @@ class WatchState(TypedDict, total=False):
     normalized: list[str]
     llm_usage: Annotated[list[dict], operator.add]
     run_file: str
+    arrivals: dict
     result: dict
+
+
+ARRIVAL_KINDS = ("jit", "rta_late")
+
+
+def advise_arrivals(roles, ctx: RunContext, alerts_rows: list[dict]) -> tuple[dict, list[dict]]:
+    """Arrival advice web plan (owner, 2026-11-17: "the watch makes the advice"): each vessel with a `jit` / `rta_late`
+    alert gets its arrival advice in the same run. The `arrival_advice` graph runs at the same clock, as the same
+    identity, on the RTA known at the clock, with its own Validator. Its result summary (`arrival_advice.result_summary`,
+    number spans included) is keyed by vessel id. One failed advice is recorded with its reason and never stops the
+    watch. No checkpointer: the run file keeps the advice."""
+    from pipelines.agents.graphs import arrival_advice as aa      # arrival_advice imports this module
+    g = aa.build_graph(roles)
+    out: dict[str, dict] = {}
+    usage: list[dict] = []
+    for a in sorted((a for a in alerts_rows if a.get("kind") in ARRIVAL_KINDS), key=lambda a: a["vessel_id"]):
+        vid = a["vessel_id"]
+        if str(vid) in out:
+            continue
+        req = {"vessel_id": vid, "location": a.get("rta_location") or "berth"}
+        try:
+            st = g.invoke({"request": req}, context=ctx)
+            out[str(vid)] = {"alert_id": a["alert_id"], **aa.result_summary(st)}
+            usage += [{"node": f"arrival:{vid}", **c} for c in st.get("llm_usage") or []]
+        except Exception as exc:                                  # noqa: BLE001 — one advice never stops the watch
+            out[str(vid)] = {"alert_id": a["alert_id"], "status": "error",
+                             "problems": [f"{type(exc).__name__}: {str(exc)[:300]}"]}
+    return out, usage
 
 
 def _wx_out(wx: dict) -> dict:
@@ -578,6 +608,15 @@ def make_nodes(roles, reports_dir: Path) -> dict:
                               result_of({**state, "evidence": ev, "brief_status": brief_status}, as_of))
         return {"evidence": ev, "brief_status": brief_status, "run_file": path}
 
+    def node_arrival(state: WatchState, runtime: Runtime[RunContext], config) -> dict:
+        arrivals, usage = advise_arrivals(roles, runtime.context, _rows(state["evidence"].get("watch.alerts")))
+        if not arrivals:
+            return {}
+        # saved before the brief, like the alerts (P11-5): a brief that fails never loses an advice
+        path = write_run_file(reports_dir, _thread(config),
+                              result_of({**state, "arrivals": arrivals}, runtime.context.as_of))
+        return {"arrivals": arrivals, "llm_usage": usage, "run_file": path}
+
     def node_brief(state: WatchState) -> dict:
         skills = "\n\n".join(skill_loader.load(s) for s in ("voyage-watch-brief", "untrusted-content"))
         msgs = [SystemMessage(BRIEF_TASK.format(skills=skills)), HumanMessage(brief_digest(state["evidence"]))]
@@ -610,7 +649,8 @@ def make_nodes(roles, reports_dir: Path) -> dict:
         return {"result": res, "status": out["status"]}
 
     return {"fleet": node_fleet, "eta": node_eta, "weather": node_weather, "traffic": node_traffic,
-            "alerts": node_alerts, "brief": node_brief, "validator": node_validator, "render": node_render}
+            "alerts": node_alerts, "arrival": node_arrival, "brief": node_brief, "validator": node_validator,
+            "render": node_render}
 
 
 def _after_fleet(state):
@@ -621,6 +661,10 @@ def _after_alerts(state):
     return "render" if state.get("brief_status") == "no_alerts" else "brief"
 
 
+def _after_alerts_arrival(state):
+    return "render" if state.get("brief_status") == "no_alerts" else "arrival"
+
+
 def _after_brief(state):
     return "render" if state.get("brief_status") == "output_invalid" else "validator"
 
@@ -629,18 +673,28 @@ def _after_validator(state):
     return "render" if state.get("brief_status") in ("ok", "validation_failed") else "brief"
 
 
-def build_graph(roles, checkpointer=None, reports_dir: Path = REPORTS_DIR):
+def build_graph(roles, checkpointer=None, reports_dir: Path = REPORTS_DIR, arrival_advice: bool = False):
     """The compiled voyage watch graph; `roles` = `roles.Roles()` (real models) or `roles.FakeRoles(script)`. Invoke
-    with {"request": WatchRequest dump}, `context=RunContext(user, as_of=…)` and a thread id (`new_thread_id`)."""
+    with {"request": WatchRequest dump}, `context=RunContext(user, as_of=…)` and a thread id (`new_thread_id`).
+    `arrival_advice=True` (the CLI and the scheduler) adds the `arrival` node: every `jit` / `rta_late` alert gets its
+    arrival advice before the brief (Arrival advice web plan). Off by default, so a check that scripts only the brief
+    keeps its script."""
     g = StateGraph(WatchState, context_schema=RunContext)
-    for name, fn in make_nodes(roles, reports_dir).items():
+    nodes = make_nodes(roles, reports_dir)
+    if not arrival_advice:
+        nodes.pop("arrival")
+    for name, fn in nodes.items():
         g.add_node(name, fn)
     g.add_edge(START, "fleet")
     g.add_conditional_edges("fleet", _after_fleet, ["eta", "render"])
     g.add_edge("eta", "weather")
     g.add_edge("weather", "traffic")
     g.add_edge("traffic", "alerts")
-    g.add_conditional_edges("alerts", _after_alerts, ["brief", "render"])
+    if arrival_advice:
+        g.add_conditional_edges("alerts", _after_alerts_arrival, ["arrival", "render"])
+        g.add_edge("arrival", "brief")
+    else:
+        g.add_conditional_edges("alerts", _after_alerts, ["brief", "render"])
     g.add_conditional_edges("brief", _after_brief, ["validator", "render"])
     g.add_conditional_edges("validator", _after_validator, ["brief", "render"])
     g.add_edge("render", END)

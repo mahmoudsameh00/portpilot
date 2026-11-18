@@ -3,11 +3,14 @@
 // GET /voyage-watch/alerts (filter high / all, kept in the URL), the run's brief and fleet counts from
 // GET /voyage-watch/runs/{thread} (headline + items with their number receipts), and the runs list. Read only:
 // Task Scheduler starts the runs. The API decides who reads what (`not_permitted` is an answer, not an error).
+// A `jit` / `rta_late` alert carries the arrival advice the same run made (Arrival advice web plan); any vessel at sea
+// can be advised on demand (`ArrivalRequest`).
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   AlertTriangle,
   ChevronDown,
+  Clock,
   CloudLightning,
   Cpu,
   Loader2,
@@ -28,6 +31,7 @@ import {
 import { ReceiptText } from "@/components/receipt/ReceiptText";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Radar, type Blip } from "@/components/viz/charts";
+import { AdviceCard, ArrivalRequest } from "./Arrival";
 import { BffError } from "@/lib/bff/client";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +45,11 @@ const KIND: Record<string, { label: string; icon: typeof Ship }> = {
   weather: { label: "Weather", icon: CloudLightning },
   suez_traffic: { label: "Suez traffic", icon: Ship },
   customer: { label: "Customer", icon: Users },
+  jit: { label: "Arrival timing", icon: Clock },
+  rta_late: { label: "Late for the requested time", icon: Clock },
 };
+
+const TOP_ALERTS = 6;
 
 const FLEET: { key: string; label: string; format?: (v: number) => string }[] = [
   { key: "vessels_watched", label: "Vessels watched" },
@@ -102,7 +110,7 @@ function AlertRow({ a }: { a: WatchAlert }) {
           </span>
         </p>
         {a.reason ? (
-          <p dir="auto" className="mt-0.5 text-sm text-muted-foreground">
+          <p dir="auto" className="mt-0.5 line-clamp-2 text-xs text-muted-foreground" title={a.reason}>
             {a.reason}
           </p>
         ) : null}
@@ -116,6 +124,11 @@ function AlertRow({ a }: { a: WatchAlert }) {
         ) : null}
         ETA <bdi className="font-mono">{stamp(a.eta_utc)}</bdi>
       </p>
+      {a.advice ? (
+        <div className="sm:col-span-3">
+          <AdviceCard advice={a.advice} compact />
+        </div>
+      ) : null}
     </li>
   );
 }
@@ -212,7 +225,15 @@ const nf = (digits: number) =>
 
 /** The run's ETA table (rule R at the run's clock; never the schedule's arrival — ADR-055): vessels at sea, soonest
  * first, the vessels with alerts marked. The bar is a visual scale of the API's `eta_in_h`; the numbers are shown. */
-function EtaBoard({ etas, alerted }: { etas: WatchEta[]; alerted: Set<number> }) {
+function EtaBoard({
+  etas,
+  alerted,
+  canAdvise,
+}: {
+  etas: WatchEta[];
+  alerted: Set<number>;
+  canAdvise: boolean;
+}) {
   const [all, setAll] = useState(false);
   const atSea = etas
     .filter((e) => typeof e.eta_in_h === "number")
@@ -268,6 +289,15 @@ function EtaBoard({ etas, alerted }: { etas: WatchEta[]; alerted: Set<number> })
                     <span className="ms-1.5 rounded-full bg-accent px-1.5 py-0.5 text-[11px]">
                       Suez ahead
                     </span>
+                  ) : null}
+                  {canAdvise ? (
+                    <Link
+                      href={`/voyages?advise=${e.vessel_id}#arrival`}
+                      className="ms-2 text-[11px] font-medium text-primary hover:underline"
+                    >
+                      Advise arrival
+                      <span className="sr-only"> for {e.vessel_name ?? `vessel ${e.vessel_id}`}</span>
+                    </Link>
                   ) : null}
                 </td>
                 <td className="py-2 pe-3 font-mono text-xs">
@@ -368,7 +398,7 @@ function Runs({ current }: { current: string | null }) {
   );
 }
 
-export function VoyageWatch({ thread }: { thread?: string }) {
+export function VoyageWatch({ thread, canAdvise = false }: { thread?: string; canAdvise?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -393,6 +423,9 @@ export function VoyageWatch({ thread }: { thread?: string }) {
   };
   const a = alerts.data;
   const list = a?.status === "ok" ? (a.alerts ?? []) : [];
+  // owner 2026-11-17: the top alerts only (the API sends the high ones first); the rest behind "Show more"
+  const [more, setMore] = useState(false);
+  const shown = more ? list : list.slice(0, TOP_ALERTS);
 
   return (
     <div className="flex flex-col gap-6">
@@ -466,12 +499,12 @@ export function VoyageWatch({ thread }: { thread?: string }) {
                   </div>
                   <div className="flex min-w-0 flex-col gap-3">
                     <p className="text-xs text-muted-foreground" aria-live="polite">
-                      Showing <span className="num font-semibold text-foreground">{list.length}</span> of{" "}
+                      Showing <span className="num font-semibold text-foreground">{shown.length}</span> of{" "}
                       <span className="num">{a.of ?? list.length}</span> alerts · clock{" "}
                       <bdi className="font-mono">{stamp(a.as_of)}</bdi>
                     </p>
                     <ul className="flex flex-col gap-2" aria-label="Alerts by severity">
-                      {list.map((x) => (
+                      {shown.map((x) => (
                         <AlertRow key={x.alert_id} a={x} />
                       ))}
                       {list.length === 0 ? (
@@ -480,6 +513,16 @@ export function VoyageWatch({ thread }: { thread?: string }) {
                         </li>
                       ) : null}
                     </ul>
+                    {list.length > TOP_ALERTS ? (
+                      <button
+                        type="button"
+                        onClick={() => setMore((v) => !v)}
+                        aria-expanded={more}
+                        className="w-fit rounded-full border px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:border-primary"
+                      >
+                        {more ? "Show the top alerts only" : `Show ${list.length - TOP_ALERTS} more alerts`}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
@@ -511,6 +554,7 @@ export function VoyageWatch({ thread }: { thread?: string }) {
               </CardHeader>
               <CardContent>
                 <EtaBoard
+                  canAdvise={canAdvise}
                   etas={run.data.etas}
                   alerted={
                     new Set(list.map((x) => x.vessel_id).filter((v): v is number => typeof v === "number"))
@@ -520,7 +564,10 @@ export function VoyageWatch({ thread }: { thread?: string }) {
             </Card>
           ) : null}
         </div>
-        <Runs current={runThread} />
+        <div className="flex min-w-0 flex-col gap-6">
+          {canAdvise ? <ArrivalRequest key={params.get("advise") ?? ""} /> : null}
+          <Runs current={runThread} />
+        </div>
       </div>
     </div>
   );

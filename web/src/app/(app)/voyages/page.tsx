@@ -17,7 +17,7 @@ export default async function VoyagesPage() {
       <AppTopBar me={session.me} active="/voyages" />
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <Suspense>
-          <VoyageWatch />
+          <VoyageWatch canAdvise={session.me.products.arrival_advice ?? false} />
         </Suspense>
       </main>
     </>

@@ -1,11 +1,33 @@
 # Roadmap & status
 
-Single place for project status. Current update: **2026-11-16** (see Current phase).
+Single place for project status. Current update: **2026-11-18** (see Current phase).
 
 Historical summary last updated: 2026-11-07 (**approver-request plan CLOSED** — the manager's request in words, live on W15; migration 024, Power BI Approved Pack, ADR-067; to commit; 2026-11-06: **approver-additions plan implemented** — the owner's steps open: Power BI visuals, the live pack of 2026-11-09, one commit; frontend plan APPROVED in parallel; 2026-11-05: **FastAPI plan CLOSED** — `docs/archive/2026-11-05_FastAPI_plan.md`, ADR-064 / ADR-065; Stage 2 walk-through `docs/CHECKPOINT_agents_stage2.md`; next: the approver's note in the weekly pack, then the frontend plan; 2026-11-03: **weekly-pack improvement CLOSED** — implementation record in `docs/analysis/financial_intelligence/implementation_roadmap.md`, no-regression re-run D-RR-1; next: FastAPI plan; 2026-11-02: **Observability plan CLOSED** — first real Sentry check-in ok, `docs/archive/2026-11-02_Observability_Sentry_plan.md`; **dependency upgrade DONE** — audit 63 → 0, `docs/archive/2026-11-02_Dependency_upgrade_plan.md`; weekly-pack Phases B–D in place, c5 scheduled 2026-11-03 09:30; 2026-11-01: **Agents plan CLOSED and archived** — `docs/archive/2026-11-01_Agents_plan.md`: Stage 1 candidate c4 kept, D7 `planted_all` met (D-C4-1); active plan `docs/plans/Observability_Sentry_plan.md`, Sentry S1 done on the checks, ADR-062; 2026-10-30: Agents plan Phase 12 — the supervisor — done: Stage 2 done-when MET, baseline `stage2_eval_2026-10-30_c1.json`, ADR-059 + ADR-045 amendment 3; D-P12-7 scheduled 2026-10-31, then the one Stage 2 commit; 2026-10-29: voyage-watch task registered; D-P11-2 weather pacing after the first firing; Agents plan Phase 11 CLOSED: the `voyage_watch` graph, ADR-058, autonomous session — owner reviewed and approved 2026-10-29; Phase 12 design §6d APPROVED 2026-10-29; Phase 10 CLOSED 2026-10-27: `route_advice`, ADR-057; Phase 9 CLOSED 2026-10-27: Stage 2 tools, ADR-055 / ADR-056; Agents plan §5f Phases 7–8 closure DONE: final Stage 1 baseline `stage1_eval_2026-10-23_confirm.json`, D7 not met on planted findings only; new fallback ADR-045 amendment 2; Phase 8 CLOSED: scheduled weekly pack, retention, LangSmith, ADR-054; Phase 7 CLOSED: evaluation, finance Q&A agent, migration 017, ADR-052 / ADR-053, D7 not met — owner decision; Phase 6 CLOSED: the PortPilot PPTX, number slots, Validator v2 + V8, ADR-051; Phase 5 CLOSED: the `weekly_pack` workflow + PostgresSaver + approval, ADR-050, migration 016, ADR-045 amendment 1; Phase 4 CLOSED: Stage 1 tools + skills, ADR-049; Phase 3 CLOSED 2026-10-15: Power BI dashboard, ADR-048; Phase 2 closed 2026-10-14, ADR-047; Phase 1 closed 2026-10-14, ADR-046; Phase 0 closed 2026-10-12, ADR-045).
 Labels: `DONE`, `IN PROGRESS`, `PARTIAL`, `NEXT`, `PLANNED`, `PROPOSED`, `DEFERRED`, `BLOCKED`.
 
 ## Current phase
+
+**Update 2026-11-18 — Staging readiness CLOSED; no plan is open** (`docs/archive/2026-11-18_Staging_readiness_plan.md`,
+ADR-071). The local staging rehearsal passed on a restore of today's stores, and every check is green on the merged tree.
+Done by the owner 2026-11-18: migration 031 on the local database (31 of 31 recorded, audit 0 errors) and a new local
+PostgreSQL superuser password (secrets scan: 0 findings, no weak password).
+**NEXT (owner):** the one commit of this work, the scan of the git history (O2), then the Azure deployment (O4–O10), with
+exact commands in `docs/deploy/RUNBOOK.md`. Production stays gated on the review of the skill `arrival-advice`, one real
+revise on a staging pack and a restore drill on staging.
+
+**Update 2026-11-18 — Arrival advice in the web CLOSED** (`docs/archive/2026-11-18_Arrival_advice_web_plan.md`, ADR-070
+amendments 1 and 2). The watch advises every `jit` / `rta_late` vessel in its run; Voyages shows the advice under its
+alert and on demand for any vessel at sea; `POST / GET /arrival-advice`. For the supervisor, a run with many arrival
+alerts is folded (the largest broad request 6,990 input tokens) and fleet-wide berth / JIT questions reach the watch.
+Stage 2 on the real models: every gate met, ADR-052 tie with c1 (`stage2_eval_2026-11-18_fold1.json`).
+**Open (owner):** the time-limited npm audit exception for picomatch ends on 2026-12-18 (`docs/THREAT_MODEL.md`).
+
+**Update 2026-11-17 — Staging readiness plan** (`docs/archive/2026-11-18_Staging_readiness_plan.md`, owner decisions S1–S8 in one
+round: production on **Azure** (free trial), staging rehearsed locally now and on a VM later, free models with a
+written paid path, staging seeded by a restore, deploys from GitHub Actions, production gates). ADR-071 (one Linux VM
+per environment, one Compose stack, Caddy TLS, the schedules in a container), ADR-016 amendment 1 (migrations recorded
+by 031, applied by the deploy on approval), ADR-045 note. Runbook `docs/deploy/RUNBOOK.md`. Status and evidence: the
+plan's §8 (moved to the archive at its close).
 
 **Update 2026-11-16 — web dashboards and reports plan CLOSED; no plan is open**
 (`docs/archive/2026-11-16_Web_dashboards_and_reports_plan.md`).
@@ -493,7 +515,7 @@ History of the RAG plan, phase by phase: **Phase 0 done 2026-10-01** (rewrite co
 | Evaluation (golden tasks), observability (trace IDs) | PARTIAL | Stage 1 evaluation DONE 2026-10-20 (ADR-053: golden weeks + finance Q&A, `Stage1_eval.py`; D7 not met, owner closed); observability for the agents DONE 2026-10-22 (LangSmith, ADR-054); API trace ids with the API |
 | Scheduled weekly pack + checkpoint retention | DONE | 2026-10-22, Agents plan Phase 8 (ADR-054): Task Scheduler (Monday 10:30), `Weekly_pack.py scheduled / prune / report`, `Scheduler_check.py` 6 / 6 |
 | Power BI integration | DONE (2026-10-15) | ADR-048: `powerbi/PortPilot_Finance.pbip` (Desktop, PBIP in git), DirectQuery on the `finance` views via the read-only login `ports_bi`; 5 pages (Exceptions = placeholder until the Auditor tool, Phase 4 / 7); numbers = `kpi_weekly` for weeks 5 / 23 / 49 |
-| Docker Compose for all services | PLANNED | not before the core works; includes the API and the frontend |
+| Docker Compose for all services | DONE (2026-11-17) | `deploy/compose.yaml`: every service (stores, API, scheduler, web, Caddy) for staging / production, ADR-071; rehearsed locally; the cloud VMs are owner steps (`docs/deploy/RUNBOOK.md`) |
 
 RAG ingestion order (do not skip ahead): inventory → metadata → extraction → cleaning → chunking → embedding model → Qdrant (local Docker) → collection → small controlled subset → retrieval test → metadata filtering → RBAC → scale → hybrid/reranking only if evaluation shows it is needed.
 
@@ -510,9 +532,10 @@ RAG ingestion order (do not skip ahead): inventory → metadata → extraction �
 **Recommended (PROPOSED)** — the former list (CHECK constraints, toll band UNIQUE, FK and GIST indexes, read-only role, vessel type ↔ category link) was applied on 2026-09-27 (migrations 006–007, ADR-033 / ADR-034). Nothing is pending on the PostgreSQL schema.
 
 **Deferred (ADR-018): check at the start of each phase**
-- Stabilization Phase 5 (2026-11-16, from the closed stabilization plan): profile the measured bottlenecks (API
-  latency per route, pool sizes, the heaviest SQL views, large modules), tune only with before / after numbers, and
-  drill a rebuild / restore of the three stores. No trigger yet.
+- ~~Stabilization Phase 5~~ closed 2026-11-17 by the Staging readiness plan: the restore drill of the three stores
+  passed (every count and digest equal, `Backup.py drill`), and the route latencies were measured on the staging
+  rehearsal (plan §8); nothing asked for tuning. The 9-point concurrency list below was already met by the FastAPI
+  plan (each point → its file in the Staging readiness plan §3 c1–c9).
 - Agents phase → decide on DuckDB as the analysis sandbox.
 - Agents / API phase → Redis as a shared cache (query vectors, reranker results, sessions) if several workers or agents must share it; measured 2026-10-08: Redis GET 0.57 ms vs in-process 0.2 µs (ADR-038; owner: use it later if needed).
 - API / Docker Compose phase → decide on a job queue (Redis or other) and on object storage for raw files (MinIO).
@@ -544,16 +567,17 @@ RAG ingestion order (do not skip ahead): inventory → metadata → extraction �
 ## Known issues
 
 - Retrieval at query time (2026-10-08): the Jina reranker adds ~0.6–1.5 s and Jina publishes no rate limits (429 seen; graceful fallback to the dense order after 5 s); each question opens a PostgreSQL connection for the user's access (~18 ms; pool in the API phase); Gemini's free tier allows ≈ 1,000–1,450 texts a day (corpus re-embedding needs two days; the free tier trains on inputs, so only public / synthetic text is embedded, ADR-037).
-- Re-running `Embedding_bakeoff.py`, `Lib_selftest.py`, `Retrieval.py` and `Search_index_benchmark.py` without API calls needs the git-ignored bake-off vectors in `Data/embeddings/bakeoff/` (moved there from `Notebooks/_scratch/` on 2026-10-08); a fresh clone re-embeds (quota above).
+- Re-running `Embedding_bakeoff.py`, `Lib_selftest.py`, `Retrieval.py` and `Search_index_benchmark.py` without API calls needs the git-ignored bake-off vectors in `Data/embeddings/bakeoff/` (moved there from `Notebooks/_scratch/` on 2026-10-08); a fresh clone re-embeds (quota above). Decided 2026-11-17 (Staging readiness plan d5): evaluation-only, never read at runtime, not deployed; the owner's local copy stays the source.
+- Jina publishes no rate limit: accepted 2026-11-17 (d4) with the existing 5 s fallback to the dense order; a paid Jina key is the upgrade path.
 
-- `tools/nb_to_script.py check` reports 6 FAILED ("checkpoint differs") for the FBL, HbR, IMO, LPI Connecting to Compete, LPI Methodology and USCG chunking scripts: their `pipelines/checkpoints/rag/*.md` no longer equal the archived notebooks' Final Checkpoint cells (seen 2026-10-08, identical before and after the move to `D:\Project`; likely the ADR-041 appended phase). Open; separate task.
+- ~~`tools/nb_to_script.py check` reports 6 FAILED~~ closed 2026-11-17 (it had grown to 10 FAILED: the scripts changed after the conversion through reviewed edits — the ADR-041 phase, the ADR-063 lint fixes, the D-H2 LF writers): `check` now accepts a script whose statements and checkpoint equal the hashes of its last recorded review (`tools/nb_to_script_evolved.json`, `nb_to_script.py evolve`); any later edit fails until reviewed and recorded again. `check` → ALL OK.
 
 - ~~USCG dedup labels depended on `PYTHONHASHSEED`~~ closed 2026-10-01: when two units covered an Executive Summary sentence equally, `covered_by` followed set / hash order (decisions — 49 trimmed, 390 restated — never changed; chunks unaffected). Fix (owner option A): ties go to the earliest sentence in report order (listed patch in `tools/nb_to_script.py`). The regenerated `USCG_ROI_logical_units.json` (3 labels: MICHIPICOTEN u0089→u0082, u0091→u0084, u0094→u0087, each the analysis section instead of the conclusion) is committed; it now reproduces under any seed. `run.py --hashseed 1` / `2` showed no other hash-order dependence.
-- `SyntheticGenerator` (notebook and script alike) does not reproduce `employees.csv` on Linux (cloud session, 2026-10-01): hire dates and then names differ from the first draw, with the same Faker 40.38.0, seed, reference date and with TZ=Africa/Cairo. On the owner's Windows machine the script passes (2026-10-01, `files changed: 0`), so the generator is reproducible there but not across platforms. Not caused by the conversion (the original notebook fails at the same cell on Linux).
+- Closed 2026-11-17 (Staging readiness plan d2): the cause is Faker's own platform branch — `_rand_seconds` uses `randint` on Windows and `uniform` elsewhere, so the random stream parts at the first hire date; the script now pins the Windows branch on every platform (`_pin_faker_dates()`), the Linux probe reproduces `employees.csv`, the Windows run is unchanged. The original report, kept as written: `SyntheticGenerator` (notebook and script alike) does not reproduce `employees.csv` on Linux (cloud session, 2026-10-01): hire dates and then names differ from the first draw, with the same Faker 40.38.0, seed, reference date and with TZ=Africa/Cairo. On the owner's Windows machine the script passes (2026-10-01, `files changed: 0`), so the generator is reproducible there but not across platforms. Not caused by the conversion (the original notebook fails at the same cell on Linux).
 - ~~Guard hook untested on Windows~~ closed 2026-10-01: a Read of an archived `.ipynb` was blocked in an assistant session on the owner's machine. The guard hook path is now the local guard hook (a relative path blocked every command once the shell changed directory); to confirm it still runs on the owner's Windows setup (the local script runs went through PowerShell, not the coding assistant, so they do not test it).
 - Git: the USCG WIP up to Phase 4 is committed (e89ef95); the finished notebook, its three artifacts (extracted, cleaned, chunks) and the 2026-09-27 docs (archive, ADR-024–026, ARCHITECTURE, ROADMAP) are to be committed by the owner. Seen from the Linux VM, several data files show as modified only because of CRLF line endings (no content change).
 - Cleaned-file format differs by source: LPI Connecting to Compete and HbR store `{source, units, duplicate_audit, coverage_audit}`, older sources store a plain list of units. Not blocking: the embedding phase reads the chunk parquet files (one schema), not the cleaned files.
-- The old DB password was committed in notebooks before ADR-015 (local development container only).
+- The old DB password was committed in notebooks before ADR-015 (local development container only). 2026-11-17: never reused outside the owner's machine — every deployment environment gets fresh credentials (`ops/deploy/new_env.py`, `Backup.py secure`); the local rotation and the history scan are owner steps (`docs/deploy/RUNBOOK.md` §10–§11; the local superuser password is also the dictionary word `postgres`).
 - `Notebooks/synthetic/SyntheticGenerator.ipynb` was fixed on 2026-09-23 (paths, `%pip`, currencies, indentation, `rate_sdr_per_ton`, date anchoring, validation cell) and on 2026-09-27 (ADR-017 drift, database-owned `mmsi`). Re-running it reproduces employees, vessels and containers exactly (28/28, re-checked after the PostgreSQL container was re-created).
 - The notebooks have no automated tests. Validation lives in assertion cells.
 - `sensitivity_level` / `department` now vary within one source (HbR, ADR-021): the future `documents` rows and the Qdrant payload must carry them per chunk; a document-level value is not enough.

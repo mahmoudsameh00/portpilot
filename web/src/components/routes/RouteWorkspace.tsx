@@ -132,14 +132,21 @@ function Detail({ thread }: { thread: string }) {
   return <RouteDecision advice={data} origin={p?.origin ?? "—"} destination={p?.destination ?? "—"} />;
 }
 
-export function RouteWorkspace({ thread }: { thread?: string }) {
+/** `prefill` (from the URL, e.g. "Compare routes" on an arrival advice): a vessel and a destination to start from. */
+export function RouteWorkspace({
+  thread,
+  prefill,
+}: {
+  thread?: string;
+  prefill?: { vessel?: string; destination?: string };
+}) {
   const router = useRouter();
   const qc = useQueryClient();
   const parts = thread ? threadParts(thread) : null;
   const [origin, setOrigin] = useState(parts?.origin ?? "");
-  const [destination, setDestination] = useState(parts?.destination ?? "");
+  const [destination, setDestination] = useState(parts?.destination ?? prefill?.destination ?? "");
   const [mode, setMode] = useState<Mode>("fleet");
-  const [vesselId, setVesselId] = useState("");
+  const [vesselId, setVesselId] = useState(prefill?.vessel ?? "");
   const [vesselType, setVesselType] = useState<string>(VESSEL_TYPES[1]);
   const [condition, setCondition] = useState<"Laden" | "Ballast">("Laden");
   const [scnt, setScnt] = useState("");

@@ -18,7 +18,8 @@ def me_of(user: User) -> Me:
     # the pack graph's own approver rule (checked again by the graph at the decision; here it only shapes the UI)
     decide = finance and weekly_pack.approver_check(user.employee_id)[0]
     products = Products(ask=True, packs_read=finance, packs_decide=decide,
-                        route_advice="route_advice" in tools, voyage_watch="watch_alerts" in tools, uploads=True)
+                        route_advice="route_advice" in tools, voyage_watch="watch_alerts" in tools,
+                        arrival_advice="arrival_advice" in tools, uploads=True)
     return Me(employee_id=user.employee_id, role=user.role, department=user.department, ceiling=user.ceiling,
               tools=tools, products=products)
 

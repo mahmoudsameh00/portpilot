@@ -492,10 +492,11 @@ def thread_owner(thread_id: str) -> int | None:
 
 
 def result_summary(st: dict) -> dict:
-    """What a caller may see of a final state (the CLI `Arrival_advice.py`)."""
+    """What a caller may see of a final state (the CLI `Arrival_advice.py` and the API, Arrival advice web plan P1)."""
     r = st.get("result") or {}
     usage = st.get("llm_usage") or []
     return {"status": r.get("status"), "recommendation": r.get("recommendation"), "headline": r.get("headline"),
+            "numbers": _numbers(st, r),
             "summary": {k: (r.get("summary") or {}).get(k) for k in SUMMARY_FIELDS},
             "options": [{k: o.get(k) for k in ("option", "speed_kn", "arrival_utc", "wait_h", "late_h", "fuel_t",
                                                "fuel_sdr", "total_sdr", "change_fuel_t", "change_total_sdr")}
@@ -505,4 +506,17 @@ def result_summary(st: dict) -> dict:
             "sources": [f"{s['evidence']}: {s['tool']} {s['status']} — {s.get('name')} ({s.get('filter')})"
                         for s in r.get("sources") or []],
             "model_calls": len(usage), "cached": sum(bool(c.get("cached")) for c in usage)}
+
+
+def _numbers(st: dict, r: dict) -> dict:
+    """D-FE-1 (as `route_advice._numbers`): the number spans of the advisor's headline, reasons and risks, rendered
+    again from the advice and the evidence. A code headline (`on_time` / `late`) or a stopped advice has none."""
+    a, ev = st.get("advice") or {}, st.get("evidence") or {}
+    if not a or not r.get("reasons"):
+        return {"headline": [], "reasons": [], "risks": []}
+    return {"headline": slots.number_spans(a.get("headline") or "", ev, r.get("headline")),
+            "reasons": [slots.number_spans(t.get("text") or "", ev, got)
+                        for t, got in zip(a.get("reasons") or [], r.get("reasons") or [])],
+            "risks": [slots.number_spans(t.get("text") or "", ev, got)
+                      for t, got in zip(a.get("risks") or [], r.get("risks") or [])]}
 

@@ -55,6 +55,8 @@ class Products(BaseModel):
     packs_decide: bool = Field(description="approve / edit / reject a pack (a Finance manager or the CEO)")
     route_advice: bool
     voyage_watch: bool
+    arrival_advice: bool = Field(default=False, description="Just-in-Time arrival advice for a vessel at sea (ADR-070): "
+                                                            "the graph's own tool access (ADR-006)")
     uploads: bool = Field(description="upload a document into a conversation")
 
 
@@ -351,6 +353,44 @@ class RouteAdviceDetail(Open):
     numbers: RouteNumbers = Field(default_factory=RouteNumbers)
 
 
+class ArrivalOption(Open):
+    """One computed speed option of `tools/arrival.py` (code, never the model): keep / jit / floor / catch_up / cape."""
+    option: Literal["keep", "jit", "floor", "catch_up", "cape"]
+    speed_kn: float | None = None
+    arrival_utc: str | None = None
+    wait_h: float | None = None
+    late_h: float | None = None
+    fuel_t: float | None = None
+    fuel_sdr: float | None = None
+    total_sdr: float | None = None
+    change_fuel_t: float | None = None
+    change_total_sdr: float | None = None
+
+
+class ArrivalAdvice(Open):
+    """One arrival advice (ADR-070), as `arrival_advice.result_summary` gives it; numbers in the texts carry spans.
+    `status` "error" = the watch could not run this advice (its reason in `problems`)."""
+    status: str | None
+    recommendation: Literal["keep", "jit", "floor", "catch_up", "cape"] | None = None
+    headline: str | None = None
+    summary: dict[str, Any] = Field(default_factory=dict, description="the vessel, its destination, the RTA (and its "
+                                                                     "source), the target, the situation")
+    options: list[ArrivalOption] = Field(default_factory=list)
+    reasons: list[str] | None = None
+    risks: list[str] | None = None
+    assumptions: list[str] | None = None
+    problems: list[str] | None = None
+    sources: list[str] = Field(default_factory=list)
+    model_calls: int = 0
+    cached: int = 0
+    numbers: RouteNumbers = Field(default_factory=RouteNumbers)
+
+
+class ArrivalAdviceDetail(ArrivalAdvice):
+    """A stored arrival advice thread (`GET /arrival-advice/{thread}`)."""
+    thread_id: str
+
+
 class WatchNumbers(BaseModel):
     headline: list[NumberSpan] = Field(default_factory=list)
     items: list[list[NumberSpan]] = Field(default_factory=list)
@@ -394,7 +434,8 @@ class WatchRunDetail(Open):
 
 class WatchAlert(Open):
     alert_id: str
-    kind: str = Field(description="weather | suez_traffic | customer")
+    kind: str = Field(description="weather | suez_traffic | rta_late | jit | customer (ADR-070: the rta_utc, "
+                                  "rta_location and option fields ride along)")
     severity: str | None = None
     vessel_id: int | None = None
     vessel_name: str | None = None
@@ -402,6 +443,8 @@ class WatchAlert(Open):
     eta_utc: str | None = None
     reason: str | None = None
     customer_id: int | None = None
+    advice: ArrivalAdvice | None = Field(default=None, description="a jit / rta_late alert's arrival advice, made by "
+                                                                   "the same watch run (Arrival advice web plan)")
 
 
 class WatchAlerts(BaseModel):

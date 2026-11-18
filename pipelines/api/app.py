@@ -20,7 +20,7 @@ from pipelines.api import config, errors, runs, store
 from pipelines.api.middleware import RequestContext
 from pipelines.api.routers import ask, auth, finance, health, me, operations, packs, uploads, views
 from pipelines.api.uploads import UploadSessions
-from pipelines.lib import retrieval
+from pipelines.lib import environment, retrieval
 from pipelines.lib.common import project_root
 
 BASE = "/api/v1"
@@ -55,7 +55,9 @@ def create_app(roles_factory=roles.Roles, reports_dir=None, pack_prefix: str = s
     `FakeRoles`). A new set per run: a model one run found unavailable is not skipped by every later run.
     `reports_dir` / `pack_prefix`: where packs publish and which threads are packs — a check passes its own, so its
     test pack never touches the scheduler's live replay (`weekly_pack:live:…`) or `reports/`."""
+    docs = environment.docs_enabled()          # /docs and /redoc off in production (ADR-071); the schema stays
     app = FastAPI(title="PortPilot API", version=VERSION, lifespan=lifespan,
+                  docs_url="/docs" if docs else None, redoc_url="/redoc" if docs else None,
                   description="Ask the supervisor, decide weekly packs, route advice, voyage-watch alerts, uploads.")
     app.state.runner = runs.Runner()
     app.state.roles_factory = roles_factory

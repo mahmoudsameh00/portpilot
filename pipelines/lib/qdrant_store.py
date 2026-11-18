@@ -19,7 +19,16 @@ from qdrant_client import QdrantClient, models
 from pipelines.lib.chunks import COLUMNS, compose, plain_value
 
 COLLECTION = "nilegate_docs"
-URL = "http://127.0.0.1:6333"
+DEFAULT_URL = "http://127.0.0.1:6333"
+URL = DEFAULT_URL               # kept for callers that read the constant; `url()` is the source of truth
+
+
+def url() -> str:
+    """`QDRANT_URL` from the environment / `.env` (ADR-071: `http://qdrant:6333` inside the compose network), else the
+    local container's loopback address."""
+    from pipelines.lib.common import load_env
+    load_env()
+    return (os.environ.get("QDRANT_URL") or "").strip().rstrip("/") or DEFAULT_URL
 BM25_MODEL = "qdrant/bm25"
 POINT_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "nilegate/rag/points")
 PAYLOAD_INDEXES = {"sensitivity_level": models.PayloadSchemaType.INTEGER,
@@ -55,7 +64,7 @@ UNIT_KIND = {
 
 def connect() -> QdrantClient:
     """Client for the local ports-qdrant container; the key comes from the environment (.env), never printed."""
-    return QdrantClient(url=URL, api_key=os.environ["QDRANT_API_KEY"], cloud_inference=True, timeout=120)
+    return QdrantClient(url=url(), api_key=os.environ["QDRANT_API_KEY"], cloud_inference=True, timeout=120)
 
 
 def point_id(document_id: str, chunk_id: str) -> str:

@@ -15,6 +15,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from pipelines.agents import roles
 from pipelines.agents.graphs import supervisor as sv
 from pipelines.api.app import create_app
+from pipelines.lib import environment
 
 WEEK_RE = re.compile(r"\b(?:week|W|أسبوع)\s*(\d{1,2})\b", re.I)
 
@@ -41,6 +42,8 @@ class WebFake:
 
 
 def create_fake_app():
-    """The uvicorn factory of `Serve.py --fake-roles`."""
+    """The uvicorn factory of `Serve.py --fake-roles`; refused outside `local` (ADR-071), a second guard behind
+    `Serve.py`'s, so no other launcher can serve scripted answers in staging / production."""
+    environment.require_local("the fake-roles API")
     script = cast(roles.Script, WebFake())
     return create_app(roles_factory=cast(Any, lambda: roles.FakeRoles(script)))   # a factory, as Api_check passes

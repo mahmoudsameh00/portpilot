@@ -47,6 +47,7 @@ GOLDEN = ROOT / "Data" / "processed" / "agents" / "eval" / "supervisor_qa_golden
 GOLD = [json.loads(line) for line in GOLDEN.read_text(encoding="utf-8").splitlines()]
 BY_ID = {i["id"]: i for i in GOLD}
 CLOCK = context.DATA_AS_OF
+watch.pin_runs("voyage_watch:20260913T0000Z:1")    # 2026-11-17: the frozen items read this run, never a later one at the clock
 SENT0 = dict(weather.SENT)
 USERS: dict[int, object] = {}
 ceo, ops_emp, fin_emp = context.load_user(1), context.load_user(12), context.load_user(13)
@@ -280,6 +281,67 @@ assert actual_c1 == REVIEWED_C1, actual_c1
 print(f"✅ Phase 2 (c1): the model view flattens last_fix into 6 fields and drops the unneeded ones; "
       f"{len(paths)} slot-path cases; the join guard catches a wrong customer ({wrong_name} for {right_name}) and "
       "passes the right one and an answer with no vessel link")
+
+# ADR-070 amendment 2: a run with many arrival alerts is folded for the model; the frozen run is never touched
+from pipelines.agents.tools import watch as watch_tool  # noqa: E402
+
+TID = "voyage_watch:20260913T0000Z:9"
+jit_rows = [{"alert_id": f"{100 + i}/jit", "kind": "jit", "severity": "moderate", "vessel_id": 100 + i, "wait_h": 10 + i,
+             "change_fuel_t": -1.5 * (i + 1), "change_fuel_sdr": -100.25 * (i + 1), "thread_id": TID} for i in range(20)]
+late_rows = [{"alert_id": f"{200 + i}/rta_late", "kind": "rta_late", "severity": "high" if i < 2 else "moderate",
+              "vessel_id": 200 + i, "late_h": 12 + i if i < 2 else i, "thread_id": TID} for i in range(8)]
+weather_row = {"alert_id": "300/weather", "kind": "weather", "severity": "high", "vessel_id": 300, "thread_id": TID}
+customer_rows = [{"alert_id": f"customer/{c}", "customer_id": c, "vessels_with_alerts": 9 - c, "alerts": 10 - c,
+                  "high_alerts": int(c in (0, 7)), "thread_id": TID} for c in range(9)]
+fleet_row = {"alert_id": "fleet", "alerts": 29, "thread_id": TID}
+planted = {"tool": "watch_alerts", "status": "ok", "note": "29 alerts.", "source": {"kind": "table", "name": "run"},
+           "rows": jit_rows + late_rows + [weather_row] + customer_rows + [fleet_row]}
+folded = sv.model_view(planted)
+by_id = {r["alert_id"]: r for r in folded["rows"]}
+sum_jit, sum_late = by_id["arrival/jit"], by_id["arrival/rta_late"]
+shown_arrival = [r["alert_id"] for r in folded["rows"] if r.get("kind") in sv.ARRIVAL_KINDS]
+seen = {r["vessel_id"] for r in folded["rows"] if r.get("kind") in sv.ARRIVAL_KINDS}
+few = {**planted, "rows": jit_rows[:sv.ARRIVAL_ROWS_SHOWN] + [fleet_row]}
+frozen_view = sv.model_view(watch_tool.watch_alerts(ceo, as_of=CLOCK).model_dump(mode="json"))
+EVF = {"insight.w": folded}
+fold_answer = sv.check_supervisor_answer(
+    A("The JIT alerts change fuel by {insight.w[arrival/jit]:total_change_fuel_t|t}.", ids=("insight.w",)), EVF,
+    "What is the total fuel change of the JIT alerts?", "en", [], {})
+actual_fold = {"shown": shown_arrival, "rows": len(folded["rows"]),
+               "jit": (sum_jit["alerts"], sum_jit["rows_shown"], sum_jit["max_wait_h"], sum_jit["total_change_fuel_t"],
+                       sum_jit["total_change_fuel_sdr"]),
+               "late": (sum_late["alerts"], sum_late["high_alerts"], sum_late["rows_shown"], sum_late["max_late_h"]),
+               "every_vessel": seen | set(sum_jit["vessel_ids_not_shown"]) | set(sum_late["vessel_ids_not_shown"])
+               == {r["vessel_id"] for r in jit_rows + late_rows},
+               "others": {k: by_id["customer/others"][k] for k in ("customers", "vessels_with_alerts", "alerts",
+                                                                   "high_alerts", "customer_ids_with_high_alerts")},
+               "kept": ("300/weather" in by_id, "fleet" in by_id, folded["rows"][-1]["alert_id"]),
+               "idempotent": sv.fold_arrival_rows(folded) is folded,
+               "few_untouched": sv.model_view(few)["rows"] == few["rows"],
+               "frozen_untouched": (sv.fold_arrival_rows(frozen_view) is frozen_view,
+                                    any(str(r["alert_id"]).startswith("arrival/") for r in frozen_view["rows"])),
+               "slot": (fold_answer[2], "315" in fold_answer[0])}
+REVIEWED_FOLD = {"shown": ["118/jit", "119/jit", "200/rta_late", "201/rta_late"], "rows": 14,
+                 "jit": (20, 2, 29, -315.0, -21052.5), "late": (8, 2, 2, 13), "every_vessel": True,
+                 "others": {"customers": 4, "vessels_with_alerts": 10, "alerts": 14, "high_alerts": 1,
+                            "customer_ids_with_high_alerts": [7]},
+                 "kept": (True, True, "fleet"), "idempotent": True, "few_untouched": True,
+                 "frozen_untouched": (True, False), "slot": ([], True)}
+assert actual_fold == REVIEWED_FOLD, actual_fold
+# a signed total after a word of saving reads as a double negative: refused, as on the advice graph's own rows (D-J8)
+double_negative = sv.check_supervisor_answer(
+    A("The JIT slowdowns save {insight.w[arrival/jit]:total_change_fuel_t|t}.", ids=("insight.w",)), EVF,
+    "How much fuel would the JIT slowdowns save in total?", "en", [], {})[2]
+assert len(double_negative) == 1 and "double negative" in double_negative[0], double_negative
+# the fleet-wide arrival questions reach the watch's alerts, and a one-vessel question keeps the advice graph
+for fleet_q in ("Which vessels will miss their requested berth time?",
+                "How much fuel would the JIT slowdowns save in total?", "إيه السفن اللي هتتأخر عن ميعاد الرصيف؟",
+                "What speed should vessel 28 sail to make its berth time?"):
+    fleet_tools = sv.route(fleet_q, ceo).tools
+    assert {"arrival_advice", "watch_alerts"} <= set(fleet_tools) and len(fleet_tools) <= sv.MAX_TOOLS, (fleet_q, fleet_tools)
+print(f"✅ Phase 2 (ADR-070 am. 2): {len(planted['rows'])} planted rows fold to {len(folded['rows'])}, the most urgent "
+      "arrival rows kept, the totals equal the hand computation, every vessel still named, a slot binds to a total, "
+      "a small result and the frozen run untouched")
 
 
 # %% Phase 2s — The skills supervisor-qa and finance-qa (the owner's review of 2026-10-29)

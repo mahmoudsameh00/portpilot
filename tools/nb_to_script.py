@@ -4,7 +4,9 @@
                                                             + pipelines/checkpoints/<area>/<stem>.md
   uv run python tools/nb_to_script.py clean   [STEM ...]   refactor level B (see 'level B cleanup' below)
   uv run python tools/nb_to_script.py check   [STEM ...]   static proof that every script matches its notebook
-                                                            (refactored scripts: checkpoint + compile only)
+                                                            (refactored scripts: checkpoint + compile only; a script
+                                                            changed by a later reviewed edit = its recorded review)
+  uv run python tools/nb_to_script.py evolve  STEM ... --reason "…"   record a reviewed post-conversion change
 
 The script is in percent format (`# %% cell N` = code cell N of the notebook, `# %% [markdown] cell N` = markdown
 cell N as `# ` comment lines), so `uv run python <script>` runs it top to bottom and VS Code still shows the cells.
@@ -340,8 +342,13 @@ def cmd_check(a) -> int:
         if is_refactored(sp) and CLEAN_TAG in sp.read_text(encoding="utf-8")[:3000]:
             md_ok = fc is None or (mp.exists() and mp.read_text(encoding="utf-8").rstrip("\n") == src(cells[fc]).rstrip("\n"))
             problem = prove_clean(key, sp.read_text(encoding="utf-8"))
-            if problem or not md_ok:
-                bad += 1; print(f"FAIL {key}: cleanup level: {problem or 'checkpoint differs'}")
+            if (problem or not md_ok) and evolved_ok(key):
+                e = EVOLVED[key]
+                print(f"✅ {key}: evolved after the conversion, = its recorded review ({e['recorded']}: {e['reason']})")
+            elif problem or not md_ok:
+                hint = (" — changed since its recorded review" if key in EVOLVED
+                        else " — if the change was reviewed: nb_to_script.py evolve <stem> --reason \"…\"")
+                bad += 1; print(f"FAIL {key}: cleanup level: {problem or 'checkpoint differs'}{hint}")
             else:
                 print(f"✅ {key}: cleanup level, AST equal to the archived notebook (display rules only), checkpoint kept")
             continue
@@ -354,6 +361,9 @@ def cmd_check(a) -> int:
                 comp = False
             if md_ok and comp:
                 print(f"✅ {key}: refactored (not a 1:1 copy; verified by tools/run.py --compare), checkpoint kept, compiles")
+            elif comp and evolved_ok(key):
+                e = EVOLVED[key]
+                print(f"✅ {key}: refactored, evolved after the conversion, = its recorded review ({e['recorded']})")
             else:
                 bad += 1; print(f"FAIL {key}: refactored script: checkpoint {'ok' if md_ok else 'differs'}, compile {comp}")
             continue
@@ -587,13 +597,52 @@ def cmd_clean(a) -> int:
     return 0
 
 
+# Scripts that changed after the 2026-10-01 conversion through reviewed, committed edits (the ADR-041 title / text
+# phase, the ADR-063 lint fixes, the D-H2 LF writers …; git holds each diff). The 1:1 proof cannot hold for them any
+# more, so `check` accepts a script only while its statements (AST, no line numbers or comments) and its checkpoint
+# .md equal the hashes recorded at its last review; any later edit fails until it is reviewed and recorded again
+# with `evolve` (Staging readiness plan P9, d1).
+EVOLVED_FILE = ROOT / "tools" / "nb_to_script_evolved.json"
+EVOLVED: dict[str, dict] = (json.loads(EVOLVED_FILE.read_text(encoding="utf-8")) if EVOLVED_FILE.exists() else {})
+
+
+def _fingerprints(key: str) -> tuple[str, str]:
+    import hashlib
+    sp, mp = paths(key)
+    body = ast.parse(sp.read_text(encoding="utf-8")).body
+    stmts = "\n".join(ast.dump(n) for n in body).encode("utf-8")
+    md = mp.read_bytes().replace(b"\r\n", b"\n") if mp.exists() else b""
+    return hashlib.sha256(stmts).hexdigest(), hashlib.sha256(md).hexdigest()
+
+
+def evolved_ok(key: str) -> bool:
+    e = EVOLVED.get(key)
+    return bool(e) and _fingerprints(key) == (e["statements_sha256"], e["checkpoint_sha256"])
+
+
+def cmd_evolve(a) -> int:
+    from datetime import date
+    if not a.reason:
+        print("--reason is required: say which reviewed change made the script differ"); return 2
+    for key in keys(a.stems):
+        s, m = _fingerprints(key)
+        EVOLVED[key] = {"reason": a.reason, "recorded": date.today().isoformat(), "statements_sha256": s,
+                        "checkpoint_sha256": m}
+        print(f"recorded {key}")
+    EVOLVED_FILE.write_text(json.dumps(dict(sorted(EVOLVED.items())), indent=1, ensure_ascii=False) + "\n",
+                            encoding="utf-8", newline="\n")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sp = p.add_subparsers(dest="cmd", required=True)
-    for n in ("convert", "check", "clean"):
+    for n in ("convert", "check", "clean", "evolve"):
         s = sp.add_parser(n); s.add_argument("stems", nargs="*")
+        if n == "evolve":
+            s.add_argument("--reason", default="")
     a = p.parse_args()
-    return {"convert": cmd_convert, "check": cmd_check, "clean": cmd_clean}[a.cmd](a)
+    return {"convert": cmd_convert, "check": cmd_check, "clean": cmd_clean, "evolve": cmd_evolve}[a.cmd](a)
 
 
 if __name__ == "__main__":

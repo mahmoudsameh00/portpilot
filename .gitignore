@@ -48,3 +48,7 @@ powerbi/**/.pbi/cache.abf
 powerbi/*.pbix
 # graphify knowledge graph (local tool output: cache, graph.json, report, html)
 graphify-out/
+# Store backups (Staging readiness plan P6, ADR-071): dumps with password hashes, never in git
+backups/
+# Deployment env files (ADR-071): one per environment, secrets; only deploy/env.example is tracked
+deploy/env/

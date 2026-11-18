@@ -5,8 +5,9 @@ portpilot_api_test, the guard of `integration_fixture`; the clone is made by `op
 Writes: on that clone, eight dedicated identities (`public.employees` 910001–910008, `web-stack-N@nilegate.com`) and
 their `api.logins` (random passwords); the git-ignored `web/tests/stack/.fixture/people.json` (the identities and
 passwords the Playwright suite reads). The upload test sends `clean_D1.pdf` of `Upload_fixtures.py` (read only).
-`cleanup` deletes them again with every conversation, token, audit row and agent thread (`ask:` / `route_advice:`)
-they made. Safe to re-run: `setup` first removes what an interrupted run left. Never touches `ports-postgres`.
+`cleanup` deletes them again with every conversation, token, audit row and agent thread (`ask:` / `route_advice:` /
+`arrival_advice:`) they made. Safe to re-run: `setup` first removes what an interrupted run left. Never touches
+`ports-postgres`.
 
     uv run python pipelines/scripts/api/Web_stack_fixture.py setup | cleanup
 (normally called by `web/tests/stack/global-setup.ts` / `global-teardown.ts` through `ops/tests/run_web_stack.ps1`)
@@ -45,7 +46,7 @@ def cleanup() -> dict:
     with owner() as oc:
         threads = [r["thread_id"] for r in oc.execute(
             "SELECT DISTINCT thread_id FROM agent_state.checkpoints WHERE thread_id LIKE 'ask:9100%%' "
-            "OR thread_id LIKE 'route_advice:9100%%'")]
+            "OR thread_id LIKE 'route_advice:9100%%' OR thread_id LIKE 'arrival_advice:9100%%'")]
     saver = checkpointer.saver()
     for t in threads:
         saver.delete_thread(t)

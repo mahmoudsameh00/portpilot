@@ -46,6 +46,39 @@ jobs:
         run: uv run python tools/run.py pipelines/scripts/retrieval/Brand_compatibility_check.py
       - name: Approval rule cases for the web = the API's DecisionIn (Frontend plan F0; 0 network)
         run: uv run python tools/export_approval_cases.py --check
+      - name: Deployment rules (environment, compose exposure, image, scheduler, migrations, backups; ADR-071)
+        run: uv run python tools/run.py pipelines/scripts/ops/Deploy_check.py
+      - name: No secret in the tracked files (the .env values and key shapes; ADR-071)
+        run: uv run python tools/secrets_scan.py
+
+  # Staging readiness plan P10 (ADR-071): both deployment images build from a clean checkout and start as their
+  # non-root users; nothing is pushed (deploy.sh builds on the VM from the same ref).
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the API / scheduler image
+        run: docker build -f ops/docker/api.Dockerfile -t portpilot-api:ci .
+      - name: Build the web image
+        run: docker build -t portpilot-web:ci web
+      - name: The API image runs as portpilot, imports the app, refuses fake roles outside local
+        run: |
+          test "$(docker run --rm portpilot-api:ci id -un)" = portpilot
+          docker run --rm -e PORTPILOT_ENV=staging -e API_CORS_ORIGINS=https://staging.example.com portpilot-api:ci \
+            python -c "from pipelines.api.app import create_app; create_app(access_log=None); print('app ok')"
+          ! docker run --rm -e PORTPILOT_ENV=staging -e API_FAKE_ROLES=1 portpilot-api:ci \
+            python pipelines/scripts/api/Serve.py --fake-roles
+      - name: The web image runs as node
+        run: test "$(docker run --rm --entrypoint id portpilot-web:ci -un)" = node
+      - name: The compose file is valid with the example env
+        run: |
+          sed -e 's/^PORTPILOT_STACK=.*/PORTPILOT_STACK=portpilot-ci/' deploy/env.example > /tmp/ci.env
+          for k in PGPASSWORD PG_RO_USER PG_RO_PASSWORD PG_AGENT_USER PG_AGENT_PASSWORD PG_API_USER PG_API_PASSWORD \
+                   MONGO_ROOT_USER MONGO_ROOT_PASSWORD MONGO_RO_USER MONGO_RO_PASSWORD QDRANT_API_KEY PACK_RUN_AS WATCH_RUN_AS; do
+            sed -i "s/^$k=.*/$k=ci-placeholder/" /tmp/ci.env
+          done
+          docker compose -f deploy/compose.yaml --env-file /tmp/ci.env config --quiet
 
   api-integration:
     runs-on: ubuntu-latest

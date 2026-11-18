@@ -1754,6 +1754,9 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   smoke of amendment 3 (f) as the real-API proof. It runs on the full-data clone, not the application database
   (ADR-064 note 2026-11-16), and it stays outside CI, which keeps the mocked suite. "New conversation" on `/ask`
   remounts the workspace, because the first question moves the address with `history.replaceState`.
+- **Note (2026-11-18, ADR-070 amendment 1):** Voyages also carries arrival advice: under a `jit` / `rta_late` alert, on
+  demand from the ETA board, and on its own page `/voyages/arrival/<thread>`. The page follows this ADR's rules: the
+  API computes every number, the browser computes none, and model text is rendered as plain text.
 
 ## ADR-061 — The executive financial-intelligence deck: code-built from the finance views, a DSO split (M12), period measures
 - **Status:** Accepted (2026-10-31, owner: R0–R5 of `docs/analysis/financial_intelligence/implementation_roadmap.md`,
@@ -2240,6 +2243,131 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   revisions — the way real data comes); IMF PortWatch congestion as the berth time (a signal, not a time); always
   showing the Cape; a code template with no model (J5); a CO₂ factor table now (owner); widening the supervisor's
   `SLOT_RULES` for the new rows (every question's prompt would change — the row keys travel in the tool's note).
+- **Amendment 1 (2026-11-17, Arrival advice web plan `docs/archive/2026-11-18_Arrival_advice_web_plan.md`).** The owner asked
+  whether arrival advice should merge with route advice or with the voyage watch, and chose the most accurate form
+  that adds real value. Model calls are not the constraint.
+  - **What merges, and what stays apart.** The graphs stay apart from route advice: a different question, inputs,
+    output and Validator. The advice joins the **voyage watch**: the same vessels at sea, the same clock, the same
+    RTA, and `arrival.options` is the arithmetic of both.
+  - **(a) The watch makes the advice.** A new node `arrival` (`voyage_watch.advise_arrivals`) runs between the alerts
+    and the brief, on when the CLI / scheduler builds the graph with models. It runs this graph once per vessel with
+    a `jit` / `rta_late` alert: as the watch's identity, at its clock, on the RTA known at the clock, with this ADR's
+    Validator. Its result summary (number spans included) is saved in the run file under `arrivals`, before the
+    brief, like the alerts (P11-5). One failed advice is recorded with its reason, and the watch goes on.
+  - **What the alert reader returns.** `watch.read_alerts`, and so `GET /voyage-watch/alerts`, attaches each
+    advice to its own alert (`WatchAlert.advice`). The level is the watch's: level 1 / Operations,
+    `port_call_messages` included.
+  - **(b) On demand.** `POST /arrival-advice` (a run + SSE, a thread per question, audit, a 403 up front when the
+    asker may not use the graph's tools), `GET /arrival-advice` and `GET /arrival-advice/{thread}` (the asker and the
+    CEO, else 404). `result_summary` gains number spans. `/me` gets `products.arrival_advice`, from the graph's tool
+    access.
+  - **(c) The web.** On Voyages, a `jit` / `rta_late` alert shows its advice inline: the chosen option with its
+    speed, arrival, wait / lateness and fuel change; the headline with receipts; when the rule's own option differs,
+    the reason. "Why, and every option" opens the reasons (Arabic right to left) and the options table. A Cape option
+    links to route advice, prefilled with the vessel and destination. Every vessel at sea on the ETA board can be
+    advised on demand; each advice has its own page, `/voyages/arrival/<thread>`.
+  - **Proof.** `Arrival_advice_check` Phase 6w (0 model calls): the watch advised its **41** alerted vessels, and on
+    all 41 the advice's computation equals the alert's option, speed, fuel change, lateness and RTA; a breaking
+    model fails its advice only. `Voyage_watch_check` 1–7 unchanged (the node is off in its fake-model phases).
+    `Api_check` 12 / 12 (Phase 8: vessel 5 → `late`, 0 model calls, the read rule, 422s). The mocked E2E (alert →
+    advice, receipts, RTL, on demand, the routes prefill) and `npm run check` ✅. The stack suite on the clone.
+    Lint 0.
+  - **Real run (2026-11-17).** The watch was re-run at the clock on the real models (`voyage_watch:20260913T0000Z:2`,
+    run by Claude on the owner's word): 53 alerts, 24 `jit` + 17 `rta_late`; 41 advices — 28 written and validated,
+    12 decided by code (`late`), 1 `validation_failed` (157: a slot on the text field `arrival_utc`). The supervisor's
+    answer forms already repair that (ADR-059 note (b)), but they are off for this graph. The brief was `ok`. One
+    on-demand advice (vessel 28): "Slow down to 9.5 kn … instead of waiting 56.6 h at anchor", `ok`.
+  - **The web (owner's review, same day).** Only the top 6 alerts show, with "Show N more alerts". An alert's reason
+    is clamped to two lines. The advice under an alert is one highlighted line (the choice, speed, arrival, fuel
+    change), and "Details" holds the rest.
+  - **Checks pinned (2026-11-17).** `watch.pin_runs(<thread>)` points the reader at a temporary copy of the runs up
+    to the frozen one; the folder is now read at call time. `Supervisor_tools_check`, `Stage2_eval` and
+    `Supervisor_check` pin `…T0000Z:1`, so a later run at the same clock never changes their frozen answers.
+  - **Closed by amendment 2.** On a run with the JIT alerts, a broad "alerts" question to the supervisor carried
+    80 rows (the largest request ≈ 15.7 k est tokens vs 7.5 k), so a fallback to Groq (8 k a minute) would refuse it.
+- **Amendment 2 (2026-11-18, owner: fix it before staging).** `supervisor.fold_arrival_rows`, in the model view only
+  (the tool, the API and the run files keep every row). A `watch_alerts` result with more than 4 arrival rows shows the
+  4 most urgent (high first, then the longest wait or delay) + one `arrival/jit` and one `arrival/rta_late` row with
+  totals computed in code over all of them and the ids of the vessels not shown; its customer rows are cut to the 5 with
+  the most vessels + `customer/others` (with the ids of the customers it holds that have high alerts). Asking by
+  `vessel_ids` or `customer_ids` returns any other row in full.
+  - **Proof.** The tool result on `voyage_watch:20260913T0000Z:2` falls from 80 rows (≈ 8.8 k est tokens) to 25 (≈ 3.2 k).
+    The frozen run has no arrival rows and is returned untouched (`Supervisor_check` Phase 2 block). Real models:
+    `stage2_eval_2026-11-18_fold1.json`, every gate met, leakage 0, completeness EN 0.9608 / AR 0.9375, ADR-052 against
+    `stage2_eval_2026-10-30_c1.json` = a tie (−0.0208 / −0.0125). Six questions through `Ask.py` on the JIT run: the
+    largest request of a broad question is **6,990 input tokens** (the provider's count), under Groq's 8 k.
+  - **The router (found by the same probe, owner: fix it).** The rule `arrival` sent berth / JIT words to
+    `arrival_advice` alone, so a fleet-wide question ("Which vessels will miss their requested berth time?", "How much
+    fuel would the JIT slowdowns save in total?") got `not_in_data` although the run holds the answer (17 vessels,
+    −2,385 t). The rule now also offers `watch_alerts`; 0 of the 57 golden questions match it. On the real models both
+    questions are answered from the watch (17 vessels; −2,385.0 t and −1.65 M SDR) and a one-vessel question still
+    uses the advice graph (vessel 28: 9.5 kn).
+  - **The sign rule (D-J8) on the watch's rows.** The first real answer read "fuel savings … −2,385.0 t", a double
+    negative. `arrival.sign_problems` now also applies when the evidence holds the watch's `jit` rows or totals; the
+    re-asked answer reads "change … by −2,385.0 t". The frozen run has no such rows.
+  - **Known limit.** A broad "which vessels" answer may give the count and not every name: the 4 most urgent rows are
+    shown, and the other ids are in the totals row for a follow-up call.
+
+## ADR-071 — Deployment: one Linux VM per environment running one Compose stack, Caddy TLS, the schedules in a container
+- **Status:** Accepted (2026-11-17, owner decisions S1–S8 in one round of clickable answers: "production هيبقى على
+  Azure ب free trial"; staging rehearsed locally now, a VM later; free models with a written paid path; staging = a
+  restore of today's stores; deploy from GitHub Actions; production gates). `docs/archive/2026-11-18_Staging_readiness_plan.md`.
+  Files: `deploy/compose.yaml`, `deploy/Caddyfile`, `deploy/env.example`, `ops/docker/api.Dockerfile` (+ `.dockerignore`),
+  `ops/deploy/{new_env.py,render_env.sh,deploy.sh}`, `.github/workflows/deploy.yml` (+ the CI `images` job),
+  `pipelines/lib/environment.py`, `pipelines/scripts/ops/{Scheduler_service,Backup,Migrate,Deploy_smoke,Deploy_check}.py`,
+  `db/migrations/031_schema_migrations.sql`, `tools/secrets_scan.py`, `.gitleaks.toml`, `docs/deploy/RUNBOOK.md`.
+- **Context:** everything ran on the owner's Windows machine: the API on the loopback, the stores in local containers,
+  the schedules on Windows Task Scheduler, the secrets in `.env`. The API keeps per-process state by design (ADR-064:
+  one process, uploads in memory, run events), MongoDB holds a time-series collection (ADR-029), and the data is
+  synthetic or public (ADR-037 amendment 2).
+- **Decision:** (1) **One host per environment, one Compose stack** (staging, production; same file, an env file each):
+  PostgreSQL/PostGIS, MongoDB 8, Qdrant 1.19.1, the API (one process), a scheduler, the web, Caddy — the images pinned
+  as locally. Managed stores rejected for now: Azure Cosmos DB for MongoDB has no time-series collection; Azure
+  PostgreSQL Flexible Server (PostGIS allowed) is the upgrade path when a measured need appears (backups / HA beyond
+  one VM). (2) **Exposure:** only Caddy publishes ports (80/443, automatic Let's Encrypt; `tls internal` for the local
+  rehearsal; HSTS; 6 MB body limit; `/api/*`, `/docs`, `/openapi.json` answer 404). The browser talks to the web; the
+  BFF reaches the API on an internal network; the stores sit on an `internal` network; `api` / `scheduler` alone join
+  an egress network for the model and tool APIs; Qdrant's port is published on the host loopback only (backups).
+  (3) **`PORTPILOT_ENV`** = local | staging | production (an unknown name stops the process): `.env` optional outside
+  local, test modes (`--fake-roles`) refused, the non-loopback bind allowed, `/docs` off in production, Sentry's
+  environment and a LangSmith `env:` tag. (4) **Least privilege per container:** no `env_file`; each service lists its
+  variables; the database owner's password only in `postgres` and the operator-only `ops` service; read-only roots,
+  all capabilities dropped, non-root users, log rotation. (5) **Secrets:** a root-only env file per environment
+  rendered from **Azure Key Vault** by the VM's managed identity; a new environment gets fresh credentials
+  (`new_env.py`) — never the owner's local values; after a restore `Backup.py secure` re-keys the runtime logins,
+  re-creates the MongoDB users and disables every inherited API login. (6) **Schedules off Windows:**
+  `Scheduler_service.py` in its own container fires `Weekly_pack.py scheduled` (Monday 10:30) and `Voyage_watch.py
+  scheduled` (10:30 + 22:30), Africa/Cairo, one job at a time, a missed firing caught up inside 12 h / 6 h, nothing on
+  the first start. (7) **Backups:** nightly `Backup.py backup` from the host (pg_dumpall roles + pg_dump, mongodump, the
+  Qdrant snapshot, the durable files incl. `reports/`), manifest with hashes and facts, 7 daily + 4 weekly, an off-host
+  copy to Azure Blob; `restore` checks every count and digest. (8) **Deploy:** a manual GitHub workflow per environment
+  with the owner as required reviewer, Azure login by OIDC (no stored cloud secret), `az vm run-command` →
+  `deploy.sh`: build on the VM from the ref (no registry), backup, migrations (`Migrate.py`; applying needs a second
+  approval — ADR-016 amendment 1), up, `Deploy_smoke.py`, previous images back on a failed smoke (the database is
+  restored only by hand). (9) **Models:** the free tiers stay (ADR-045 note 2026-11-17). Redis, a queue, a second API
+  worker, MinIO and Kubernetes stay deferred (ADR-018 triggers unchanged).
+- **Consequences:** `Deploy_check.py` (CI) proves the rules without Docker; the CI `images` job builds both images;
+  the restore drill on local copies matched every table count, the KPI digest, every MongoDB count, the Qdrant points
+  and their digest; the staging rehearsal ran on Docker Desktop (plan §8). The Azure free trial is USD 200 for 30
+  days; afterwards the VM, its disks and the blob storage are paid (runbook §Costs). One VM is a single point of
+  failure: the recovery is the restore runbook (RPO = the last nightly backup + the off-host copy).
+- **Rejected:** Kubernetes / AKS (one process by design; cost); Azure Container Apps (in-memory uploads and SSE need
+  one sticky instance; MongoDB time-series and Qdrant still need a VM); the owner's machine behind a tunnel (no
+  separation, must stay on); a container registry (the VM builds the reviewed ref itself; a registry when a second
+  host appears); Windows Task Scheduler on a Windows VM (a Linux host is cheaper and the CLIs already run there).
+
+## ADR-016 amendment 1 (2026-11-17) — migrations recorded in the database; applied by the deploy on approval
+`public.schema_migrations` (migration 031) records every applied file with the hash of its text (CRLF read as LF).
+On the owner's machine migrations stay applied by the owner as before. In staging / production
+`pipelines/scripts/ops/Migrate.py apply --yes` runs the pending files in order from `deploy.sh`, only when the
+workflow's `apply_migrations` step was approved by the owner; `status` exits 4 when a recorded migration's file was
+edited, and the deploy stops.
+
+## ADR-045 note (2026-11-17) — production stays on the free tiers; the paid path is written
+Staging and production keep `models.toml` unchanged while the data is synthetic or public. Switching to paid (Gemini
+paid tier, the same model ids, a `max_usd_per_day` cap per ADR-045 amendment 4, then ADR-052) is required before any
+real or personal data, and recommended when the shared daily quota is exhausted on two days in a row
+(`/health/ready`'s `llm_requests_today`, the scheduled logs). Steps: `docs/deploy/RUNBOOK.md` §Paid models.
 
 ## Dropped (history)
 - Danish Maritime Authority AIS template (`ais_real_sample_template.csv`): dropped. AIS sources are `AISHub sample.json` (type/status diversity) and `NOAA AccessAIS.csv` (movement behaviour).

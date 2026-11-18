@@ -1227,6 +1227,96 @@ function seedAdvice() {
 }
 seedAdvice();
 
+// Arrival advice (ADR-070) as `arrival_advice.result_summary` gives it — fixture values, shaped like the real one
+function arrivalFor(vessel_id, { rta = "2026-09-19T01:00Z", location = "berth" } = {}) {
+  const headline =
+    "Slow to 11.2 kn and arrive at 22:00Z, saving 14.3 t of fuel instead of waiting 21.4 h at anchor.";
+  const reasons = [
+    "At the current 14.0 kn the vessel would wait 21.4 h at anchor; at 11.2 kn it arrives 3.0 h before the requested time and burns 14.3 t less.",
+    "لو هدّت لـ 11.2 عقدة هتوفّر 6,078 SDR من تمن الوقود.",
+  ];
+  return {
+    status: "ok",
+    recommendation: "jit",
+    headline,
+    summary: {
+      vessel_id,
+      destination: "ITGOA",
+      rta_utc: rta,
+      rta_source: "port_call_message",
+      location,
+      margin_h: 3,
+      target_utc: "2026-09-18T22:00Z",
+      situation: "early",
+      current_speed_kn: 14.0,
+      rule_option: "jit",
+    },
+    options: [
+      {
+        option: "keep",
+        speed_kn: 14.0,
+        arrival_utc: "2026-09-18T03:40Z",
+        wait_h: 21.4,
+        late_h: 0,
+        fuel_t: 61.2,
+        fuel_sdr: 26010.0,
+        total_sdr: 26010.0,
+        change_fuel_t: 0,
+        change_total_sdr: 0,
+      },
+      {
+        option: "jit",
+        speed_kn: 11.2,
+        arrival_utc: "2026-09-18T22:00Z",
+        wait_h: 3.0,
+        late_h: 0,
+        fuel_t: 46.9,
+        fuel_sdr: 19932.5,
+        total_sdr: 19932.5,
+        change_fuel_t: -14.3,
+        change_total_sdr: -6077.5,
+      },
+      {
+        option: "floor",
+        speed_kn: 10.0,
+        arrival_utc: "2026-09-19T08:12Z",
+        wait_h: 0,
+        late_h: 7.2,
+        fuel_t: 41.0,
+        fuel_sdr: 17425.0,
+        total_sdr: 17425.0,
+        change_fuel_t: -20.2,
+        change_total_sdr: -8585.0,
+      },
+    ],
+    reasons,
+    risks: [],
+    assumptions: ["Target = the requested time − 3 h (the arrival margin); fuel at 425.00 SDR per tonne."],
+    problems: [],
+    sources: ["arrival.options: arrival_options ok — tools/arrival.py (vessel_id = 118)"],
+    model_calls: 1,
+    cached: 0,
+    numbers: {
+      headline: spansAt(headline, [
+        ["11.2 kn", "speed_kn", "arrival.options", "arrival.options", "option = jit", 1],
+        ["14.3 t", "change_fuel_t", "arrival.options", "arrival.options", "option = jit", 1],
+        ["21.4 h", "keep_wait_h", "arrival.summary"],
+      ]),
+      reasons: [
+        spansAt(reasons[0], [
+          ["14.0 kn", "current_speed_kn", "arrival.summary"],
+          ["21.4 h", "keep_wait_h", "arrival.summary"],
+        ]),
+        spansAt(reasons[1], [
+          ["6,078 SDR", "change_total_sdr", "arrival.options", "arrival.options", "option = jit", 1],
+        ]),
+      ],
+      risks: [],
+    },
+  };
+}
+const arrivals = new Map(); // thread -> {owner, last_at, detail}
+
 const WATCH_ALERTS = [
   [
     "234/weather",
@@ -1259,14 +1349,14 @@ const WATCH_ALERTS = [
     "waves 6.80 m ≥ 4.0 m",
   ],
   [
-    "118/suez_traffic",
+    "118/jit",
     118,
     "Dry Bulk Voyager 118",
     "ITGOA",
     "2026-09-18T03:40Z",
-    "suez_traffic",
+    "jit",
     "moderate",
-    "Suez Canal ahead; transits -21.4 % vs a year earlier ≤ -20 %",
+    "would wait 21.4 h at anchor (≥ 6 h) for the requested time of arrival 2026-09-19T01:00Z; 11.2 kn (jit) changes the fuel by -14.3 t",
   ],
   [
     "205/customer",
@@ -1288,6 +1378,10 @@ const WATCH_ALERTS = [
   severity,
   reason,
   customer_id: kind === "customer" ? 7 : null,
+  // Arrival advice web plan: the watch's own advice rides on its jit / rta_late alert
+  ...(kind === "jit"
+    ? { rta_utc: "2026-09-19T01:00Z", rta_location: "berth", advice: arrivalFor(vessel_id) }
+    : {}),
 }));
 const WATCH_HEADLINE =
   "5 alerts on the next legs, 3 high: Cruise Voyager 234 meets waves of 7.6 m on 2026-09-16.";
@@ -1408,6 +1502,48 @@ ETAS.push({
 });
 const LATEST_WATCH = "voyage_watch:20260913T0000Z:1";
 
+function arrivalRun(res, me, thread, detail) {
+  const graph = ["inputs", "options", "context", "advisor", "validator", "render"];
+  const events = [
+    { event: "started", data: { thread_id: thread, graph: "arrival_advice" } },
+    ...graph.flatMap((name) => [
+      { event: "node", data: { name, phase: "start" } },
+      { event: "node", data: { name, phase: "end" } },
+    ]),
+    {
+      event: "answer",
+      data: {
+        thread,
+        status: detail.status,
+        answer: detail,
+        not_permitted: [],
+        evidence: {},
+        problems: [],
+        stop_reason: null,
+        model_calls: detail.model_calls,
+        cached: 0,
+        view: null,
+        numbers: [],
+      },
+    },
+    { event: "done", data: { status: detail.status } },
+  ].map((e, i) => ({ id: i + 1, ...e }));
+  const runId = randomUUID();
+  runsById.set(runId, {
+    events,
+    owner: me.employee_id,
+    result: events.at(-2).data,
+    thread,
+    kind: "arrival_advice",
+  });
+  send(res, 202, {
+    run_id: runId,
+    thread_id: thread,
+    events_url: `/api/v1/runs/${runId}/events`,
+    run_url: `/api/v1/runs/${runId}`,
+  });
+}
+
 function routeRun(res, me, thread, detail) {
   const graph = [
     "inputs",
@@ -1491,6 +1627,46 @@ async function operationsRoutes(req, res, url, me) {
     if (m && req.method === "GET") {
       const t = advice.get(decodeURIComponent(m[1]));
       if (!t || !mine(t)) return (send(res, 404, { title: "no such route advice" }), true);
+      return (send(res, 200, t.detail), true);
+    }
+    return false;
+  }
+  if (p === "/arrival-advice" || p.startsWith("/arrival-advice/")) {
+    if (!me.products.arrival_advice)
+      return (send(res, 403, { title: "not permitted for this user (ADR-006)" }), true);
+    const mine = (t) => me.role === "ceo" || t.owner === me.employee_id;
+    if (p === "/arrival-advice" && req.method === "GET") {
+      const rows = [...arrivals.entries()]
+        .filter(([, t]) => mine(t))
+        .map(([thread_id, t]) => ({
+          thread_id,
+          state: "ended",
+          status: t.detail.status,
+          last_at: t.last_at,
+        }));
+      return (send(res, 200, rows), true);
+    }
+    if (p === "/arrival-advice" && req.method === "POST") {
+      const body = await readJson(req);
+      const id = body?.vessel_id;
+      const rtaOk = body?.rta_utc == null || /Z$|[+-]\d{2}:\d{2}$/.test(body.rta_utc);
+      if (!Number.isInteger(id) || id < 1 || !rtaOk)
+        return (send(res, 422, { title: "Invalid request" }), true);
+      const pre = `arrival_advice:${me.employee_id}:2026-09-13:${id}:`;
+      const thread = `${pre}${[...arrivals.keys()].filter((k) => k.startsWith(pre)).length + 1}`;
+      const rta = body.rta_utc ? String(body.rta_utc).replace(/:00Z$/, "Z") : undefined;
+      const detail = {
+        thread_id: thread,
+        ...arrivalFor(id, { ...(rta ? { rta } : {}), location: body.location ?? "berth" }),
+      };
+      arrivals.set(thread, { owner: me.employee_id, last_at: now(), detail });
+      arrivalRun(res, me, thread, detail);
+      return true;
+    }
+    const m = /^\/arrival-advice\/([^/]+)$/.exec(p);
+    if (m && req.method === "GET") {
+      const t = arrivals.get(decodeURIComponent(m[1]));
+      if (!t || !mine(t)) return (send(res, 404, { title: "no such arrival advice" }), true);
       return (send(res, 200, t.detail), true);
     }
     return false;

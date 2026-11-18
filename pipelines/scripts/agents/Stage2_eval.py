@@ -58,6 +58,7 @@ EVAL = ROOT / "Data" / "processed" / "agents" / "eval"
 SCRATCH = ROOT / "Notebooks" / "_scratch"
 GOLDEN = EVAL / "supervisor_qa_golden.jsonl"
 WATCH_FILE = ROOT / "reports" / "voyage_watch" / "voyage_watch_20260913T0000Z_1.json"
+watch.pin_runs("voyage_watch:20260913T0000Z:1")    # the frozen answers read this run, never a later one at its clock
 FROZEN = {"supervisor_qa_golden.jsonl": "722f3ca3b7bf86f7", "route_cases.json": None}
 REAL = os.environ.get("EVAL_REAL_MODELS") == "1"
 REPEATS = int(os.environ.get("EVAL_REPEATS", "2"))

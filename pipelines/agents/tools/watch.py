@@ -42,30 +42,56 @@ def _runs(folder: Path) -> list[tuple[tuple[str, int], Path]]:
     return sorted(found)
 
 
-def run_files(folder: Path = vw.REPORTS_DIR) -> list[Path]:
+def runs_dir(folder: Path | None = None) -> Path:
+    """The saved runs' folder, read at call time (a check pins its runs by pointing `vw.REPORTS_DIR` at a copy)."""
+    return folder if folder is not None else vw.REPORTS_DIR
+
+
+def pin_runs(upto: str) -> Path:
+    """For checks with frozen answers: point the reader at a temporary copy of the saved runs up to the thread `upto`
+    (`voyage_watch:<stamp>:<n>`), so a later run at the same clock (a re-run of the watch) never changes what they
+    read. Returns the copy's folder; nothing in `reports/` is touched."""
+    import shutil
+    import tempfile
+    x = RUN_FILE.fullmatch(vw.run_file_path(vw.REPORTS_DIR, upto).stem)
+    if x is None:
+        raise ValueError(f"not a watch run thread: {upto}")
+    cut = (x[1], int(x[2]))
+    tmp = Path(tempfile.mkdtemp(prefix="watch_pinned_"))
+    for key, path in _runs(vw.REPORTS_DIR):
+        if key <= cut:
+            shutil.copy2(path, tmp / path.name)
+    vw.REPORTS_DIR = tmp
+    return tmp
+
+
+def run_files(folder: Path | None = None) -> list[Path]:
     """The run files, oldest first (by the run's clock, then its number)."""
-    return [p for _, p in _runs(folder)]
+    return [p for _, p in _runs(runs_dir(folder))]
 
 
 def read_alerts(user, thread: str | None = None, vessel: int | None = None, high: bool = False,
-                folder: Path = vw.REPORTS_DIR) -> dict:
+                folder: Path | None = None) -> dict:
     """The saved alerts of one run (the latest by default), filtered; refused when the identity may not read them."""
     if not can_read(user):
         return {"status": "not_permitted", "note": "not permitted for this user (ADR-006)"}
-    files = [vw.run_file_path(folder, thread)] if thread else run_files(folder)[-1:]
+    files = [vw.run_file_path(runs_dir(folder), thread)] if thread else run_files(folder)[-1:]
     if not files or not files[0].exists():
         return {"status": "no_data", "note": "no saved watch run" + (f" for {thread}" if thread else "")}
     r = json.loads(files[0].read_text(encoding="utf-8"))
-    al = [a for a in r.get("alerts") or [] if (vessel is None or a["vessel_id"] == vessel)
+    arrivals = r.get("arrivals") or {}            # Arrival advice web plan: the watch's advice per jit / rta_late vessel
+    al = [a | ({"advice": arrivals[str(a["vessel_id"])]} if a.get("kind") in vw.ARRIVAL_KINDS
+               and str(a["vessel_id"]) in arrivals else {})
+          for a in r.get("alerts") or [] if (vessel is None or a["vessel_id"] == vessel)
           and (not high or a["severity"] == "high")]
     return {"status": "ok", "thread_id": r["thread_id"], "as_of": r["as_of"], "brief_status": r.get("brief_status"),
             "headline": r.get("headline"), "alerts": al, "of": len(r.get("alerts") or [])}
 
 
-def run_at(as_of: datetime, folder: Path = vw.REPORTS_DIR) -> Path | None:
+def run_at(as_of: datetime, folder: Path | None = None) -> Path | None:
     """The latest saved run whose clock is at or before `as_of` (then the highest run number), or None."""
     cut = as_of.strftime(STAMP)
-    runs = [p for (stamp, _), p in _runs(folder) if stamp <= cut]
+    runs = [p for (stamp, _), p in _runs(runs_dir(folder)) if stamp <= cut]
     return runs[-1] if runs else None
 
 
@@ -83,7 +109,7 @@ class WatchArgs(BaseModel):
                                                       "destination, one row each (the fleet row is always returned)")
 
 
-def watch_alerts(user, as_of: datetime | None = None, folder: Path = vw.REPORTS_DIR, **args) -> ToolResult:
+def watch_alerts(user, as_of: datetime | None = None, folder: Path | None = None, **args) -> ToolResult:
     a = WatchArgs.model_validate(args)
     as_of = context.RunContext(user, as_of=as_of or context.DATA_AS_OF).as_of      # the clock rules of the context
     if not can_read(user):

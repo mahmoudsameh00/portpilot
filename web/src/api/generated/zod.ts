@@ -8,6 +8,112 @@
 import * as zod from 'zod';
 
 /**
+ * @summary List Arrival Advice
+ */
+export const ListArrivalAdviceApiV1ArrivalAdviceGetResponseItem = zod.object({
+  "last_at": zod.iso.datetime({"offset":true}),
+  "state": zod.string().describe('ended | stalled | pending'),
+  "status": zod.union([zod.string(),zod.null()]),
+  "thread_id": zod.string()
+})
+export const ListArrivalAdviceApiV1ArrivalAdviceGetResponse = zod.array(ListArrivalAdviceApiV1ArrivalAdviceGetResponseItem)
+
+
+/**
+ * @summary Arrival Advice
+ */
+export const arrivalAdviceApiV1ArrivalAdvicePostBodyLocationDefault = `berth`;
+export const arrivalAdviceApiV1ArrivalAdvicePostBodyPortOneRegExp = new RegExp('^[A-Z]{2}[A-Z2-9]{3}$');
+
+
+
+export const ArrivalAdviceApiV1ArrivalAdvicePostBody = zod.object({
+  "as_of": zod.union([zod.iso.datetime({"offset":true}),zod.null()]).optional(),
+  "location": zod.enum(['berth', 'pilot_boarding_place']).default(arrivalAdviceApiV1ArrivalAdvicePostBodyLocationDefault),
+  "port": zod.union([zod.string().regex(arrivalAdviceApiV1ArrivalAdvicePostBodyPortOneRegExp),zod.null()]).optional(),
+  "rta_utc": zod.union([zod.iso.datetime({"offset":true}),zod.null()]).optional(),
+  "vessel_id": zod.int().min(1)
+}).describe('`ArrivalRequest` + the clock (UTC; default and maximum: the data\'s as-of); unknown fields refused.')
+
+export const ArrivalAdviceApiV1ArrivalAdvicePostResponse = zod.object({
+  "events_url": zod.string().describe('SSE stream of the run\'s events; read it with fetch (it needs the token)'),
+  "run_id": zod.string(),
+  "run_url": zod.string(),
+  "thread_id": zod.union([zod.string(),zod.null()])
+})
+
+
+/**
+ * @summary Get Arrival Advice
+ */
+export const GetArrivalAdviceApiV1ArrivalAdviceThreadIdGetParams = zod.object({
+  "thread_id": zod.string()
+})
+
+export const getArrivalAdviceApiV1ArrivalAdviceThreadIdGetResponseCachedDefault = 0;
+export const getArrivalAdviceApiV1ArrivalAdviceThreadIdGetResponseModelCallsDefault = 0;
+
+export const GetArrivalAdviceApiV1ArrivalAdviceThreadIdGetResponse = zod.looseObject({
+  "assumptions": zod.union([zod.array(zod.string()),zod.null()]).optional(),
+  "cached": zod.int().default(getArrivalAdviceApiV1ArrivalAdviceThreadIdGetResponseCachedDefault),
+  "headline": zod.union([zod.string(),zod.null()]).optional(),
+  "model_calls": zod.int().default(getArrivalAdviceApiV1ArrivalAdviceThreadIdGetResponseModelCallsDefault),
+  "numbers": zod.object({
+  "headline": zod.array(zod.object({
+  "end": zod.int(),
+  "evidence_id": zod.string(),
+  "field": zod.string(),
+  "filter": zod.union([zod.string(),zod.null()]).describe('the filter that selected the row, e.g. report_week = 23'),
+  "row": zod.union([zod.int(),zod.null()]).describe('the row index in the evidence; None = a result-level field'),
+  "source": zod.union([zod.string(),zod.null()]).describe('the view / tool the value was read from, e.g. finance.kpi_weekly'),
+  "start": zod.int(),
+  "text": zod.string()
+}).describe('Where one bound number sits in a rendered text (Frontend plan D-FE-1): offsets in UTF-16 code units.')).optional(),
+  "reasons": zod.array(zod.array(zod.object({
+  "end": zod.int(),
+  "evidence_id": zod.string(),
+  "field": zod.string(),
+  "filter": zod.union([zod.string(),zod.null()]).describe('the filter that selected the row, e.g. report_week = 23'),
+  "row": zod.union([zod.int(),zod.null()]).describe('the row index in the evidence; None = a result-level field'),
+  "source": zod.union([zod.string(),zod.null()]).describe('the view / tool the value was read from, e.g. finance.kpi_weekly'),
+  "start": zod.int(),
+  "text": zod.string()
+}).describe('Where one bound number sits in a rendered text (Frontend plan D-FE-1): offsets in UTF-16 code units.'))).optional(),
+  "risks": zod.array(zod.array(zod.object({
+  "end": zod.int(),
+  "evidence_id": zod.string(),
+  "field": zod.string(),
+  "filter": zod.union([zod.string(),zod.null()]).describe('the filter that selected the row, e.g. report_week = 23'),
+  "row": zod.union([zod.int(),zod.null()]).describe('the row index in the evidence; None = a result-level field'),
+  "source": zod.union([zod.string(),zod.null()]).describe('the view / tool the value was read from, e.g. finance.kpi_weekly'),
+  "start": zod.int(),
+  "text": zod.string()
+}).describe('Where one bound number sits in a rendered text (Frontend plan D-FE-1): offsets in UTF-16 code units.'))).optional()
+}).optional(),
+  "options": zod.array(zod.looseObject({
+  "arrival_utc": zod.union([zod.string(),zod.null()]).optional(),
+  "change_fuel_t": zod.union([zod.number(),zod.null()]).optional(),
+  "change_total_sdr": zod.union([zod.number(),zod.null()]).optional(),
+  "fuel_sdr": zod.union([zod.number(),zod.null()]).optional(),
+  "fuel_t": zod.union([zod.number(),zod.null()]).optional(),
+  "late_h": zod.union([zod.number(),zod.null()]).optional(),
+  "option": zod.enum(['keep', 'jit', 'floor', 'catch_up', 'cape']),
+  "speed_kn": zod.union([zod.number(),zod.null()]).optional(),
+  "total_sdr": zod.union([zod.number(),zod.null()]).optional(),
+  "wait_h": zod.union([zod.number(),zod.null()]).optional()
+}).describe('One computed speed option of `tools/arrival.py` (code, never the model): keep / jit / floor / catch_up / cape.')).optional(),
+  "problems": zod.union([zod.array(zod.string()),zod.null()]).optional(),
+  "reasons": zod.union([zod.array(zod.string()),zod.null()]).optional(),
+  "recommendation": zod.union([zod.enum(['keep', 'jit', 'floor', 'catch_up', 'cape']),zod.null()]).optional(),
+  "risks": zod.union([zod.array(zod.string()),zod.null()]).optional(),
+  "sources": zod.array(zod.string()).optional(),
+  "status": zod.union([zod.string(),zod.null()]),
+  "summary": zod.record(zod.string(), zod.unknown()).optional().describe('the vessel, its destination, the RTA (and its source), the target, the situation'),
+  "thread_id": zod.string()
+}).describe('A stored arrival advice thread (`GET /arrival-advice/{thread}`).')
+
+
+/**
  * @summary Login
  */
 export const loginApiV1AuthLoginPostBodyEmailMin = 3;
@@ -22,6 +128,7 @@ export const LoginApiV1AuthLoginPostBody = zod.object({
   "password": zod.string().min(1).max(loginApiV1AuthLoginPostBodyPasswordMax)
 })
 
+export const loginApiV1AuthLoginPostResponseMeProductsArrivalAdviceDefault = false;
 export const loginApiV1AuthLoginPostResponseTokenTypeDefault = `bearer`;
 
 export const LoginApiV1AuthLoginPostResponse = zod.object({
@@ -31,6 +138,7 @@ export const LoginApiV1AuthLoginPostResponse = zod.object({
   "department": zod.string(),
   "employee_id": zod.int(),
   "products": zod.object({
+  "arrival_advice": zod.boolean().default(loginApiV1AuthLoginPostResponseMeProductsArrivalAdviceDefault).describe('Just-in-Time arrival advice for a vessel at sea (ADR-070): the graph\'s own tool access (ADR-006)'),
   "ask": zod.boolean().describe('ask the supervisor (every employee; the refused parts are named in the answer)'),
   "packs_decide": zod.boolean().describe('approve / edit / reject a pack (a Finance manager or the CEO)'),
   "packs_read": zod.boolean().describe('read the weekly finance packs (level 2 / Finance, ADR-006)'),
@@ -456,13 +564,26 @@ export const ReadyApiV1HealthReadyGetResponse = zod.object({
 
 
 /**
+ * Open readiness for the deploy smoke test, container healthchecks and the uptime monitor (Staging readiness
+ * plan P2): the status word only — which component failed stays behind `/ready` (a token) and in the server's log.
+ * @summary Status
+ */
+export const StatusApiV1HealthStatusGetResponse = zod.object({
+  "status": zod.enum(['ready', 'degraded'])
+})
+
+
+/**
  * @summary Me
  */
+export const meApiV1MeGetResponseProductsArrivalAdviceDefault = false;
+
 export const MeApiV1MeGetResponse = zod.object({
   "ceiling": zod.int().describe('the highest sensitivity level this role reads in any department'),
   "department": zod.string(),
   "employee_id": zod.int(),
   "products": zod.object({
+  "arrival_advice": zod.boolean().default(meApiV1MeGetResponseProductsArrivalAdviceDefault).describe('Just-in-Time arrival advice for a vessel at sea (ADR-070): the graph\'s own tool access (ADR-006)'),
   "ask": zod.boolean().describe('ask the supervisor (every employee; the refused parts are named in the answer)'),
   "packs_decide": zod.boolean().describe('approve / edit / reject a pack (a Finance manager or the CEO)'),
   "packs_read": zod.boolean().describe('read the weekly finance packs (level 2 / Finance, ADR-006)'),
@@ -1234,13 +1355,73 @@ export const WatchAlertsApiV1VoyageWatchAlertsGetQueryParams = zod.object({
   "high": zod.boolean().default(watchAlertsApiV1VoyageWatchAlertsGetQueryHighDefault)
 })
 
+export const watchAlertsApiV1VoyageWatchAlertsGetResponseAlertsItemAdviceOneCachedDefault = 0;
+export const watchAlertsApiV1VoyageWatchAlertsGetResponseAlertsItemAdviceOneModelCallsDefault = 0;
+
 export const WatchAlertsApiV1VoyageWatchAlertsGetResponse = zod.object({
   "alerts": zod.array(zod.looseObject({
+  "advice": zod.union([zod.looseObject({
+  "assumptions": zod.union([zod.array(zod.string()),zod.null()]).optional(),
+  "cached": zod.int().default(watchAlertsApiV1VoyageWatchAlertsGetResponseAlertsItemAdviceOneCachedDefault),
+  "headline": zod.union([zod.string(),zod.null()]).optional(),
+  "model_calls": zod.int().default(watchAlertsApiV1VoyageWatchAlertsGetResponseAlertsItemAdviceOneModelCallsDefault),
+  "numbers": zod.object({
+  "headline": zod.array(zod.object({
+  "end": zod.int(),
+  "evidence_id": zod.string(),
+  "field": zod.string(),
+  "filter": zod.union([zod.string(),zod.null()]).describe('the filter that selected the row, e.g. report_week = 23'),
+  "row": zod.union([zod.int(),zod.null()]).describe('the row index in the evidence; None = a result-level field'),
+  "source": zod.union([zod.string(),zod.null()]).describe('the view / tool the value was read from, e.g. finance.kpi_weekly'),
+  "start": zod.int(),
+  "text": zod.string()
+}).describe('Where one bound number sits in a rendered text (Frontend plan D-FE-1): offsets in UTF-16 code units.')).optional(),
+  "reasons": zod.array(zod.array(zod.object({
+  "end": zod.int(),
+  "evidence_id": zod.string(),
+  "field": zod.string(),
+  "filter": zod.union([zod.string(),zod.null()]).describe('the filter that selected the row, e.g. report_week = 23'),
+  "row": zod.union([zod.int(),zod.null()]).describe('the row index in the evidence; None = a result-level field'),
+  "source": zod.union([zod.string(),zod.null()]).describe('the view / tool the value was read from, e.g. finance.kpi_weekly'),
+  "start": zod.int(),
+  "text": zod.string()
+}).describe('Where one bound number sits in a rendered text (Frontend plan D-FE-1): offsets in UTF-16 code units.'))).optional(),
+  "risks": zod.array(zod.array(zod.object({
+  "end": zod.int(),
+  "evidence_id": zod.string(),
+  "field": zod.string(),
+  "filter": zod.union([zod.string(),zod.null()]).describe('the filter that selected the row, e.g. report_week = 23'),
+  "row": zod.union([zod.int(),zod.null()]).describe('the row index in the evidence; None = a result-level field'),
+  "source": zod.union([zod.string(),zod.null()]).describe('the view / tool the value was read from, e.g. finance.kpi_weekly'),
+  "start": zod.int(),
+  "text": zod.string()
+}).describe('Where one bound number sits in a rendered text (Frontend plan D-FE-1): offsets in UTF-16 code units.'))).optional()
+}).optional(),
+  "options": zod.array(zod.looseObject({
+  "arrival_utc": zod.union([zod.string(),zod.null()]).optional(),
+  "change_fuel_t": zod.union([zod.number(),zod.null()]).optional(),
+  "change_total_sdr": zod.union([zod.number(),zod.null()]).optional(),
+  "fuel_sdr": zod.union([zod.number(),zod.null()]).optional(),
+  "fuel_t": zod.union([zod.number(),zod.null()]).optional(),
+  "late_h": zod.union([zod.number(),zod.null()]).optional(),
+  "option": zod.enum(['keep', 'jit', 'floor', 'catch_up', 'cape']),
+  "speed_kn": zod.union([zod.number(),zod.null()]).optional(),
+  "total_sdr": zod.union([zod.number(),zod.null()]).optional(),
+  "wait_h": zod.union([zod.number(),zod.null()]).optional()
+}).describe('One computed speed option of `tools/arrival.py` (code, never the model): keep / jit / floor / catch_up / cape.')).optional(),
+  "problems": zod.union([zod.array(zod.string()),zod.null()]).optional(),
+  "reasons": zod.union([zod.array(zod.string()),zod.null()]).optional(),
+  "recommendation": zod.union([zod.enum(['keep', 'jit', 'floor', 'catch_up', 'cape']),zod.null()]).optional(),
+  "risks": zod.union([zod.array(zod.string()),zod.null()]).optional(),
+  "sources": zod.array(zod.string()).optional(),
+  "status": zod.union([zod.string(),zod.null()]),
+  "summary": zod.record(zod.string(), zod.unknown()).optional().describe('the vessel, its destination, the RTA (and its source), the target, the situation')
+}).describe('One arrival advice (ADR-070), as `arrival_advice.result_summary` gives it; numbers in the texts carry spans.\n`status` "error" = the watch could not run this advice (its reason in `problems`).'),zod.null()]).optional().describe('a jit / rta_late alert\'s arrival advice, made by the same watch run (Arrival advice web plan)'),
   "alert_id": zod.string(),
   "customer_id": zod.union([zod.int(),zod.null()]).optional(),
   "destination": zod.union([zod.string(),zod.null()]).optional(),
   "eta_utc": zod.union([zod.string(),zod.null()]).optional(),
-  "kind": zod.string().describe('weather | suez_traffic | customer'),
+  "kind": zod.string().describe('weather | suez_traffic | rta_late | jit | customer (ADR-070: the rta_utc, rta_location and option fields ride along)'),
   "reason": zod.union([zod.string(),zod.null()]).optional(),
   "severity": zod.union([zod.string(),zod.null()]).optional(),
   "vessel_id": zod.union([zod.int(),zod.null()]).optional(),

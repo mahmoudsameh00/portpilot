@@ -103,7 +103,10 @@ class Script:
                                                     evidence_ids=["kpi.category"]) for c in cats[:3]],
                                   caveats=[])
         self.writer_prompts.append(" ".join(str(x.content) for x in msgs))
-        assert k and schema is m.DeckDraft
+        assert k
+        if schema is m.SlidesDraft:      # a revise re-drafts its related slides only (ADR-050 amendment 5, 2026-11-16)
+            return wp.slides_of(sample.slot_draft(W, EV), msgs)
+        assert schema is m.DeckDraft, schema
         return m.DeckDraft.model_validate(sample.slot_draft(W, EV))
 
 

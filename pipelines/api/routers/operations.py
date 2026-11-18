@@ -1,8 +1,11 @@
-"""Route advice and the voyage watch (plan §3.5; ADR-057 / ADR-058).
+"""Route advice, arrival advice and the voyage watch (plan §3.5; ADR-057 / ADR-070 / ADR-058).
 
 - `POST /route-advice` runs the `route_advice` graph exactly as `Route_advice.py ask` does (its own thread
   `route_advice:<employee>:<as_of>:<from>-<to>:<n>`, one trace, the tools' RBAC) in the run executor; the stored
   advice is read by its asker and the CEO.
+- `POST /arrival-advice` runs the `arrival_advice` graph exactly as `Arrival_advice.py ask` does (thread
+  `arrival_advice:<employee>:<as_of>:<vessel>:<n>`; Arrival advice web plan P1); refused up front (403) when the
+  asker may not use the graph's tools, read back by its asker and the CEO.
 - The watch is never started here (owner A5: Task Scheduler runs it every 12 h); its saved alerts and runs are level
   1 / Operations data (P11-8), readable by every employee — `watch.read_alerts` still checks the identity.
 """
@@ -12,19 +15,22 @@ from typing import Any
 from fastapi import APIRouter, Request
 
 from pipelines.agents import checkpointer, scheduling, tracing
+from pipelines.agents.graphs import arrival_advice as aa
 from pipelines.agents.graphs import route_advice as ra
 from pipelines.agents.graphs import voyage_watch as vw
-from pipelines.agents.graphs.models import RouteRequest
+from pipelines.agents.graphs import supervisor
+from pipelines.agents.graphs.models import ArrivalRequest, RouteRequest
 from pipelines.agents.tools import context, watch
 from pipelines.api import audit, runs
 from pipelines.api.auth import Signed
 from pipelines.api.errors import ApiError, request_id
 from pipelines.api.routers.ask import RunEvents
-from pipelines.api.schemas import (RouteAdviceDetail, RunAccepted, ThreadRow, WatchAlerts, WatchRunDetail,
-                                   WatchRunRow)
+from pipelines.api.schemas import (ArrivalAdviceDetail, RouteAdviceDetail, RunAccepted, ThreadRow, WatchAlerts,
+                                   WatchRunDetail, WatchRunRow)
 
 router = APIRouter(tags=["operations"])
 ROUTE_NODES = frozenset({"inputs", "routes", "costs", "context", "advisor", "validator", "render"})
+ARRIVAL_NODES = frozenset({"inputs", "options", "context", "advisor", "validator", "render"})
 
 
 class RouteIn(RouteRequest):
@@ -90,6 +96,80 @@ def get_route_advice(thread_id: str, p: Signed, request: Request) -> dict:
     if not st:
         raise ApiError(404, "no such route advice", slug="not_found")
     return {"thread_id": thread_id, **ra.result_summary(st)}
+
+
+# --- arrival advice (ADR-070; Arrival advice web plan P1) ----------------------------------------------------------
+class ArrivalIn(ArrivalRequest):
+    """`ArrivalRequest` + the clock (UTC; default and maximum: the data's as-of); unknown fields refused."""
+    model_config = {**ArrivalRequest.model_config, "extra": "forbid"}
+    as_of: datetime | None = None
+
+
+def _may_advise_arrival(user) -> bool:
+    return context.permitted(user, *supervisor.TOOL_RESOURCES["arrival_advice"])
+
+
+@router.post("/arrival-advice", response_model=RunAccepted, status_code=202)
+def arrival_advice(body: ArrivalIn, p: Signed, request: Request) -> RunAccepted:
+    user, rid = p.user, request_id(request)
+    if not _may_advise_arrival(user):
+        audit.record(employee_id=user.employee_id, resource_type="arrival_advice", action="ask", decision="denied",
+                     request_id=rid)
+        raise ApiError(403, "not permitted for this user (ADR-006)", slug="not_permitted")
+    as_of = body.as_of or context.DATA_AS_OF
+    try:
+        ctx = context.RunContext(user, as_of=as_of if as_of.tzinfo else as_of.replace(tzinfo=timezone.utc))
+    except ValueError as exc:                                            # a clock past the data
+        raise ApiError(422, str(exc), slug="invalid_request") from None
+    req = ArrivalRequest.model_validate(body.model_dump(exclude={"as_of"}))
+    runner: runs.Runner = request.app.state.runner
+    make_roles = request.app.state.roles_factory
+    tid = runner.reserve_thread(lambda: aa.new_thread_id(checkpointer.pool(), user.employee_id, ctx.as_of,
+                                                         req.vessel_id))
+
+    def work(run: runs.Run) -> dict:
+        g = aa.build_graph(make_roles(), checkpointer.saver())
+        cfg: Any = {"configurable": {"thread_id": tid}, "metadata": {"run_as": user.employee_id, "trigger": "api"},
+                    "callbacks": [RunEvents(run, set(), ARRIVAL_NODES)]}
+        with runs.thread_lock(tid), tracing.trace(tid, entry="api:arrival_advice", run_as=user.employee_id,
+                                                  launched_by="api", extra_tags=("graph:arrival_advice",)):
+            run.check_active()
+            if g.get_state(cfg).values:
+                raise ApiError(409, "this arrival thread already exists; retry", slug="thread_exists")
+            g.invoke({"request": req.model_dump(mode="json")}, cfg, context=ctx, durability="sync")
+        out = aa.result_summary(g.get_state(cfg).values)
+        audit.record(employee_id=user.employee_id, resource_type="arrival_advice", resource_id=tid, trace_id=tid,
+                     action="ask", decision="allowed", request_id=rid, detail={"status": out["status"]})
+        return {"thread": tid, "status": out["status"], "answer": out, "not_permitted": [], "evidence": {},
+                "problems": out["problems"] or [], "stop_reason": None, "model_calls": out["model_calls"],
+                "cached": out["cached"]}
+
+    run = runner.submit(user.employee_id, "arrival_advice", work, thread_id=tid)
+    base = str(request.url_for("run_events", run_id=run.id).path).removesuffix("/events")
+    return RunAccepted(run_id=run.id, thread_id=tid, events_url=f"{base}/events", run_url=base)
+
+
+def _arrival_reader(request: Request):
+    return aa.build_graph(None, checkpointer.saver())
+
+
+@router.get("/arrival-advice", response_model=list[ThreadRow])
+def list_arrival_advice(p: Signed, request: Request) -> list[dict]:
+    prefix = aa.THREAD_PREFIX if p.user.role == "ceo" else f"{aa.THREAD_PREFIX}{p.employee_id}:"
+    infos = scheduling.describe_arrival_advice(_arrival_reader(request), checkpointer.pool(), prefix)
+    return [{"thread_id": i.thread_id, "state": i.state, "status": i.status, "last_at": i.last_at} for i in infos]
+
+
+@router.get("/arrival-advice/{thread_id}", response_model=ArrivalAdviceDetail)
+def get_arrival_advice(thread_id: str, p: Signed, request: Request) -> dict:
+    if p.user.role != "ceo" and aa.thread_owner(thread_id) != p.employee_id:
+        audit.record(employee_id=p.employee_id, resource_type="arrival_advice", resource_id=thread_id, action="read",
+                     decision="denied", request_id=request_id(request))
+        raise ApiError(404, "no such arrival advice", slug="not_found")
+    st = _arrival_reader(request).get_state({"configurable": {"thread_id": thread_id}}).values
+    if not st:
+        raise ApiError(404, "no such arrival advice", slug="not_found")
+    return {"thread_id": thread_id, **aa.result_summary(st)}
 
 
 # --- the voyage watch (read only) ---------------------------------------------------------------------------------

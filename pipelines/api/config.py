@@ -20,4 +20,7 @@ def cors_origins() -> list[str]:
     origins = [o.strip().rstrip("/") for o in raw.split(",") if o.strip()]
     if "*" in origins:
         raise ValueError("API_CORS_ORIGINS may not be '*': list the UI's origin(s)")
+    from pipelines.lib import environment
+    if not environment.is_local() and any(not o.startswith("https://") for o in origins):
+        raise ValueError("outside local, every API_CORS_ORIGINS entry must be an https:// origin (ADR-071)")
     return origins

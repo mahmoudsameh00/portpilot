@@ -5,8 +5,8 @@ from pathlib import Path
 
 SECRET_KEYS = ("JINA_API_KEY", "VOYAGE_API_KEY", "GEMINI_API_KEY", "QDRANT_API_KEY",
                "GROQ_API_KEY", "OPENROUTER_API_KEY", "LANGSMITH_API_KEY", "LANGCHAIN_API_KEY", "TAVILY_API_KEY",
-               "PGPASSWORD", "PG_RO_PASSWORD", "PG_BI_PASSWORD", "PG_AGENT_PASSWORD", "MONGO_ROOT_PASSWORD",
-               "MONGO_APP_PASSWORD", "MONGO_RO_PASSWORD")
+               "PGPASSWORD", "PG_RO_PASSWORD", "PG_BI_PASSWORD", "PG_AGENT_PASSWORD", "PG_API_PASSWORD",
+               "MONGO_ROOT_PASSWORD", "MONGO_APP_PASSWORD", "MONGO_RO_PASSWORD", "SENTRY_DSN")
 
 
 def project_root(start: Path | None = None) -> Path:
@@ -16,8 +16,14 @@ def project_root(start: Path | None = None) -> Path:
 
 
 def load_env(root: Path | None = None) -> None:
-    """KEY=VALUE lines of the project's .env into os.environ (variables already set win)."""
-    for line in ((root or project_root()) / ".env").read_text(encoding="utf-8").splitlines():
+    """KEY=VALUE lines of the project's .env into os.environ (variables already set win).
+
+    Outside `local` (`PORTPILOT_ENV`, ADR-071) the file is optional: a container receives its variables from the
+    compose env file and the image holds no `.env`. Locally a missing `.env` still fails loudly, as before."""
+    path = (root or project_root()) / ".env"
+    if not path.exists() and os.environ.get("PORTPILOT_ENV", "").strip().lower() in ("staging", "production"):
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if line and not line.startswith("#") and "=" in line:
             k, v = line.split("=", 1)

@@ -1,0 +1,35 @@
+# gitleaks configuration (Staging readiness plan P8, e4; ADR-071): the default rules + the folders that are never
+# source (environments, dependencies, generated output, local data). Used by the working-tree scan
+# (`gitleaks dir`) and by the owner's git-history scan (`gitleaks git`, docs/deploy/RUNBOOK.md §Secrets).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "not source: environments, dependencies, build output, local data and backups"
+paths = [
+  '''(^|/)\.venv/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)\.next/''',
+  '''(^|/)graphify-out/''',
+  '''(^|/)backups/''',
+  '''(^|/)reports/''',
+  '''(^|/)models/''',
+  '''(^|/)Data/raw/''',
+  '''(^|/)Data/embeddings/''',
+  '''(^|/)Data/processed/agents/eval/llm_cache/''',
+  '''(^|/)Data/processed/agents/tool_cache/''',
+  '''(^|/)Notebooks/_scratch/''',
+  '''(^|/)playwright-report/''',
+  '''(^|/)test-results/''',
+  '''(^|/)\.ruff_cache/''',
+  '''(^|/)\.env$''',
+  '''(^|/)web/\.env\.local$''',
+  '''(^|/)deploy/env/''',
+  '''uv\.lock$''',
+  '''package-lock\.json$''',
+]
+# documented fakes in the checks (each line also carries "secrets-scan: allow"); matched against the whole line
+regexTarget = "line"
+regexes = ['''0123456789abcdef0123456789abcdef@o0\.ingest\.sentry\.io''', '''gsk_CHECK_ONLY_''',
+           # generic-api-key false positive: the Sentry entry name `entry="api", launched_by="api"` (ADR-062 am. 2)
+           '''launched_by="api"''']

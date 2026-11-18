@@ -42,7 +42,7 @@ sys.path.insert(0, str(ROOT))
 from pipelines.agents import monitoring  # noqa: E402
 from pipelines.lib.common import load_env  # noqa: E402
 
-FAKE_DSN = "https://0123456789abcdef0123456789abcdef@o0.ingest.sentry.io/0"
+FAKE_DSN = "https://0123456789abcdef0123456789abcdef@o0.ingest.sentry.io/0"  # secrets-scan: allow (a fake)
 FAKE_SECRET = "gsk_CHECK_ONLY_7f3a9c1e5b2d4f60"
 TMP = Path(tempfile.mkdtemp(prefix="monitoring_check_"))
 DONE: list[int] = []

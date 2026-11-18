@@ -160,6 +160,136 @@ export interface ApprovalReport {
   [key: string]: unknown;
  }
 
+export type ArrivalAdviceRecommendation = typeof ArrivalAdviceRecommendation[keyof typeof ArrivalAdviceRecommendation] | null;
+
+
+export const ArrivalAdviceRecommendation = {
+  keep: 'keep',
+  jit: 'jit',
+  floor: 'floor',
+  catch_up: 'catch_up',
+  cape: 'cape',
+} as const;
+
+/**
+ * the vessel, its destination, the RTA (and its source), the target, the situation
+ */
+export type ArrivalAdviceSummary = { [key: string]: unknown };
+
+export interface RouteNumbers {
+  headline?: NumberSpan[];
+  reasons?: NumberSpan[][];
+  risks?: NumberSpan[][];
+}
+
+export type ArrivalOptionOption = typeof ArrivalOptionOption[keyof typeof ArrivalOptionOption];
+
+
+export const ArrivalOptionOption = {
+  keep: 'keep',
+  jit: 'jit',
+  floor: 'floor',
+  catch_up: 'catch_up',
+  cape: 'cape',
+} as const;
+
+/**
+ * One computed speed option of `tools/arrival.py` (code, never the model): keep / jit / floor / catch_up / cape.
+ */
+export interface ArrivalOption {
+  arrival_utc?: string | null;
+  change_fuel_t?: number | null;
+  change_total_sdr?: number | null;
+  fuel_sdr?: number | null;
+  fuel_t?: number | null;
+  late_h?: number | null;
+  option: ArrivalOptionOption;
+  speed_kn?: number | null;
+  total_sdr?: number | null;
+  wait_h?: number | null;
+  [key: string]: unknown;
+ }
+
+/**
+ * One arrival advice (ADR-070), as `arrival_advice.result_summary` gives it; numbers in the texts carry spans.
+ * `status` "error" = the watch could not run this advice (its reason in `problems`).
+ */
+export interface ArrivalAdvice {
+  assumptions?: string[] | null;
+  cached?: number;
+  headline?: string | null;
+  model_calls?: number;
+  numbers?: RouteNumbers;
+  options?: ArrivalOption[];
+  problems?: string[] | null;
+  reasons?: string[] | null;
+  recommendation?: ArrivalAdviceRecommendation;
+  risks?: string[] | null;
+  sources?: string[];
+  status: string | null;
+  /** the vessel, its destination, the RTA (and its source), the target, the situation */
+  summary?: ArrivalAdviceSummary;
+  [key: string]: unknown;
+ }
+
+export type ArrivalAdviceDetailRecommendation = typeof ArrivalAdviceDetailRecommendation[keyof typeof ArrivalAdviceDetailRecommendation] | null;
+
+
+export const ArrivalAdviceDetailRecommendation = {
+  keep: 'keep',
+  jit: 'jit',
+  floor: 'floor',
+  catch_up: 'catch_up',
+  cape: 'cape',
+} as const;
+
+/**
+ * the vessel, its destination, the RTA (and its source), the target, the situation
+ */
+export type ArrivalAdviceDetailSummary = { [key: string]: unknown };
+
+/**
+ * A stored arrival advice thread (`GET /arrival-advice/{thread}`).
+ */
+export interface ArrivalAdviceDetail {
+  assumptions?: string[] | null;
+  cached?: number;
+  headline?: string | null;
+  model_calls?: number;
+  numbers?: RouteNumbers;
+  options?: ArrivalOption[];
+  problems?: string[] | null;
+  reasons?: string[] | null;
+  recommendation?: ArrivalAdviceDetailRecommendation;
+  risks?: string[] | null;
+  sources?: string[];
+  status: string | null;
+  /** the vessel, its destination, the RTA (and its source), the target, the situation */
+  summary?: ArrivalAdviceDetailSummary;
+  thread_id: string;
+  [key: string]: unknown;
+ }
+
+export type ArrivalInLocation = typeof ArrivalInLocation[keyof typeof ArrivalInLocation];
+
+
+export const ArrivalInLocation = {
+  berth: 'berth',
+  pilot_boarding_place: 'pilot_boarding_place',
+} as const;
+
+/**
+ * `ArrivalRequest` + the clock (UTC; default and maximum: the data's as-of); unknown fields refused.
+ */
+export interface ArrivalIn {
+  as_of?: string | null;
+  location?: ArrivalInLocation;
+  port?: string | null;
+  rta_utc?: string | null;
+  /** @minimum 1 */
+  vessel_id: number;
+}
+
 export type AuditRowsFindingsByCheck = {[key: string]: number} | null;
 
 export type AuditRowsRowsItem = { [key: string]: unknown };
@@ -533,6 +663,8 @@ export interface LoginIn {
  * What this employee may use — computed from the same RBAC the tools apply (ADR-006), never decided in the UI.
  */
 export interface Products {
+  /** Just-in-Time arrival advice for a vessel at sea (ADR-070): the graph's own tool access (ADR-006) */
+  arrival_advice?: boolean;
   /** ask the supervisor (every employee; the refused parts are named in the answer) */
   ask: boolean;
   /** approve / edit / reject a pack (a Finance manager or the CEO) */
@@ -887,12 +1019,6 @@ export const RouteAdviceDetailRecommendation = {
   cape: 'cape',
 } as const;
 
-export interface RouteNumbers {
-  headline?: NumberSpan[];
-  reasons?: NumberSpan[][];
-  risks?: NumberSpan[][];
-}
-
 export interface RouteAdviceDetail {
   assumptions?: string[] | null;
   cached?: number;
@@ -1047,6 +1173,18 @@ export interface RunOut {
   thread_id: string | null;
 }
 
+export type StatusStatus = typeof StatusStatus[keyof typeof StatusStatus];
+
+
+export const StatusStatus = {
+  ready: 'ready',
+  degraded: 'degraded',
+} as const;
+
+export interface Status {
+  status: StatusStatus;
+}
+
 export interface ThreadRow {
   last_at: string;
   /** ended | stalled | pending */
@@ -1095,11 +1233,13 @@ export interface ViewIn {
 }
 
 export interface WatchAlert {
+  /** a jit / rta_late alert's arrival advice, made by the same watch run (Arrival advice web plan) */
+  advice?: ArrivalAdvice | null;
   alert_id: string;
   customer_id?: number | null;
   destination?: string | null;
   eta_utc?: string | null;
-  /** weather | suez_traffic | customer */
+  /** weather | suez_traffic | rta_late | jit | customer (ADR-070: the rta_utc, rta_location and option fields ride along) */
   kind: string;
   reason?: string | null;
   severity?: string | null;
@@ -1350,6 +1490,92 @@ thread?: string | null;
 vessel?: number | null;
 high?: boolean;
 };
+
+export const getListArrivalAdviceApiV1ArrivalAdviceGetUrl = () => {
+
+
+
+
+  return `/api/v1/arrival-advice`
+}
+
+/**
+ * @summary List Arrival Advice
+ */
+export const listArrivalAdviceApiV1ArrivalAdviceGet = async ( options?: Parameters<typeof apiFetch>[1]): Promise<ThreadRow[]> => {
+
+  return apiFetch<ThreadRow[]>(getListArrivalAdviceApiV1ArrivalAdviceGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getArrivalAdviceApiV1ArrivalAdvicePostUrl = () => {
+
+
+
+
+  return `/api/v1/arrival-advice`
+}
+
+/**
+ * @summary Arrival Advice
+ */
+export const arrivalAdviceApiV1ArrivalAdvicePost = async (arrivalIn: ArrivalIn, options?: Parameters<typeof apiFetch>[1]): Promise<RunAccepted> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<RunAccepted>(getArrivalAdviceApiV1ArrivalAdvicePostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(arrivalIn)
+  }
+);}
+
+
+
+export const getGetArrivalAdviceApiV1ArrivalAdviceThreadIdGetUrl = (threadId: string,) => {
+
+
+
+
+  return `/api/v1/arrival-advice/${threadId}`
+}
+
+/**
+ * @summary Get Arrival Advice
+ */
+export const getArrivalAdviceApiV1ArrivalAdviceThreadIdGet = async (threadId: string, options?: Parameters<typeof apiFetch>[1]): Promise<ArrivalAdviceDetail> => {
+
+  return apiFetch<ArrivalAdviceDetail>(getGetArrivalAdviceApiV1ArrivalAdviceThreadIdGetUrl(threadId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
 
 export const getLoginApiV1AuthLoginPostUrl = () => {
 
@@ -1949,6 +2175,32 @@ export const getReadyApiV1HealthReadyGetUrl = () => {
 export const readyApiV1HealthReadyGet = async ( options?: Parameters<typeof apiFetch>[1]): Promise<Ready> => {
 
   return apiFetch<Ready>(getReadyApiV1HealthReadyGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getStatusApiV1HealthStatusGetUrl = () => {
+
+
+
+
+  return `/api/v1/health/status`
+}
+
+/**
+ * Open readiness for the deploy smoke test, container healthchecks and the uptime monitor (Staging readiness
+ * plan P2): the status word only — which component failed stays behind `/ready` (a token) and in the server's log.
+ * @summary Status
+ */
+export const statusApiV1HealthStatusGet = async ( options?: Parameters<typeof apiFetch>[1]): Promise<Status> => {
+
+  return apiFetch<Status>(getStatusApiV1HealthStatusGetUrl(),
   {
     ...options,
     method: 'GET'

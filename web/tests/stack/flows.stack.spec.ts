@@ -105,3 +105,29 @@ test("the voyage watch lists the latest run's alerts", async ({ page }) => {
   await expect(alerts.first()).toBeVisible();
   expect(await alerts.count()).toBeGreaterThan(0);
 });
+
+// Arrival advice web plan: the endpoint on the real API in test mode. Vessel 5 is late at the clock with no faster
+// speed that makes its RTA, so code decides (0 model calls) — the scripted model is never needed.
+test("arrival advice on demand: its own page, the asker's list; another employee gets 404", async ({
+  page,
+}) => {
+  const asker = person("manager_operations");
+  await signIn(page, asker, "/voyages");
+  await page.goto("/voyages?advise=5");
+  await expect(page.getByLabel("Vessel id")).toHaveValue("5");
+  await page.getByRole("button", { name: "Advise arrival", exact: true }).click();
+  await expect(page).toHaveURL(/\/voyages\/arrival\/arrival_advice%3A\d+%3A\d{4}-\d{2}-\d{2}%3A5%3A\d+$/, {
+    timeout: 60_000,
+  });
+  const advice = page.getByRole("group", { name: "Arrival advice" });
+  await expect(advice).toContainText("Keep speed");
+  await expect(advice).toContainText("no faster allowed speed");
+  const thread = decodeURIComponent(page.url().split("/").pop() ?? "");
+  expect(thread).toMatch(new RegExp(`^arrival_advice:${asker.employee_id}:`));
+  const list = await (await page.request.get("/bff/arrival-advice")).json();
+  expect(list.map((t: { thread_id: string }) => t.thread_id)).toContain(thread);
+  await signIn(page, person("employee_operations"), "/voyages");
+  expect((await page.request.get(`/bff/arrival-advice/${encodeURIComponent(thread)}`)).status()).toBe(404);
+  const theirs = await (await page.request.get("/bff/arrival-advice")).json();
+  expect(theirs.map((t: { thread_id: string }) => t.thread_id)).not.toContain(thread);
+});

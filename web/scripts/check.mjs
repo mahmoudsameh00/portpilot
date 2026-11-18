@@ -3,6 +3,7 @@
 //        npm run check -- --static (static checks only)
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { auditProblems } from "./audit-gate.mjs";
 
 const staticOnly = process.argv.includes("--static");
 const run = (cmd) =>
@@ -51,7 +52,19 @@ const suites = [
   ],
   [
     "audit (runtime deps, high+)",
-    () => (run("npm audit --omit=dev --audit-level=high").status === 0 ? null : "npm audit failed"),
+    () => {
+      let report = null;
+      try {
+        report = JSON.parse(run("npm audit --omit=dev --json").stdout);
+      } catch {
+        // no JSON: auditProblems reports it as a failed audit
+      }
+      const problems = auditProblems(report, {
+        today: new Date().toISOString().slice(0, 10),
+        latestOf: (name) => run(`npm view ${name} version`).stdout?.trim() || null,
+      });
+      return problems.length ? problems.join("; ") : null;
+    },
   ],
 ];
 if (!staticOnly)

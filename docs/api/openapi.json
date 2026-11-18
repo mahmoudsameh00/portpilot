@@ -351,6 +351,473 @@
     "title": "ApprovalReport",
     "type": "object"
    },
+   "ArrivalAdvice": {
+    "additionalProperties": true,
+    "description": "One arrival advice (ADR-070), as `arrival_advice.result_summary` gives it; numbers in the texts carry spans.\n`status` \"error\" = the watch could not run this advice (its reason in `problems`).",
+    "properties": {
+     "assumptions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assumptions"
+     },
+     "cached": {
+      "default": 0,
+      "title": "Cached",
+      "type": "integer"
+     },
+     "headline": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Headline"
+     },
+     "model_calls": {
+      "default": 0,
+      "title": "Model Calls",
+      "type": "integer"
+     },
+     "numbers": {
+      "$ref": "#/components/schemas/RouteNumbers"
+     },
+     "options": {
+      "items": {
+       "$ref": "#/components/schemas/ArrivalOption"
+      },
+      "title": "Options",
+      "type": "array"
+     },
+     "problems": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Problems"
+     },
+     "reasons": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reasons"
+     },
+     "recommendation": {
+      "anyOf": [
+       {
+        "enum": [
+         "keep",
+         "jit",
+         "floor",
+         "catch_up",
+         "cape"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recommendation"
+     },
+     "risks": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Risks"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "summary": {
+      "additionalProperties": true,
+      "description": "the vessel, its destination, the RTA (and its source), the target, the situation",
+      "title": "Summary",
+      "type": "object"
+     }
+    },
+    "required": [
+     "status"
+    ],
+    "title": "ArrivalAdvice",
+    "type": "object"
+   },
+   "ArrivalAdviceDetail": {
+    "additionalProperties": true,
+    "description": "A stored arrival advice thread (`GET /arrival-advice/{thread}`).",
+    "properties": {
+     "assumptions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assumptions"
+     },
+     "cached": {
+      "default": 0,
+      "title": "Cached",
+      "type": "integer"
+     },
+     "headline": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Headline"
+     },
+     "model_calls": {
+      "default": 0,
+      "title": "Model Calls",
+      "type": "integer"
+     },
+     "numbers": {
+      "$ref": "#/components/schemas/RouteNumbers"
+     },
+     "options": {
+      "items": {
+       "$ref": "#/components/schemas/ArrivalOption"
+      },
+      "title": "Options",
+      "type": "array"
+     },
+     "problems": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Problems"
+     },
+     "reasons": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reasons"
+     },
+     "recommendation": {
+      "anyOf": [
+       {
+        "enum": [
+         "keep",
+         "jit",
+         "floor",
+         "catch_up",
+         "cape"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recommendation"
+     },
+     "risks": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Risks"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "summary": {
+      "additionalProperties": true,
+      "description": "the vessel, its destination, the RTA (and its source), the target, the situation",
+      "title": "Summary",
+      "type": "object"
+     },
+     "thread_id": {
+      "title": "Thread Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "status",
+     "thread_id"
+    ],
+    "title": "ArrivalAdviceDetail",
+    "type": "object"
+   },
+   "ArrivalIn": {
+    "additionalProperties": false,
+    "description": "`ArrivalRequest` + the clock (UTC; default and maximum: the data's as-of); unknown fields refused.",
+    "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of"
+     },
+     "location": {
+      "default": "berth",
+      "enum": [
+       "berth",
+       "pilot_boarding_place"
+      ],
+      "title": "Location",
+      "type": "string"
+     },
+     "port": {
+      "anyOf": [
+       {
+        "pattern": "^[A-Z]{2}[A-Z2-9]{3}$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Port"
+     },
+     "rta_utc": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rta Utc"
+     },
+     "vessel_id": {
+      "minimum": 1.0,
+      "title": "Vessel Id",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "vessel_id"
+    ],
+    "title": "ArrivalIn",
+    "type": "object"
+   },
+   "ArrivalOption": {
+    "additionalProperties": true,
+    "description": "One computed speed option of `tools/arrival.py` (code, never the model): keep / jit / floor / catch_up / cape.",
+    "properties": {
+     "arrival_utc": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Arrival Utc"
+     },
+     "change_fuel_t": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Change Fuel T"
+     },
+     "change_total_sdr": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Change Total Sdr"
+     },
+     "fuel_sdr": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fuel Sdr"
+     },
+     "fuel_t": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fuel T"
+     },
+     "late_h": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Late H"
+     },
+     "option": {
+      "enum": [
+       "keep",
+       "jit",
+       "floor",
+       "catch_up",
+       "cape"
+      ],
+      "title": "Option",
+      "type": "string"
+     },
+     "speed_kn": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Speed Kn"
+     },
+     "total_sdr": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Total Sdr"
+     },
+     "wait_h": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Wait H"
+     }
+    },
+    "required": [
+     "option"
+    ],
+    "title": "ArrivalOption",
+    "type": "object"
+   },
    "AuditRows": {
     "description": "`invoice_audit` for one week (or the year to date): the findings and the tool's own totals.",
     "properties": {
@@ -1763,6 +2230,12 @@
    "Products": {
     "description": "What this employee may use — computed from the same RBAC the tools apply (ADR-006), never decided in the UI.",
     "properties": {
+     "arrival_advice": {
+      "default": false,
+      "description": "Just-in-Time arrival advice for a vessel at sea (ADR-070): the graph's own tool access (ADR-006)",
+      "title": "Arrival Advice",
+      "type": "boolean"
+     },
      "ask": {
       "description": "ask the supervisor (every employee; the refused parts are named in the answer)",
       "title": "Ask",
@@ -2728,6 +3201,23 @@
     "title": "StartedEvent",
     "type": "object"
    },
+   "Status": {
+    "properties": {
+     "status": {
+      "enum": [
+       "ready",
+       "degraded"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "status"
+    ],
+    "title": "Status",
+    "type": "object"
+   },
    "ThreadRow": {
     "properties": {
      "last_at": {
@@ -3388,6 +3878,17 @@
    "WatchAlert": {
     "additionalProperties": true,
     "properties": {
+     "advice": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ArrivalAdvice"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "a jit / rta_late alert's arrival advice, made by the same watch run (Arrival advice web plan)"
+     },
      "alert_id": {
       "title": "Alert Id",
       "type": "string"
@@ -3426,7 +3927,7 @@
       "title": "Eta Utc"
      },
      "kind": {
-      "description": "weather | suez_traffic | customer",
+      "description": "weather | suez_traffic | rta_late | jit | customer (ADR-070: the rta_utc, rta_location and option fields ride along)",
       "title": "Kind",
       "type": "string"
      },
@@ -3937,6 +4438,127 @@
  },
  "openapi": "3.1.0",
  "paths": {
+  "/api/v1/arrival-advice": {
+   "get": {
+    "operationId": "list_arrival_advice_api_v1_arrival_advice_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ThreadRow"
+         },
+         "title": "Response List Arrival Advice Api V1 Arrival Advice Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "List Arrival Advice",
+    "tags": [
+     "operations"
+    ]
+   },
+   "post": {
+    "operationId": "arrival_advice_api_v1_arrival_advice_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ArrivalIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RunAccepted"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Arrival Advice",
+    "tags": [
+     "operations"
+    ]
+   }
+  },
+  "/api/v1/arrival-advice/{thread_id}": {
+   "get": {
+    "operationId": "get_arrival_advice_api_v1_arrival_advice__thread_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArrivalAdviceDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Get Arrival Advice",
+    "tags": [
+     "operations"
+    ]
+   }
+  },
   "/api/v1/auth/login": {
    "post": {
     "operationId": "login_api_v1_auth_login_post",
@@ -5044,6 +5666,28 @@
      }
     ],
     "summary": "Ready",
+    "tags": [
+     "health"
+    ]
+   }
+  },
+  "/api/v1/health/status": {
+   "get": {
+    "description": "Open readiness for the deploy smoke test, container healthchecks and the uptime monitor (Staging readiness\nplan P2): the status word only — which component failed stays behind `/ready` (a token) and in the server's log.",
+    "operationId": "status_api_v1_health_status_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Status"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Status",
     "tags": [
      "health"
     ]

@@ -432,6 +432,9 @@ class VoyageWatchResult(BaseModel):
     sources: list[dict] = Field(default_factory=list)
     problems: list[str] = Field(default_factory=list)
     run_file: str | None = None
+    arrivals: dict = Field(default_factory=dict, description="vessel id → its arrival advice (the `arrival` node, "
+                                                            "Arrival advice web plan): `alert_id` + the arrival "
+                                                            "graph's result summary")
 
 
 # --- Arrival advice (JIT arrival plan §3, D-J1: `graphs/arrival_advice.py`) ------------------------------------------

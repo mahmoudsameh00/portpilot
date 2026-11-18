@@ -8247,6 +8247,72 @@ ALTER SEQUENCE public.roles_role_id_seq OWNED BY public.roles.role_id;
 
 
 --
+-- Name: schema_migrations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.schema_migrations (
+    version smallint NOT NULL,
+    filename text NOT NULL,
+    sha256 character(64),
+    applied_at timestamp with time zone DEFAULT now() NOT NULL,
+    applied_by text DEFAULT CURRENT_USER NOT NULL,
+    note text,
+    CONSTRAINT schema_migrations_filename_check CHECK (((filename ~ '^[0-9]{3}_[a-z0-9_]+\.sql$'::text) AND (("left"(filename, 3))::smallint = version))),
+    CONSTRAINT schema_migrations_sha256_check CHECK (((sha256 IS NULL) OR (sha256 ~ '^[0-9a-f]{64}$'::text))),
+    CONSTRAINT schema_migrations_version_check CHECK ((version > 0))
+);
+
+
+--
+-- Name: TABLE schema_migrations; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.schema_migrations IS 'One row per db/migrations file applied to this database (migration 031, ADR-071): written by Migrate.py apply; 001-030 recorded by 031 itself. The deploy reads it to find pending files.';
+
+
+--
+-- Name: COLUMN schema_migrations.version; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.schema_migrations.version IS 'The migration number, the first three digits of the file name.';
+
+
+--
+-- Name: COLUMN schema_migrations.filename; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.schema_migrations.filename IS 'The file name in db/migrations/.';
+
+
+--
+-- Name: COLUMN schema_migrations.sha256; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.schema_migrations.sha256 IS 'sha256 of the file text with CRLF read as LF; NULL only for 031 until Migrate.py records it.';
+
+
+--
+-- Name: COLUMN schema_migrations.applied_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.schema_migrations.applied_at IS 'When the migration was applied or, for 001-030, recorded.';
+
+
+--
+-- Name: COLUMN schema_migrations.applied_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.schema_migrations.applied_by IS 'The database login that applied or recorded it.';
+
+
+--
+-- Name: COLUMN schema_migrations.note; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.schema_migrations.note IS 'How it was applied (by hand before 031, by Migrate.py after).';
+
+
+--
 -- Name: toll_rate_bands_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -8786,6 +8852,22 @@ ALTER TABLE ONLY public.roles
 
 ALTER TABLE ONLY public.roles
     ADD CONSTRAINT roles_role_name_key UNIQUE (role_name);
+
+
+--
+-- Name: schema_migrations schema_migrations_filename_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_migrations
+    ADD CONSTRAINT schema_migrations_filename_key UNIQUE (filename);
+
+
+--
+-- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.schema_migrations
+    ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (version);
 
 
 --

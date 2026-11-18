@@ -21,7 +21,7 @@ export default async function WatchRunPage({ params }: PageProps<"/voyages/runs/
       <AppTopBar me={session.me} active="/voyages" />
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <Suspense>
-          <VoyageWatch key={thread} thread={thread} />
+          <VoyageWatch key={thread} thread={thread} canAdvise={session.me.products.arrival_advice ?? false} />
         </Suspense>
       </main>
     </>

@@ -54,7 +54,7 @@ from pipelines.agents.graphs import models as m  # noqa: E402
 from pipelines.agents.graphs import supervisor as sv  # noqa: E402
 from pipelines.agents.graphs import voyage_watch as vw  # noqa: E402
 from pipelines.agents.graphs.models import ArrivalRequest  # noqa: E402
-from pipelines.agents.tools import arrival, context, db, eta, external, registry, voyages  # noqa: E402
+from pipelines.agents.tools import arrival, context, db, eta, external, registry, voyages, watch  # noqa: E402
 from pipelines.lib.common import load_env  # noqa: E402
 from pipelines.lib.retrieval import User  # noqa: E402
 
@@ -683,6 +683,66 @@ print(f"Phase 6: {len(mine)} arrival alerts ({sum(a['kind'] == 'jit' for a in mi
       f"{len(an)} anchored vessels show their RTA; the brief Validator passes a cited brief and refuses a typed "
       "number / a foreign date")
 print("✅ Phase 6 validation passed.")
+
+# %% Phase 6w — The watch makes the advice (Arrival advice web plan, owner 2026-11-17)
+# Every jit / rta_late alert of the watch gets its arrival advice in the same run (`vw.advise_arrivals`, the `arrival`
+# node). On fake models (a writer that never answers): what code decides is there, the written part stops calmly.
+# What must hold for the alert and its advice to never disagree in front of a user: the advice's own computation (the
+# rule's option, its speed; late → the catch-up speed) = the alert's figures, at the same clock.
+silent = roles.FakeRoles(lambda role, msgs, tools, schema: {})
+try:
+    external.HTTP = httpx.Client(transport=httpx.MockTransport(fake_http), timeout=external.TIMEOUT_S)
+    external.TODAY = date(2026, 11, 15)
+    fresh_caches("watch_arrivals")
+    ctx6 = context.RunContext(OPS, as_of=ASOF)
+    arrivals6, usage6 = vw.advise_arrivals(silent, ctx6, al)
+
+    class _Boom:                                         # a model that breaks: one advice fails, the watch goes on
+        def get(self, role):
+            raise RuntimeError("provider down")
+    two = sorted(mine.values(), key=lambda a: a["vessel_id"])[:2]
+    broken, _ = vw.advise_arrivals(_Boom(), ctx6, two)
+finally:
+    external.HTTP, external.TODAY = real_http, real_today
+    for name in ("marine_weather", "suez_transits"):
+        external._caches.pop(name, None)
+alerted6 = {str(a["vessel_id"]) for a in mine.values()}
+assert set(arrivals6) == alerted6, sorted(set(arrivals6) ^ alerted6)
+agree = 0
+for a in mine.values():
+    adv = arrivals6[str(a["vessel_id"])]
+    s = adv["summary"]
+    assert adv["alert_id"] == a["alert_id"] and adv["options"], (a["alert_id"], adv.get("status"), adv.get("problems"))
+    by_opt = {o["option"]: o for o in adv["options"]}
+    if a["kind"] == "jit":
+        assert s["rule_option"] == a["jit_option"], (a["alert_id"], s["rule_option"], a["jit_option"])
+        assert by_opt[a["jit_option"]]["speed_kn"] == a["jit_speed_kn"], (a["alert_id"], by_opt[a["jit_option"]])
+        assert by_opt[a["jit_option"]]["change_fuel_t"] == a["change_fuel_t"], a["alert_id"]
+    else:
+        assert s["situation"] == "late" and s["keep_late_h"] == a["late_h"], (a["alert_id"], s)
+        if a.get("catch_up_speed_kn") is not None:
+            assert by_opt["catch_up"]["speed_kn"] == a["catch_up_speed_kn"], a["alert_id"]
+    assert s["rta_utc"] == a["rta_utc"], (a["alert_id"], s["rta_utc"], a["rta_utc"])
+    assert adv["status"] in ("late", "on_time", "output_invalid"), (a["alert_id"], adv["status"])
+    agree += 1
+written = sum(adv["status"] == "output_invalid" for adv in arrivals6.values())
+assert len(broken) == len(two) and all(
+    (b["status"] == "error" and "provider down" in b["problems"][0]) or b["status"] in ("late", "on_time")
+    for b in broken.values()), broken
+# the run file keeps the advice; the alert reader hands it out with its own alert only
+tmp6 = Path(tempfile.mkdtemp(prefix="watch_arrivals_"))
+tid6 = "voyage_watch:20260913T0000Z:7"
+vw.write_run_file(tmp6, tid6, {"status": "ok", "as_of": ASOF.isoformat(), "alerts": al, "arrivals": arrivals6,
+                               "brief_status": None, "headline": None})
+read6 = watch.read_alerts(OPS, folder=tmp6)
+with_adv = [x for x in read6["alerts"] if "advice" in x]
+assert {x["alert_id"] for x in with_adv} == set(mine) and all(x["kind"] in vw.ARRIVAL_KINDS for x in with_adv)
+assert all(x["advice"]["alert_id"] == x["alert_id"] for x in with_adv)
+print(f"Phase 6w: the watch advised {len(arrivals6)} vessels = its {len(mine)} jit / rta_late alerts; the advice's own "
+      f"computation = the alert's option, speed, fuel change, lateness and RTA on all {agree}; {written} wait for the "
+      f"writer (stopped calmly on the silent fake), the rest decided by code; a breaking model fails its advice only; "
+      f"the run file keeps them and the alert reader attaches each to its own alert")
+print("✅ Phase 6w validation passed.")
 
 # %% Phase 7 — The supervisor: router, the product tool, the answer check, RBAC
 GOLD = [json.loads(x) for x in (ROOT / "Data" / "processed" / "agents" / "eval" / "supervisor_qa_golden.jsonl")

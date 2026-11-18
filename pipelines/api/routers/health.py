@@ -40,14 +40,32 @@ def _sql(pool) -> None:
         conn.execute("SELECT 1")
 
 
+def _components() -> list[Component]:
+    return [Component(name="postgres_readonly", ok=_ok(lambda: db.fetch("SELECT 1 AS ok"))),
+            Component(name="postgres_agent_state", ok=_ok(lambda: _sql(checkpointer.pool()))),
+            Component(name="postgres_api", ok=_ok(lambda: _sql(store.pool()))),
+            Component(name="mongodb", ok=_ok(lambda: mongo.database().command("ping"))),
+            Component(name="qdrant", ok=_ok(lambda: httpx.get(f"{qdrant_store.url()}/readyz",
+                                                              timeout=3).raise_for_status()))]
+
+
+class Status(BaseModel):
+    status: Literal["ready", "degraded"]
+
+
+@router.get("/status", response_model=Status)
+def status(response: Response) -> Status:
+    """Open readiness for the deploy smoke test, container healthchecks and the uptime monitor (Staging readiness
+    plan P2): the status word only — which component failed stays behind `/ready` (a token) and in the server's log."""
+    ok = all(c.ok for c in _components())
+    if not ok:
+        response.status_code = 503
+    return Status(status="ready" if ok else "degraded")
+
+
 @router.get("/ready", response_model=Ready)
 def ready(response: Response, p: Signed) -> Ready:
-    comps = [Component(name="postgres_readonly", ok=_ok(lambda: db.fetch("SELECT 1 AS ok"))),
-             Component(name="postgres_agent_state", ok=_ok(lambda: _sql(checkpointer.pool()))),
-             Component(name="postgres_api", ok=_ok(lambda: _sql(store.pool()))),
-             Component(name="mongodb", ok=_ok(lambda: mongo.database().command("ping"))),
-             Component(name="qdrant", ok=_ok(lambda: httpx.get(f"{qdrant_store.URL}/readyz",
-                                                               timeout=3).raise_for_status()))]
+    comps = _components()
     counts: dict[str, int] = {}
     if comps[1].ok:
         since = (datetime.now(timezone.utc) - timedelta(days=1)).date()        # every provider's "today"

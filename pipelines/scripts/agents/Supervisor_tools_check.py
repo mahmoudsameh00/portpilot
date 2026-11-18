@@ -46,6 +46,7 @@ from pipelines.lib.retrieval import User, allowed  # noqa: E402
 
 GOLDEN = ROOT / "Data" / "processed" / "agents" / "eval" / "supervisor_qa_golden.jsonl"
 PINNED = "voyage_watch:20260913T0000Z:1"
+watch.pin_runs(PINNED)          # 2026-11-17: a later run at the same clock (the watch re-run) never changes this check
 CLOCK = context.DATA_AS_OF
 SENT0 = dict(weather.SENT)
 GOLD = [json.loads(line) for line in GOLDEN.read_text(encoding="utf-8").splitlines()]

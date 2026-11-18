@@ -11,6 +11,7 @@ import {
   problem,
   sameOrigin,
 } from "@/lib/bff/core";
+import { clearFailures, clientKey, recordFailure, retryAfterSeconds } from "@/lib/bff/signin-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,11 @@ export async function POST(req: Request): Promise<Response> {
   const parsed = LoginIn.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return problem(422, "Email and password are required");
 
+  // Behind the deployment's proxy only: too many failed sign-ins from one address → 429 (signin-limit.ts).
+  const client = clientKey(req);
+  const wait = retryAfterSeconds(client);
+  if (wait > 0) return problem(429, "Sign-in failed", { "retry-after": String(wait) });
+
   let upstream: Response;
   try {
     upstream = await fetch(new URL("/api/v1/auth/login", apiBase()), {
@@ -44,6 +50,7 @@ export async function POST(req: Request): Promise<Response> {
     return problem(502, "The PortPilot API is not reachable");
   }
   if (!upstream.ok) {
+    if (upstream.status === 401 || upstream.status === 429) recordFailure(client);
     // One message for every 401 (the API does the same); 429 keeps its Retry-After.
     const retry = upstream.headers.get("retry-after");
     return problem(upstream.status, "Sign-in failed", retry ? { "retry-after": retry } : undefined);
@@ -54,6 +61,7 @@ export async function POST(req: Request): Promise<Response> {
   const seconds = (Date.parse(token.data.expires_at) - Date.now()) / 1000;
   if (!Number.isFinite(seconds) || seconds <= 0) return problem(502, "Unexpected answer from the API");
 
+  clearFailures(client);
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token.data.token, cookieOptions(true, seconds));
   jar.set(CSRF_COOKIE, newCsrfToken(), cookieOptions(false, seconds));

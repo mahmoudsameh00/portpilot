@@ -12,7 +12,10 @@ Re-run:  safe (verification run)
 
 Notes
 - Re-running reproduces employees.csv, vessels.csv and containers.csv exactly (fixed seeds, fixed reference date) on
-  the owner's Windows machine; on Linux the Faker draws differ (ROADMAP known issues), and save_or_verify stops.
+  every platform since 2026-11-17: Faker draws a date's random seconds with `randint` on Windows and `uniform`
+  elsewhere (its own `platform.system()` branch), which consume the random stream differently; the canonical CSVs
+  were drawn on Windows, so `_pin_faker_dates()` gives every platform the Windows branch (Staging readiness plan d2;
+  proven on Linux by the first 11 employees = employees.csv).
 - The invoice section reproduces the pricing method (ADR-004) and validates it, but not the exact rows: the stored
   invoices were finalized inside PostgreSQL (ADR-013), so invoices are neither saved nor loaded here.
 - The random generators are seeded per section exactly as in the notebook. `DataFrame.sample` uses NumPy's global
@@ -29,6 +32,20 @@ import numpy as np
 import pandas as pd
 import psycopg
 from faker import Faker
+
+
+def _pin_faker_dates() -> None:
+    """Faker's Windows branch of `_rand_seconds` (`randint`) on every platform: the canonical data was drawn with it,
+    and Linux / macOS use `uniform`, which consumes the random stream differently (dates, then every later name)."""
+    import faker.providers.date_time as faker_dates
+
+    def _rand_seconds(self, start_datetime: int, end_datetime: int) -> float:
+        return self.generator.random.randint(start_datetime, end_datetime)
+
+    faker_dates.Provider._rand_seconds = _rand_seconds  # type: ignore[method-assign]
+
+
+_pin_faker_dates()
 
 PROJECT_ROOT = next(
     root for root in [Path.cwd(), *Path.cwd().parents]

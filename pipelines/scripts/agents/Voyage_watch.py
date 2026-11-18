@@ -49,7 +49,8 @@ LOCK_STALE_H = 2
 
 
 def graph(with_models: bool = True):
-    return vw.build_graph(roles.Roles() if with_models else None, checkpointer.saver(), vw.REPORTS_DIR)
+    return vw.build_graph(roles.Roles() if with_models else None, checkpointer.saver(), vw.REPORTS_DIR,
+                          arrival_advice=with_models)          # Arrival advice web plan: the watch advises
 
 
 def run(employee: int, as_of: datetime, g=None, launched_by: str = "cli") -> tuple[str, dict, bool]:

@@ -47,6 +47,15 @@ def _release() -> str:
         return f"portpilot-agents@{tomllib.load(f)['project']['version']}"
 
 
+def _environment() -> str:
+    """Sentry's environment when `SENTRY_ENVIRONMENT` is empty: the `PORTPILOT_ENV` name (ADR-071), `local` here."""
+    try:
+        from pipelines.lib import environment
+        return environment.name()
+    except RuntimeError:
+        return "local"
+
+
 def _scrub(obj):
     """`redact()` on every string of an event or a log, plus the DSN itself."""
     from pipelines.lib.common import redact
@@ -82,7 +91,8 @@ def init(entry: str, launched_by: str = "cli", *, transport=None) -> bool:
         from sentry_sdk.integrations.logging import LoggingIntegration
         from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
         sentry_sdk.init(
-            dsn=dsn, environment=os.environ.get("SENTRY_ENVIRONMENT", "").strip() or "local", release=_release(),
+            dsn=dsn, environment=os.environ.get("SENTRY_ENVIRONMENT", "").strip() or _environment(),
+            release=_release(),
             auto_enabling_integrations=False, traces_sample_rate=None, send_default_pii=False,
             include_local_variables=True, enable_logs=True, shutdown_timeout=SHUTDOWN_TIMEOUT_S,
             event_scrubber=EventScrubber(denylist=[*DEFAULT_DENYLIST, *EXTRA_DENYLIST]),

@@ -121,3 +121,15 @@ CI has an independent `api-integration` job. `--guard-only` runs directly withou
 `Api_check.py` requires an explicit isolated full-data clone and creates its own employee identities. See
 `docs/api/integration_testing.md`; owner-run database phases passed 5/5 on 2026-11-12. Pushed CI and full-data
 acceptance remain pending; evidence is `db/audit/2026-11-12_api_integration_report.txt`.
+
+### Operations (2026-11-17, Staging readiness plan, ADR-071)
+
+`scripts/ops/` holds the deployment's scripts; how to use them is `docs/deploy/RUNBOOK.md`.
+- `Scheduler_service.py`: the scheduler container's loop (weekly pack Monday 10:30, voyage watch 10:30 + 22:30
+  Africa/Cairo); `--plan`, `--once <job>`.
+- `Backup.py`: `backup` / `verify` / `restore` / `secure` / `prune` / `drill` of the three stores and the durable files
+  (standard library + the docker CLI: also runs with the VM's `python3`).
+- `Migrate.py`: `status` / `apply --yes` over `public.schema_migrations` (migration 031).
+- `Deploy_smoke.py`: the smoke test after a deploy (standard library).
+- `Deploy_check.py`: the deployment's rules, no database / network / Docker (CI); checkpoint
+  `checkpoints/ops/Deploy_check.md`.

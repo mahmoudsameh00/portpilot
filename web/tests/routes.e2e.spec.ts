@@ -119,3 +119,15 @@ test("another employee's advice is not found; outside Operations the page is not
   const res = await page.goto("/routes");
   expect(res?.status()).toBe(404);
 });
+
+test("Compare routes from an arrival advice opens route advice with its vessel and destination", async ({
+  page,
+}) => {
+  await signedIn(page, ops);
+  await page.goto("/routes?vessel=21&destination=nlrtm");
+  await expect(page.getByLabel("Destination (UN/LOCODE)")).toHaveValue("NLRTM");
+  await expect(page.getByLabel("Vessel id")).toHaveValue("21");
+  await page.goto("/routes?vessel=x1&destination=EVIL'");
+  await expect(page.getByLabel("Destination (UN/LOCODE)")).toHaveValue(""); // only a LOCODE and a number are read
+  await expect(page.getByLabel("Vessel id")).toHaveValue("");
+});

@@ -856,11 +856,33 @@ try:
     assert wruns and wrun["status"], wrun
     assert all({"vessel_id", "eta_utc", "eta_in_h"} <= set(e) for e in wrun["etas"]), wrun["etas"][:1]
     assert is_problem(client.get(f"{B}/voyage-watch/runs/not-a-watch", headers=bearer(tok_fin)), 404)
+    # Arrival advice web plan P1: vessel 5 is late at the clock with no faster speed that makes its RTA → a code
+    # headline, 0 model calls (deterministic on the fake models); the same owner / CEO read rule as route advice
+    aa_acc = client.post(f"{B}/arrival-advice", headers=bearer(tok_ops), json={"vessel_id": 5})
+    assert aa_acc.status_code == 202, aa_acc.text
+    aa_tid = aa_acc.json()["thread_id"]
+    THREADS.append(aa_tid)
+    aa_ans = next(d for _, e, d in events_of(aa_acc.json()["events_url"], tok_ops) if e == "answer")
+    assert aa_ans["status"] == "late" and aa_ans["model_calls"] == 0, aa_ans
+    aa_det = client.get(f"{B}/arrival-advice/{aa_tid}", headers=bearer(tok_ops)).json()
+    assert aa_det["status"] == "late" and aa_det["recommendation"] == "keep" and aa_det["summary"]["rta_utc"], aa_det
+    assert [o["option"] for o in aa_det["options"]] == ["keep"] and aa_det["headline"], aa_det
+    assert aa_tid in {x["thread_id"] for x in client.get(f"{B}/arrival-advice", headers=bearer(tok_ops)).json()}
+    assert aa_tid not in {x["thread_id"] for x in client.get(f"{B}/arrival-advice", headers=bearer(tok_fin)).json()}
+    assert is_problem(client.get(f"{B}/arrival-advice/{aa_tid}", headers=bearer(tok_fin)), 404)
+    assert client.get(f"{B}/arrival-advice/{aa_tid}", headers=bearer(tok_ceo)).status_code == 200
+    assert is_problem(client.post(f"{B}/arrival-advice", headers=bearer(tok_ops),
+                                  json={"vessel_id": 5, "run_as": 1}), 422)
+    assert is_problem(client.post(f"{B}/arrival-advice", headers=bearer(tok_ops),
+                                  json={"vessel_id": 5, "rta_utc": "2026-09-15T14:00"}), 422)   # no time zone
+    me_ops = client.get(f"{B}/me", headers=bearer(tok_ops)).json()["products"]
+    assert me_ops["arrival_advice"] is True, me_ops
     DONE.append(8)
     print(f"✅ Phase 8 validation passed: route advice SGSIN → JPTYO through the run executor = no_suez_on_route with 0 "
           f"model calls; the stored advice for its asker and the CEO, 404 for another employee; an unknown field 422; "
           f"the saved watch alerts ({al['thread_id']}) and {len(wruns)} watch runs readable by every employee "
-          f"(the identity checked), the run's ETA table ({len(wrun['etas'])} vessels)")
+          f"(the identity checked), the run's ETA table ({len(wrun['etas'])} vessels); arrival advice for vessel 5 = "
+          f"late, keep, 0 model calls, the same read rule, 422 on an unknown field and an RTA without a time zone")
 
     # %% Phase 9 — security headers, CORS, limits
     for r in (client.get(f"{B}/health/live"), unknown, r404, r500, r413):
@@ -967,7 +989,9 @@ try:
     assert spec_all["components"]["securitySchemes"]["HTTPBearer"]["scheme"] == "bearer"
     open_routes = sorted(f"{m.upper()} {p}" for p, v in spec_all["paths"].items() for m, op in v.items()
                          if not op.get("security"))
-    assert open_routes == ["GET /api/v1/health/live", "POST /api/v1/auth/login"], open_routes
+    # /health/status: the status word only, for the deploy smoke and container checks (ADR-071, 2026-11-17)
+    assert open_routes == ["GET /api/v1/health/live", "GET /api/v1/health/status", "POST /api/v1/auth/login"], \
+        open_routes
     untyped = [f"{m} {p}" for p, v in spec_all["paths"].items() for m, op in v.items()
                for c, r in op["responses"].items() if c < "300"
                and (sc := (r.get("content") or {}).get("application/json", {}).get("schema")) is not None

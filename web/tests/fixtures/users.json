@@ -35,6 +35,7 @@
           "packs_decide": false,
           "route_advice": true,
           "voyage_watch": true,
+          "arrival_advice": true,
           "uploads": false
         }
       }

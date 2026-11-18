@@ -24,6 +24,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 from typing import Annotated, Any, cast, Literal
 
 from langchain.agents import create_agent
@@ -66,11 +67,12 @@ RULES = [
     ("toll", r"\b(toll|dues|tariff)\b|رسوم", ["compute_toll"]),
     ("route", r"\b(suez or|or the cape|cape|cheaper|cheapest|avoid\w*|sea days|via suez|which route)\b|"
               r"\bfrom [a-z ]+ to [a-z ]+|الرجاء الصالح|أرخص|ارخص|السويس ولا", ["route_advice"]),
-    # JIT arrival plan §3d: the port's requested time of arrival → the arrival_advice graph
+    # JIT arrival plan §3d: the port's requested time of arrival → the arrival_advice graph (one vessel) + the watch's
+    # jit / rta_late alerts (the whole fleet, ADR-070 amendment 2)
     ("arrival", r"\b(berth\w*|RTA|requested time|just[- ]in[- ]time|JIT|slow (it )?down|slow steam\w*|"
                 r"(what|which) speed (should|to)|speed (should|to sail|to arrive))\b|"
                 r"رصيف|ميعاد الوصول المطلوب|يهدي|يهدّي|تهدي|يبطّأ|يبطأ|يبطء|أنهي سرعة|انهي سرعة|بسرعة كام|سرعة كام",
-     ["arrival_advice"]),
+     ["arrival_advice", "watch_alerts"]),
     ("distance", r"\b(sea route|how long is|nautical|miles|distance|how far)\b|ميل|مسافة", ["voyage_status", "sea_route"]),
     ("position", r"\b(where|position|next port|moving|anchor\w*|at sea|status|sail(ing)?|underway|finished|"
                  r"arrived)\b|فين|مكان|موقع|الميناء الجاي|راسي|وصلت|وصل", ["voyage_status"]),
@@ -209,8 +211,11 @@ def check_supervisor_answer(answer: dict, evidence: dict, question: str, lang: s
     arrival_rows = [r for res in evidence.values() if res.get("tool") == "arrival_advice"
                     for r in res.get("rows") or [] if r.get("option") == "summary"]
     if arrival_rows:
-        problems += arrival.sign_problems("answer", text)
         problems += arrival.rta_label_problems("answer", text, arrival_rows[0].get("rta_utc"))
+    # the watch's jit rows and totals carry the same signed change_* fields (ADR-070 amendment 2)
+    if arrival_rows or any(r.get("kind") == "jit" or r.get("summary_of") == "jit" for res in evidence.values()
+                           if res.get("tool") == "watch_alerts" for r in res.get("rows") or []):
+        problems += arrival.sign_problems("answer", text)
     linked = _linked_customers(evidence, calls)
     for b in bound:                                    # c1 C-d: the customer row must be the vessels' customer
         res = evidence.get(b["eid"]) or {}
@@ -294,6 +299,63 @@ MODEL_DROP = {"watch_alerts": {"lat", "lon", "reason", "wave_source", "wind_sour
               "route_advice": {"problems"},
               "arrival_advice": {"assumptions", "floor_source", "current_speed_source", "rta_message_id"}}
 
+# ADR-070 amendment 2: a run with JIT alerts holds dozens of `jit` / `rta_late` rows, which pushed a broad "alerts"
+# question past what the fallback model takes in a minute. The model sees the most urgent rows and code-computed totals
+# of all of them; asking by vessel_ids returns any other row in full. A result with few arrival rows is left untouched.
+ARRIVAL_KINDS = ("jit", "rta_late")
+ARRIVAL_ROWS_SHOWN = 4
+CUSTOMER_ROWS_SHOWN = 5
+
+
+def _total(rows: list[dict], field: str) -> float:
+    return float(sum((Decimal(str(r.get(field) or 0)) for r in rows), Decimal(0)))
+
+
+def _arrival_summary(kind: str, rows: list[dict], shown: list[dict], thread_id: str | None) -> dict:
+    hidden = sorted({r["vessel_id"] for r in rows} - {r["vessel_id"] for r in shown})
+    out = {"alert_id": f"arrival/{kind}", "summary_of": kind, "alerts": len(rows),
+           "high_alerts": sum(r.get("severity") == "high" for r in rows),
+           "rows_shown": sum(r.get("kind") == kind for r in shown), "vessel_ids_not_shown": hidden}
+    if kind == "jit":
+        out |= {"max_wait_h": max(r.get("wait_h") or 0 for r in rows),
+                "total_change_fuel_t": _total(rows, "change_fuel_t"),
+                "total_change_fuel_sdr": _total(rows, "change_fuel_sdr")}
+    else:
+        out |= {"max_late_h": max(r.get("late_h") or 0 for r in rows)}
+    return out | {"thread_id": thread_id}
+
+
+def fold_arrival_rows(res: dict) -> dict:
+    """The watch result with its arrival rows folded when there are more than ARRIVAL_ROWS_SHOWN (high first, then the
+    longest wait or delay), and its customer rows cut to the CUSTOMER_ROWS_SHOWN with the most vessels. Every total is
+    computed here over all the rows, so nothing the model may cite is estimated."""
+    rows = res.get("rows") or []
+    arrival = [r for r in rows if r.get("kind") in ARRIVAL_KINDS]
+    if len(arrival) <= ARRIVAL_ROWS_SHOWN:
+        return res
+    urgent = sorted(arrival, key=lambda r: (r.get("severity") != "high", -(r.get("late_h") or r.get("wait_h") or 0),
+                                            r["vessel_id"]))
+    shown = urgent[:ARRIVAL_ROWS_SHOWN]
+    shown_ids = {r["alert_id"] for r in shown}
+    thread_id = rows[-1].get("thread_id")
+    summaries = [_arrival_summary(k, of_kind, shown, thread_id) for k in ARRIVAL_KINDS
+                 if (of_kind := [r for r in arrival if r["kind"] == k])]
+    customers = [r for r in rows if str(r.get("alert_id")).startswith("customer/")]
+    rest = customers[CUSTOMER_ROWS_SHOWN:]
+    others = [{"alert_id": "customer/others", "customers": len(rest),
+               **{f: sum(r[f] for r in rest) for f in ("vessels_with_alerts", "alerts", "high_alerts")},
+               "customer_ids_with_high_alerts": sorted(r["customer_id"] for r in rest if r["high_alerts"]),
+               "thread_id": thread_id}] if rest else []
+    kept = [r for r in rows if (r.get("kind") not in ARRIVAL_KINDS or r["alert_id"] in shown_ids)
+            and not str(r.get("alert_id")).startswith("customer/") and r.get("alert_id") != "fleet"]
+    fleet = [r for r in rows if r.get("alert_id") == "fleet"]
+    note = (f"{res.get('note') or ''} Arrival alerts: {len(shown)} of {len(arrival)} rows shown, high first and then "
+            "the longest wait or delay; the arrival/jit and arrival/rta_late rows hold the totals of all of them; call "
+            "again with vessel_ids for any other vessel."
+            + (f" Customers: the {CUSTOMER_ROWS_SHOWN} with the most vessels of {len(customers)}; customer/others "
+               "holds the rest; call again with customer_ids for any of them." if rest else ""))
+    return {**res, "rows": kept + summaries + customers[:CUSTOMER_ROWS_SHOWN] + others + fleet, "note": note}
+
 
 def model_view(res: dict) -> dict:
     if not isinstance(res, dict) or res.get("status") != "ok":
@@ -310,7 +372,8 @@ def model_view(res: dict) -> dict:
             else:
                 flat[k] = v
         rows.append(flat)
-    return {**res, "rows": rows}
+    view = {**res, "rows": rows}
+    return fold_arrival_rows(view) if res.get("tool") == "watch_alerts" else view
 
 
 # a slot citing a nested path (`{id[0]:last_fix.lat}`) or the result's own path (`{id:rows[0].amount_sdr}`) is

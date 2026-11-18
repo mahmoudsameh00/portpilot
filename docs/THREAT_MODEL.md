@@ -39,7 +39,7 @@ Each row: the risk, the control that exists (with its decision record and the ch
 
 | # | Risk | Control | Proof |
 |---|---|---|---|
-| API1 | Object-level authorization (IDOR) | every thread / run / conversation / upload checked against the caller (owner, or the CEO for reading); another employee → 404, the same as "does not exist" | `Api_check.py` Phases 5–8 |
+| API1 | Object-level authorization (IDOR) | every thread / run / conversation / upload checked against the caller (owner, or the CEO for reading); another employee → 404, the same as "does not exist" | `Api_check.py` Phases 5–8 (route and arrival advice included); the local-stack E2E (`web/tests/stack/`) |
 | API2 | Broken authentication | scrypt (N 2^17) passwords, 256-bit tokens stored as SHA-256 only, 8 h expiry, revocation, lockout, a dummy hash for unknown emails (same body, same time) | Phase 1, `check_api_user.py` |
 | API3 | Object property level authorization | request models forbid unknown fields (no employee id, role or dataset from a client); responses are explicit models, never state dumps; events carry names only | Phases 3, 4, 8 |
 | API4 | Unrestricted resource consumption | body 16 KB (uploads 5 MB), question 2,000 chars, run slots + queue, per-employee limits, time limits, the shared daily quota | Phases 3, 5; `Load_test.py` |
@@ -63,10 +63,29 @@ Each row: the risk, the control that exists (with its decision record and the ch
 | Clickjacking | `X-Frame-Options: DENY` + CSP `frame-ancestors 'none'` on every page | `security.e2e.spec.ts` (every page) |
 | Exfiltration through images / links in model text | no `img` / `a` from model text; CSP `img-src 'self' data: blob:`, `connect-src 'self'`; `Referrer-Policy: no-referrer` | `security.e2e.spec.ts` (no request leaves the origin) |
 | Access decided in the browser | the menu from `/me` is a comfort only; every page's data comes from the API, which refuses (403 / 404 / `not_permitted`); another employee's thread → 404 | the local-stack E2E on the real API (`web/tests/stack/access.stack.spec.ts`: seven profiles, pages + BFF reads, another employee's conversation / answer refused, the CEO reads by design — leakage 0, 2026-11-16); the refusal tests of `routes` / `voyages` / `packs` / `finance` specs; the real-API smoke (an operations employee gets no figures) |
-| Dependency supply chain (npm) | exact pins at least two weeks old (`npm_config_before`), `.npmrc` `save-exact` / `engine-strict`, npm 11 runs no unapproved install script, `npm audit --omit=dev` high = 0 in `npm run check` and the CI, Dependabot `npm` for `/web`; shadcn's `cn` package removed (unreviewed) | `npm run check` |
+| Dependency supply chain (npm) | exact pins at least two weeks old (`npm_config_before`), `.npmrc` `save-exact` / `engine-strict`, npm 11 runs no unapproved install script, `npm audit --omit=dev` high = 0 in `npm run check` and the CI, Dependabot `npm` for `/web`; shadcn's `cn` package removed (unreviewed). **One time-limited exception (owner, 2026-11-18):** GHSA-fc5q-39xc-vjpf, picomatch ≤ 4.0.7, no patched release; the attack needs a glob pattern chosen by the attacker, and `web/src` neither imports picomatch nor builds a glob from input. `web/scripts/audit-gate.mjs` ends it on 2026-12-18 or at the next picomatch release, and every other high / critical advisory still fails | `npm run check`, `tests/audit-gate.logic.spec.ts` |
 | Container | `compose.yaml` publishes on 127.0.0.1 only; user `node`, read-only root filesystem, all capabilities dropped, `no-new-privileges`; `.env*` never in the build context (`.dockerignore`) | `docker compose up -d web` + the real-API smoke against it (2026-11-08) |
 
 Accepted: `style-src 'unsafe-inline'` (Recharts / Radix / React Flow style attributes; scripts stay nonce-only).
+
+## Public deployment (staging / production on a VM, ADR-071, 2026-11-17)
+
+| Threat | Control | Proof |
+|---|---|---|
+| Eavesdropping, downgrade | Caddy terminates TLS (Let's Encrypt), HSTS one year, plain http only redirects; cookies `Secure`, `SameSite=Strict`, httpOnly | `Deploy_smoke.py` (HSTS, redirect) |
+| Direct access to the API or a store | only the proxy publishes ports; `/api/*`, `/docs`, `/openapi.json` answer 404 at the proxy; the API, PostgreSQL, MongoDB on internal networks; Qdrant on the host loopback with its API key; the NSG opens 80 / 443 only (SSH from the owner's address, or none) | `Deploy_check.py` Phase 2; `Deploy_smoke.py` (404s) |
+| CSRF / origin confusion on the real domain | `PORTPILOT_WEB_ORIGIN` = the exact public origin; the API's CORS refuses a non-https origin outside local | `Deploy_check.py` Phase 1; `bff.e2e.spec.ts` |
+| Password guessing | per login: 5 failures → 15 min lock (API); per client address behind the proxy: 10 failed sign-ins / 10 min → 429 (BFF, the proxy's own X-Forwarded-For entry); passwords ≥ 12 characters | `signin-limit.logic.spec.ts`; `Api_check.py` Phase 1 |
+| Oversized bodies | 6 MB at the proxy, then the BFF / API limits (16 KB JSON, 5 MB uploads) | `Deploy_check.py` Phase 2 |
+| Test modes in a real environment | `--fake-roles` / `API_FAKE_ROLES` and the fake app refused when `PORTPILOT_ENV` ≠ local; inherited logins disabled and tokens revoked by `Backup.py secure` | `Deploy_check.py` Phase 1; the CI `images` job |
+| Secrets in images, git or logs | no `.env` in any image (dockerignore), each container lists only its variables (the owner's DB password in `postgres` / `ops` only), Key Vault + managed identity on the VM, fresh credentials per environment; `tools/secrets_scan.py` in the CI + `gitleaks dir` (0 on 2026-11-17); Caddy redacts cookies / authorization in its logs | `Deploy_check.py` Phases 2, 3, 6; CI |
+| Container escape / tampering | non-root users, read-only roots, all capabilities dropped (`NET_BIND_SERVICE` for Caddy only), `no-new-privileges` | `Deploy_check.py` Phase 2; CI `images` |
+| Data loss | nightly backups with hashes, 7 + 4 kept, off-host blob copy; restore compares every count and digest | the drill of 2026-11-17 (plan §8) |
+| Unreviewed deploys | manual workflow, the owner as required reviewer, a second approval to apply migrations, CI green required, OIDC (no stored cloud secret) | `.github/workflows/deploy.yml` |
+
+Gaps: one VM is a single point of failure (recovery = the restore runbook); the sign-in limit is per process and
+forgets on restart (the API's lockout is the durable layer); the git history still holds the pre-ADR-015 local
+password until the owner rotates it (runbook §10–11).
 
 ## How this file is kept
 

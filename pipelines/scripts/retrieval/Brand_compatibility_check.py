@@ -79,7 +79,9 @@ print(f"✅ Phase 3 validation passed. PBIP/report/model references resolve; {co
 
 # %% Phase 4 — The longer product name still fits prompt metadata and token limits
 skills = catalog()
-assert len(skills) == 10
+# every SKILL.md folder loads (was a fixed 10: the JIT plan's `arrival-advice` made it 11 and failed CI run #20)
+on_disk = sorted(p.parent.name for p in (ROOT / "pipelines" / "agents" / "skills").glob("*/SKILL.md"))
+assert len(skills) == len(on_disk) >= 11, (len(skills), on_disk)
 print(f"✅ Phase 4 validation passed. {len(skills)} skills load within metadata/body limits.")
 
 # %% Final Checkpoint

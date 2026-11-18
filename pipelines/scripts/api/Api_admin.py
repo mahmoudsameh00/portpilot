@@ -35,12 +35,18 @@ def connect():
                            password=e["PGPASSWORD"], autocommit=False)
 
 
+MIN_PASSWORD = 12           # asked since P1; enforced since the Staging readiness plan (P1, e5)
+
+
 def read_password(stdin: bool) -> str:
     if stdin:
-        return sys.stdin.readline().rstrip("\r\n")
-    first = getpass.getpass("password (≥ 12 characters): ")
-    if getpass.getpass("again: ") != first:
-        raise SystemExit("the two passwords differ: nothing changed")
+        first = sys.stdin.readline().rstrip("\r\n")
+    else:
+        first = getpass.getpass(f"password (≥ {MIN_PASSWORD} characters): ")
+        if getpass.getpass("again: ") != first:
+            raise SystemExit("the two passwords differ: nothing changed")
+    if len(first) < MIN_PASSWORD or not first.strip():
+        raise SystemExit(f"the password needs at least {MIN_PASSWORD} characters: nothing changed")
     return first
 
 

@@ -6,6 +6,7 @@ export type Products = {
   packs_decide: boolean;
   route_advice: boolean;
   voyage_watch: boolean;
+  arrival_advice?: boolean;
   uploads: boolean;
 };
 
