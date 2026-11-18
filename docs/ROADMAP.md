@@ -10,9 +10,9 @@ Labels: `DONE`, `IN PROGRESS`, `PARTIAL`, `NEXT`, `PLANNED`, `PROPOSED`, `DEFERR
 **Update 2026-11-18 — Staging readiness CLOSED; no plan is open** (`docs/archive/2026-11-18_Staging_readiness_plan.md`,
 ADR-071). The local staging rehearsal passed on a restore of today's stores, and every check is green on the merged tree.
 Done by the owner 2026-11-18: migration 031 on the local database (31 of 31 recorded, audit 0 errors) and a new local
-PostgreSQL superuser password (secrets scan: 0 findings, no weak password).
-**NEXT (owner):** the one commit of this work, the scan of the git history (O2), then the Azure deployment (O4–O10), with
-exact commands in `docs/deploy/RUNBOOK.md`. Production stays gated on the review of the skill `arrival-advice`, one real
+PostgreSQL superuser password (secrets scan: 0 findings, no weak password), the one commit of this work, and the gitleaks
+scan of the git history (O2: 70 commits, no leaks found).
+**NEXT (owner):** the Azure deployment (O4–O10), with exact commands in `docs/deploy/RUNBOOK.md`. Production stays gated on the review of the skill `arrival-advice`, one real
 revise on a staging pack and a restore drill on staging.
 
 **Update 2026-11-18 — Arrival advice in the web CLOSED** (`docs/archive/2026-11-18_Arrival_advice_web_plan.md`, ADR-070
