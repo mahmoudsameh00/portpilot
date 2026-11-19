@@ -52,6 +52,12 @@ ADR-072. The owner's git / GitHub steps (§9) remain.
   allow-list, the layout map).
 - D-RL-7: one ✅ text changed on purpose — `Monitoring_check.py` Phase 6 (live only, not in the baseline) now says
   "read back in Sentry".
+- D-RL-8: the first CI run after the push (PR 9) failed the path check on 14 references that resolve on the owner's
+  machine only: git-ignored folders absent from a fresh clone (`Data/raw`, the model and tool caches, the query-vector
+  cache, `Data/incoming`; a folder-only ignore rule needs to know the path is a folder) and the empty `docs/plans/`
+  (git keeps no empty folder). Fixed: a missing path counts as ignored when git would ignore it as a file or as a
+  folder; `docs/plans/.gitkeep` keeps the folder. A skeleton checkout with only the ignore files reproduced the failure
+  before the fix and passed after it.
 
 ### Verification (before = the tree of 2026-11-19 morning, after = the new layout)
 

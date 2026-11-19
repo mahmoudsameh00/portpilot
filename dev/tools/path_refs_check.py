@@ -123,10 +123,17 @@ def text_files():
                 yield p, rel
 
 
+def ignored_any(rel: str) -> bool:
+    """A path absent from this checkout (a fresh CI clone has none of the ignored folders) may be a file or a folder:
+    it counts as ignored when git would ignore it as either; an existing path keeps its own kind."""
+    if (ROOT / rel).exists():
+        return ignored(rel)
+    return ignored(rel, False) or ignored(rel, True)
+
+
 def exists(ref: str) -> bool:
     ref = ref.rstrip(".")
-    p = ROOT / ref
-    return p.exists() or ignored(ref)
+    return (ROOT / ref).exists() or ignored_any(ref)
 
 
 def main() -> int:
@@ -156,7 +163,7 @@ def main() -> int:
                     continue
                 seen.add(link)
                 target = (p.parent / link).resolve()
-                if not target.exists() and not ignored(target.relative_to(ROOT).as_posix() if target.is_relative_to(ROOT) else link):
+                if not target.exists() and not ignored_any(target.relative_to(ROOT).as_posix() if target.is_relative_to(ROOT) else link):
                     dangling.append(f"{rel}\t{link}")
         for i, ln in enumerate(t.splitlines(), 1):
             if WORDS_RX.search(ln) and "refs-check: allow" not in ln:
