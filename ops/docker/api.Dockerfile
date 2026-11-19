@@ -42,7 +42,6 @@ WORKDIR /app
 COPY --from=build /opt/venv /opt/venv
 COPY pyproject.toml uv.lock ./
 COPY pipelines ./pipelines
-COPY tools/run.py ./tools/run.py
 COPY Data ./Data
 COPY db/migrations ./db/migrations
 # the mount points of the volumes, owned by the runtime user (a fresh named volume copies this ownership)

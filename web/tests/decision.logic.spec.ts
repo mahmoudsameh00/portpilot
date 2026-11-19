@@ -1,4 +1,4 @@
-// The browser's decision rules = the API's DecisionIn on the same cases (exported by tools/export_approval_cases.py).
+// The browser's decision rules = the API's DecisionIn on the same cases (exported by dev/tools/export_approval_cases.py).
 import { expect, test } from "@playwright/test";
 import fixture from "./fixtures/approval_cases.json" with { type: "json" };
 import { decisionProblem } from "../src/lib/decision";

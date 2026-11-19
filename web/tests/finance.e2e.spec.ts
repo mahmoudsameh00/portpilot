@@ -45,7 +45,7 @@ test("Overview: old Smart View bookmarks fall back to KPIs with receipts and the
     }),
   ).toBe(true);
   await page.screenshot({
-    path: `../Notebooks/_scratch/finance-tabs-${info.project.name}.png`,
+    path: `../dev/_scratch/finance-tabs-${info.project.name}.png`,
     fullPage: true,
     animations: "disabled",
   });
@@ -130,7 +130,7 @@ test("Revenue: break down by any dimension, in any measure, against a compare we
   ).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({
-    path: `../Notebooks/_scratch/dashboards-revenue-${info.project.name}.png`,
+    path: `../dev/_scratch/dashboards-revenue-${info.project.name}.png`,
     fullPage: true,
     animations: "disabled",
   });
@@ -175,7 +175,7 @@ test("each page draws its data in the form that fits it and colours what matters
   await expect(page.getByText("2025-W23 is the report week; earlier weeks are muted.")).toBeVisible();
   const shot = async (name: string) =>
     page.screenshot({
-      path: `../Notebooks/_scratch/dashboards-${name}-${info.project.name}.png`,
+      path: `../dev/_scratch/dashboards-${name}-${info.project.name}.png`,
       fullPage: true,
       animations: "disabled",
     });

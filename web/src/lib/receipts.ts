@@ -1,6 +1,6 @@
 // Number receipts (Frontend plan §6.0 (3), D-FE-1): the API will return, beside a rendered text, the spans of the
 // numbers its slots filled. This turns (text, spans) into segments the UI renders as plain text + number chips.
-// The shape is the one proposed for F0 (`answer_summary.numbers`); the concept uses it with sample data.
+// The shape is the API's `answer_summary.numbers` (F0).
 
 import type { NumberSpan as ApiNumberSpan } from "@/api/generated/client";
 
@@ -32,19 +32,4 @@ export function toSegments(text: string, spans: readonly NumberSpan[]): Segment[
   }
   if (at < text.length) out.push({ kind: "text", text: text.slice(at) });
   return out;
-}
-
-/** Builds spans for sample data: finds each number's first occurrence after the previous one. Concept only —
- * real spans come from the API, never from searching the text in the browser. */
-export function spansFor(
-  text: string,
-  numbers: ReadonlyArray<Omit<NumberSpan, "start" | "end" | "row"> & { row?: number | null }>,
-): NumberSpan[] {
-  let from = 0;
-  return numbers.flatMap((n) => {
-    const start = text.indexOf(n.text, from);
-    if (start < 0) return [];
-    from = start + n.text.length;
-    return [{ ...n, row: n.row ?? null, start, end: from }];
-  });
 }

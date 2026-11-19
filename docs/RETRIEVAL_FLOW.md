@@ -1,6 +1,6 @@
 # Retrieval flow — how a question travels through the PortPilot system
 
-Design reference for the RAG phase (`docs/archive/2026-10-08_RAG_Embeddings_Qdrant_plan.md`) and the agents phase after it.
+Design reference for the RAG phase (`dev/history/archive/2026-10-08_RAG_Embeddings_Qdrant_plan.md`) and the agents phase after it.
 Status: the document tool (§2, §2.1) is **IMPLEMENTED** (2026-10-08, RAG plan closed: ADR-037 – ADR-044); the
 Supervisor, the other tools and the answer step (§1, §3) stay **PLANNED** for the agents phase. §5 records the research of
 2026-09-28 and what the measurements chose. Research sources are listed at the end.

@@ -1,0 +1,322 @@
+{
+ "files": [
+  {
+   "from": "pipelines/scripts/agents/Approval_safety_check.py",
+   "to": "dev/checks/agents/Approval_safety_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Approver_request_check.py",
+   "to": "dev/checks/agents/Approver_request_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Approver_request_eval.py",
+   "to": "dev/checks/agents/Approver_request_eval.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Arrival_advice_check.py",
+   "to": "dev/checks/agents/Arrival_advice_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Deck_check.py",
+   "to": "dev/checks/agents/Deck_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/External_context_check.py",
+   "to": "dev/checks/agents/External_context_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Finance_qa_check.py",
+   "to": "dev/checks/agents/Finance_qa_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Golden_weeks.py",
+   "to": "dev/build/agents/Golden_weeks.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Injection_eval.py",
+   "to": "dev/checks/agents/Injection_eval.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Langsmith_mirror.py",
+   "to": "dev/checks/agents/Langsmith_mirror.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/LLM_bakeoff.py",
+   "to": "dev/build/agents/LLM_bakeoff.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/LLM_smoke_test.py",
+   "to": "dev/checks/agents/LLM_smoke_test.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Memory_check.py",
+   "to": "dev/checks/agents/Memory_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Memory_golden.py",
+   "to": "dev/build/agents/Memory_golden.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Model_probe.py",
+   "to": "dev/checks/agents/Model_probe.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Models_config_check.py",
+   "to": "dev/checks/agents/Models_config_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Monitoring_check.py",
+   "to": "dev/checks/agents/Monitoring_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Publication_check.py",
+   "to": "dev/checks/agents/Publication_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Qa_golden.py",
+   "to": "dev/build/agents/Qa_golden.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Route_advice_check.py",
+   "to": "dev/checks/agents/Route_advice_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Run_lifecycle_check.py",
+   "to": "dev/checks/agents/Run_lifecycle_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Scheduled_outcome_check.py",
+   "to": "dev/checks/agents/Scheduled_outcome_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Scheduler_check.py",
+   "to": "dev/checks/agents/Scheduler_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Stage1_eval.py",
+   "to": "dev/checks/agents/Stage1_eval.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Stage2_eval.py",
+   "to": "dev/checks/agents/Stage2_eval.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Stage2_tools_check.py",
+   "to": "dev/checks/agents/Stage2_tools_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Supervisor_check.py",
+   "to": "dev/checks/agents/Supervisor_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Supervisor_golden.py",
+   "to": "dev/build/agents/Supervisor_golden.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Supervisor_tools_check.py",
+   "to": "dev/checks/agents/Supervisor_tools_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Tools_check.py",
+   "to": "dev/checks/agents/Tools_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Traffic_claims_check.py",
+   "to": "dev/checks/agents/Traffic_claims_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Traffic_link_check.py",
+   "to": "dev/checks/agents/Traffic_link_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Views_eval.py",
+   "to": "dev/checks/agents/Views_eval.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Voyage_watch_check.py",
+   "to": "dev/checks/agents/Voyage_watch_check.py"
+  },
+  {
+   "from": "pipelines/scripts/agents/Weekly_pack_check.py",
+   "to": "dev/checks/agents/Weekly_pack_check.py"
+  },
+  {
+   "from": "pipelines/scripts/api/Api_check.py",
+   "to": "dev/checks/api/Api_check.py"
+  },
+  {
+   "from": "pipelines/scripts/api/Api_integration_check.py",
+   "to": "dev/checks/api/Api_integration_check.py"
+  },
+  {
+   "from": "pipelines/scripts/api/Api_smoke.py",
+   "to": "dev/checks/api/Api_smoke.py"
+  },
+  {
+   "from": "pipelines/scripts/api/integration_fixture.py",
+   "to": "dev/checks/api/integration_fixture.py"
+  },
+  {
+   "from": "pipelines/scripts/api/Load_test.py",
+   "to": "dev/checks/api/Load_test.py"
+  },
+  {
+   "from": "pipelines/scripts/api/Web_stack_fixture.py",
+   "to": "dev/checks/api/Web_stack_fixture.py"
+  },
+  {
+   "from": "pipelines/scripts/finance/Executive_analysis.py",
+   "to": "dev/build/finance/Executive_analysis.py"
+  },
+  {
+   "from": "pipelines/scripts/finance/Executive_charts.py",
+   "to": "dev/build/finance/Executive_charts.py"
+  },
+  {
+   "from": "pipelines/scripts/finance/Executive_deck.py",
+   "to": "dev/build/finance/Executive_deck.py"
+  },
+  {
+   "from": "pipelines/scripts/finance/Finance_views_check.py",
+   "to": "dev/checks/finance/Finance_views_check.py"
+  },
+  {
+   "from": "pipelines/scripts/ops/Deploy_check.py",
+   "to": "dev/checks/ops/Deploy_check.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Brand_compatibility_check.py",
+   "to": "dev/checks/retrieval/Brand_compatibility_check.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Embedding_bakeoff.py",
+   "to": "dev/build/retrieval/Embedding_bakeoff.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Embeddings.py",
+   "to": "dev/build/retrieval/Embeddings.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Evaluation.py",
+   "to": "dev/checks/retrieval/Evaluation.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Golden_facts.py",
+   "to": "dev/build/retrieval/Golden_facts.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Golden_set.py",
+   "to": "dev/build/retrieval/Golden_set.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Lib_selftest.py",
+   "to": "dev/checks/retrieval/Lib_selftest.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Provider_smoke_test.py",
+   "to": "dev/checks/retrieval/Provider_smoke_test.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Qdrant_loader.py",
+   "to": "dev/build/retrieval/Qdrant_loader.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Retrieval.py",
+   "to": "dev/checks/retrieval/Retrieval.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Search_index_benchmark.py",
+   "to": "dev/checks/retrieval/Search_index_benchmark.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Upload_eval.py",
+   "to": "dev/checks/retrieval/Upload_eval.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Upload_fixtures.py",
+   "to": "dev/build/retrieval/Upload_fixtures.py"
+  },
+  {
+   "from": "pipelines/scripts/retrieval/Upload_validation.py",
+   "to": "dev/checks/retrieval/Upload_validation.py"
+  },
+  {
+   "from": "db/export_vessels_mirror.py",
+   "to": "dev/build/db/export_vessels_mirror.py"
+  },
+  {
+   "from": "docs/CHECKPOINT_agents_stage1.md",
+   "to": "dev/history/CHECKPOINT_agents_stage1.md"
+  },
+  {
+   "from": "docs/CHECKPOINT_agents_stage2.md",
+   "to": "dev/history/CHECKPOINT_agents_stage2.md"
+  },
+  {
+   "from": "docs/CHECKPOINT_data_processing.md",
+   "to": "dev/history/CHECKPOINT_data_processing.md"
+  },
+  {
+   "from": "docs/CHECKPOINT_rag_retrieval.md",
+   "to": "dev/history/CHECKPOINT_rag_retrieval.md"
+  }
+ ],
+ "folders": [
+  {
+   "from": "pipelines/checkpoints/",
+   "to": "dev/checkpoints/"
+  },
+  {
+   "from": "pipelines/scripts/agents/fixtures/",
+   "to": "dev/checks/agents/fixtures/"
+  },
+  {
+   "from": "pipelines/scripts/rag/",
+   "to": "dev/build/rag/"
+  },
+  {
+   "from": "pipelines/scripts/semi_structured/",
+   "to": "dev/build/semi_structured/"
+  },
+  {
+   "from": "pipelines/scripts/structured/",
+   "to": "dev/build/structured/"
+  },
+  {
+   "from": "pipelines/scripts/synthetic/",
+   "to": "dev/build/synthetic/"
+  },
+  {
+   "from": "ops/tests/",
+   "to": "dev/tests/"
+  },
+  {
+   "from": "db/mongo/audit/",
+   "to": "dev/db_audit/mongo/"
+  },
+  {
+   "from": "db/qdrant/audit/",
+   "to": "dev/db_audit/qdrant/"
+  },
+  {
+   "from": "db/audit/",
+   "to": "dev/db_audit/postgres/"
+  },
+  {
+   "from": "docs/archive/",
+   "to": "dev/history/archive/"
+  },
+  {
+   "from": "docs/analysis/",
+   "to": "dev/history/analysis/"
+  },
+  {
+   "from": "Notebooks/_scratch/",
+   "to": "dev/_scratch/"
+  },
+  {
+   "from": "tools/",
+   "to": "dev/tools/"
+  }
+ ]
+}

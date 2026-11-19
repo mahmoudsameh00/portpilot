@@ -1,5 +1,20 @@
 import { expect, test } from "@playwright/test";
-import { spansFor, toSegments, type NumberSpan } from "../src/lib/receipts";
+import { toSegments, type NumberSpan } from "../src/lib/receipts";
+
+/** Test helper: spans for hand-written text — each number's first occurrence after the previous one (real spans come
+ * from the API, never from searching the text in the browser). */
+function spansFor(
+  text: string,
+  numbers: ReadonlyArray<Omit<NumberSpan, "start" | "end" | "row"> & { row?: number | null }>,
+): NumberSpan[] {
+  let from = 0;
+  return numbers.flatMap((n) => {
+    const start = text.indexOf(n.text, from);
+    if (start < 0) return [];
+    from = start + n.text.length;
+    return [{ ...n, row: n.row ?? null, start, end: from }];
+  });
+}
 
 const base = {
   evidence_id: "kpi.weekly",

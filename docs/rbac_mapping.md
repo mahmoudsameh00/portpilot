@@ -1,6 +1,6 @@
 # RBAC mapping
 
-Decision record: ADR-006 in `docs/decisions.md`. Status: **enforced** by `search_documents` inside Qdrant (2026-10-08, ADR-038) and by every Stage 1 agent tool before its query (2026-10-18, ADR-049: `pipelines/agents/tools/context.py`, RBAC matrix in `pipelines/scripts/agents/Tools_check.py`); the API is not built yet.
+Decision record: ADR-006 in `docs/decisions.md`. Status: **enforced** by `search_documents` inside Qdrant (2026-10-08, ADR-038) and by every Stage 1 agent tool before its query (2026-10-18, ADR-049: `pipelines/agents/tools/context.py`, RBAC matrix in `dev/checks/agents/Tools_check.py`); the API is not built yet.
 
 ## 1. Access rule
 

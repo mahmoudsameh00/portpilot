@@ -2,7 +2,7 @@
 
 The decisions behind it: ADR-071 (one Linux VM per environment, one Compose stack, Caddy TLS, the schedules in a
 container), ADR-016 amendment 1 (migrations on deploy), the ADR-045 note of 2026-11-17 (free models, paid path). The
-plan that built it: `docs/archive/2026-11-18_Staging_readiness_plan.md`. Commands below are PowerShell on the owner's
+plan that built it: `dev/history/archive/2026-11-18_Staging_readiness_plan.md`. Commands below are PowerShell on the owner's
 Windows machine (`PS>`) and bash on the Linux VM (`$`). Every secret goes through Key Vault or a prompt — never a
 command line you paste into chat, never git.
 
@@ -14,7 +14,7 @@ Internet ─443─▶ Caddy (TLS, HSTS, 6 MB) ─▶ web (Next.js BFF) ─▶ ap
                                                                                          Jina, Tavily, PortWatch, Open-Meteo
 ```
 
-## 1. Local staging rehearsal (Docker Desktop; done by Claude on 2026-11-18, repeatable)
+## 1. Local staging rehearsal (Docker Desktop; done on 2026-11-18, repeatable)
 
 ```powershell
 PS> uv run python ops/deploy/new_env.py staging --rehearsal --copy-keys      # deploy/env/staging-rehearsal.env
@@ -89,7 +89,7 @@ $ echo '{"data-root": "/opt/portpilot/docker"}' | sudo tee /etc/docker/daemon.js
 $ sudo systemctl restart docker
 $ sudo -u portpilot ssh-keygen -t ed25519 -N "" -f /opt/portpilot/home/.ssh/id_ed25519
 $ sudo cat /opt/portpilot/home/.ssh/id_ed25519.pub   # GitHub → repository → Settings → Deploy keys → add (read-only)
-$ sudo -u portpilot git clone git@github.com:mahmoudsameh00/nilegate-ports-ai.git /opt/portpilot/repo
+$ sudo -u portpilot git clone git@github.com:mahmoudsameh00/portpilot.git /opt/portpilot/repo
 $ echo portpilot-production-kv | sudo -u portpilot tee /opt/portpilot/env/vault    # the vault of THIS environment
 ```
 Docker's daemon log rotation is set per service in the compose file; the host needs nothing else.
@@ -143,7 +143,7 @@ Never re-enable the test identities of the web stack E2E / CI fixtures; they exi
 
 1. Azure: an app registration for GitHub with **federated credentials** (no secret): Entra ID → App registrations →
    New → Certificates & secrets → Federated credentials → "GitHub Actions deploying Azure resources", organization
-   `mahmoudsameh00`, repository `nilegate-ports-ai`, entity "Environment", names `staging` and `production` (one
+   `mahmoudsameh00`, repository `portpilot`, entity "Environment", names `staging` and `production` (one
    credential each). Give it the role **Virtual Machine Contributor** on each resource group (run-command only).
 2. GitHub → Settings → Environments: create `staging`, `production`, `staging-migrations`, `production-migrations`;
    on each, **Required reviewers = you**; on `production`, also "Deployment branches and tags: selected tags `v*`".
@@ -208,7 +208,7 @@ PS> # then set PGPASSWORD=<the new value> in .env (open it in your editor); repe
 PS> # with db/create_readonly_user.ps1, db/create_finance_bi_user.ps1, db/create_agent_user.ps1, db/create_api_user.ps1
 PS> #   (each runs ALTER ROLE … PASSWORD for an existing login — read its header for where the value comes from),
 PS> #   and for MongoDB: .\db\mongo\run.ps1 001_create_app_user.js / 005_create_reader_user.js (update the user's password)
-PS> uv run python tools/secrets_scan.py        # no WEAK line, 0 findings
+PS> uv run python dev/tools/secrets_scan.py        # no WEAK line, 0 findings
 ```
 Power BI Desktop asks for the new `ports_bi` password on the next refresh.
 **An environment:** set the new value in its Key Vault, delete `/opt/portpilot/env/<env>.env` on the VM, then
@@ -221,14 +221,14 @@ $ $C up -d --force-recreate api scheduler web
 External keys (Gemini, Groq, …): create the new key at the provider, set it in the vault, recreate, then delete the
 old key at the provider.
 
-## 11. Secrets in the git history (owner; Claude runs no git)
+## 11. Secrets in the git history (owner)
 
 ```powershell
 PS> docker run --rm -v "${PWD}:/repo:ro" zricethezav/gitleaks:v8.28.0 git /repo --config /repo/.gitleaks.toml --redact --no-banner
 ```
 Every finding = a value to rotate (§10), even if the file was deleted later — history is public to anyone who can
 clone. Rewriting history is not needed once the value is rotated. The working tree is scanned by the CI
-(`tools/secrets_scan.py`) and by `gitleaks dir` (0 leaks on 2026-11-17).
+(`dev/tools/secrets_scan.py`) and by `gitleaks dir` (0 leaks on 2026-11-17).
 
 ## 12. Observability
 

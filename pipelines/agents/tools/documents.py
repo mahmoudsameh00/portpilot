@@ -4,7 +4,7 @@ Stage 1 tool contract (Agents plan §5a S6).
 The library already applies ADR-006 inside every Qdrant prefetch and re-checks each result; the wrapper only takes
 the user from the run context (never a model argument, P4-3), keeps the model-facing schema small (free models,
 Groq 8K TPM) and turns a failure of the query embedding / reranker into `context_unavailable` instead of an
-exception. Retrieved text is **untrusted data** (CLAUDE.md rule 5, `untrusted-content` skill): every row says so.
+exception. Retrieved text is **untrusted data** (the untrusted-content rule, `untrusted-content` skill): every row says so.
 """
 from langchain.tools import ToolRuntime, tool
 from pydantic import BaseModel, Field

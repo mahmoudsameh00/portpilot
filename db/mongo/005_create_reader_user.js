@@ -5,7 +5,7 @@
 // updated (password + roles), not duplicated.
 // Role: read on the project database only — the Stage 2 tools (voyage_status) query ais_positions / ais_vessels and
 // can never write, like PG_RO_USER on PostgreSQL. The loader keeps the app user (the only writer, ADR-031).
-// The refused write is checked from Python by pipelines/scripts/agents/Stage2_tools_check.py (Phase 0).
+// The refused write is checked from Python by dev/checks/agents/Stage2_tools_check.py (Phase 0).
 // =====================================================================
 const user = process.env.RO_USER;
 const pwd = process.env.RO_PWD;

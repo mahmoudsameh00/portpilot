@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 test("PortPilot identity is readable on light and navy surfaces and has a browser icon", async ({
   page,
 }, info) => {
-  for (const route of ["/login", "/concept", "/concept/answer"]) {
+  for (const route of ["/login"]) {
     await page.goto(route);
     await expect(page).toHaveTitle(/PortPilot/);
     await expect(page.getByText("PortPilot", { exact: true }).filter({ visible: true })).toHaveCount(1);
@@ -14,7 +14,7 @@ test("PortPilot identity is readable on light and navy surfaces and has a browse
     const axe = await new AxeBuilder({ page }).analyze();
     expect(axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical")).toEqual([]);
     await page.screenshot({
-      path: `../Notebooks/_scratch/portpilot-${info.project.name}-${route.replaceAll("/", "-")}.png`,
+      path: `../dev/_scratch/portpilot-${info.project.name}-${route.replaceAll("/", "-")}.png`,
       fullPage: true,
     });
   }

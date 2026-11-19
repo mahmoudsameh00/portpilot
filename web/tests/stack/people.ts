@@ -1,4 +1,4 @@
-// The local-stack suite's identities (written by pipelines/scripts/api/Web_stack_fixture.py into the git-ignored
+// The local-stack suite's identities (written by dev/checks/api/Web_stack_fixture.py into the git-ignored
 // .fixture/ folder at global setup) and the shared sign-in step.
 import { readFileSync } from "node:fs";
 import path from "node:path";

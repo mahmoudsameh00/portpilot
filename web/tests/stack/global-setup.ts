@@ -1,4 +1,4 @@
-// Creates the stack suite's identities on the isolated clone (pipelines/scripts/api/Web_stack_fixture.py setup).
+// Creates the stack suite's identities on the isolated clone (dev/checks/api/Web_stack_fixture.py setup).
 import { execFileSync } from "node:child_process";
 
 export default function globalSetup() {

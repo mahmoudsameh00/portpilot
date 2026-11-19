@@ -1,7 +1,7 @@
 # Isolated API integration
 
 Stabilization R10, 2026-11-12. The deterministic suite is
-`pipelines/scripts/api/Api_integration_check.py`. The `api-integration` CI job starts a fresh PostgreSQL 16.9
+`dev/checks/api/Api_integration_check.py`. The `api-integration` CI job starts a fresh PostgreSQL 16.9
 service on port 55432, database `portpilot_api_test`. It needs no project `.env`, model key, loaded finance data,
 MongoDB or Qdrant. Runtime roles have separate random credentials and the real migration 023 grants.
 
@@ -13,12 +13,12 @@ powershell -NoProfile -File .\ops\tests\run_api_integration.ps1
 
 The wrapper requires Docker Desktop and the existing locked Python environment. It refuses an existing
 `portpilot-api-test` container or occupied port 55432, generates a temporary password, starts the test container,
-waits for readiness, and runs through `tools/run.py`. It restores environment variables on exit and retains the
+waits for readiness, and runs through `dev/tools/run.py`. It restores environment variables on exit and retains the
 container for inspection. It never stops, deletes, or connects to the application's containers. A fresh container
 is required for another run: inspect the previous one before removing **only** `portpilot-api-test`.
 
 Owner validation **passed 2026-11-12**: phases 0–4 and `Final Checkpoint: 5 / 5`, exit 0 in 64s. The saved
-validation log was inspected; durable evidence is `db/audit/2026-11-12_api_integration_report.txt`. This verifies
+validation log was inspected; durable evidence is `dev/db_audit/postgres/2026-11-12_api_integration_report.txt`. This verifies
 the disposable PostgreSQL suite. Pushed CI and full-data application acceptance remain separate pending gates.
 
 The fixture uses seven new employee IDs 900001–900007 and generated passwords. The employee table definition is
@@ -34,7 +34,7 @@ Finance views, full deck generation, PostGIS, MongoDB/Qdrant, providers and Powe
 For a quick database-free guard check:
 
 ```powershell
-uv run python pipelines/scripts/api/Api_integration_check.py --guard-only
+uv run python dev/checks/api/Api_integration_check.py --guard-only
 ```
 
 `Api_check.py`, the historical full-store suite, now refuses implicit/live PostgreSQL targets and creates its own
@@ -61,7 +61,7 @@ powershell -NoProfile -File .\ops\tests\run_web_stack.ps1
 ```
 
 The config refuses to start unless the clone's variables are set (the runner sets them from the container). Global
-setup / teardown call `pipelines/scripts/api/Web_stack_fixture.py setup | cleanup`: eight employees 910001–910008
+setup / teardown call `dev/checks/api/Web_stack_fixture.py setup | cleanup`: eight employees 910001–910008
 (`web-stack-N@nilegate.com`, random passwords in the git-ignored `web/tests/stack/.fixture/people.json`) and,
 afterwards, everything they made (conversations, tokens, audit rows, `ask:` / `route_advice:` threads). Coverage:
 the access matrix of the seven profiles (menu, pages, BFF reads of finance and packs; another employee's

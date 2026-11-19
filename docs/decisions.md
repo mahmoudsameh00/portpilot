@@ -1,7 +1,7 @@
 # Architecture Decision Log
 
 Format: context, then the decision, then its consequences. Status is one of `Accepted`, `Superseded`, `Rejected` or `Deferred`.
-Never delete an entry; supersede it with a new one. Sources for older entries are in `docs/archive/`.
+Never delete an entry; supersede it with a new one. Sources for older entries are in `dev/history/archive/`.
 
 ---
 
@@ -27,7 +27,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   - `amount` = Σ rate × tons inside each band (full progressive amount)
   - `toll_rate_band_id` and `rate_sdr_per_ton` = the terminal band that contains the vessel's SCNT
   - Special Floating Units are always priced as Laden (the source has Laden rates only)
-- **Verified 2026-09-23:** all 1,000 invoices satisfy these rules exactly (`db/audit/2026-09-23_verify_report.txt`, §12).
+- **Verified 2026-09-23:** all 1,000 invoices satisfy these rules exactly (`dev/db_audit/postgres/2026-09-23_verify_report.txt`, §12).
 - **Deferred business rules** (retrieval-only, via ADR-005): Ballast Petroleum Product / Oil-Chemical tankers → ballast Crude Oil rates; OBO/combined carriers → highest applicable cargo rate; refusal of transit inspection → gross tonnage plus extra charges; actual condition at transit controls.
 
 ## ADR-005 — The Suez tariff PDF has two roles
@@ -175,13 +175,13 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 - **Status:** Accepted (2026-09-27). Owner decision 1 of the semi-structured plan; implemented and verified the same day.
 - **Context:** ADR-001 puts AIS / EDI in MongoDB. The project runs PostgreSQL as a local Docker container; Docker Compose is deferred (ADR-018). Credentials are in `.env` (ADR-015).
 - **Decision:** MongoDB 8.0 runs in its own container `ports-mongo`, image pinned to `mongo:8.0.32` (digest `sha256:4968f22d0c6c10ef29952f3e807f62872ba22b3312f25803564fbfc08255efc2`), named volume `ports-mongo-data`, port published as `127.0.0.1:27017` only. A root user for administration and an application user with `readWrite` on `ports_logistics` only (created in `admin`). Credentials are `MONGO_*` variables in `.env` (names in `.env.example`); they are passed to Docker by name (`-e NAME`) and to `mongosh` through `db/mongo/run.ps1`, never on a command line. Administration uses `mongosh` inside the container. The driver is `pymongo==4.18.2`. All times are UTC.
-- **Consequences:** Verified (`db/mongo/audit/`): the app user can create / write / drop collections in its database and is refused `collMod`, other databases, user listing and the full database list (6/6); an unauthenticated `listDatabases` is refused. Because the app user has no `collMod`, validators are always set when a collection is created. `docker inspect` still shows the root credentials of the container (local development only, same as `ports-postgres`). The MongoDB init variables are read only on the first start of an empty volume.
+- **Consequences:** Verified (`dev/db_audit/mongo/`): the app user can create / write / drop collections in its database and is refused `collMod`, other databases, user listing and the full database list (6/6); an unauthenticated `listDatabases` is refused. Because the app user has no `collMod`, validators are always set when a collection is created. `docker inspect` still shows the root credentials of the container (local development only, same as `ports-postgres`). The MongoDB init variables are read only on the first start of an empty volume.
 
 ## ADR-028 — Vessel identity stays in PostgreSQL; MMSI added there; real AIS vessels are reference data
 - **Status:** Accepted (2026-09-27). Owner decision 3; migrations 004–005 applied 2026-09-27.
 - **Context:** AIS identifies ships by MMSI; `vessels` had only `imo_number`. The AIS samples contain 10,000+ real ships that are not NileGate's.
 - **Decision:** `vessels.mmsi varchar(9)` UNIQUE with CHECK `^[2-7][0-9]{8}$` (004), filled deterministically (005): `MID(flag_country) || lpad(((vessel_id * 7919 + 42) % 1000000), 6, '0')` — 7919 is coprime with 10⁶, so the tail is unique per vessel; 42 is the seed offset. The MID comes from the ITU table (`db/reference/itu_mid_table.csv`, captured from https://www.itu.int/gladapp/Allocation/MIDs) through a reviewed mapping (`db/reference/flag_country_mid.csv`: 144 automatic, 15 name forms, Guam → 338 USA and Mayotte → 226 France as sovereign fallbacks). MongoDB documents reference `mmsi` / `imo`; PostgreSQL stays the system of record. Real AIS vessels are stored with `real_or_synthetic = real` and `vessel_id = null`, never linked.
-- **Consequences:** 500 unique MMSIs, 0 collisions with the 10,051 real MMSIs of the samples (checked before 005 and audited after every load, together with IMO and call signs). `vessels.csv` ends with the database-owned `mmsi` (`db/export_vessels_mirror.py`); `SyntheticGenerator.ipynb` declares it in `DB_OWNED_COLUMNS`. Our IMO and container numbers stay sequential (not checksummed, owner decision Q-A): check digits are enforced on real data only.
+- **Consequences:** 500 unique MMSIs, 0 collisions with the 10,051 real MMSIs of the samples (checked before 005 and audited after every load, together with IMO and call signs). `vessels.csv` ends with the database-owned `mmsi` (`dev/build/db/export_vessels_mirror.py`); `SyntheticGenerator.ipynb` declares it in `DB_OWNED_COLUMNS`. Our IMO and container numbers stay sequential (not checksummed, owner decision Q-A): check digits are enforced on real data only.
 
 ## ADR-029 — Semi-structured collections and how each is validated
 - **Status:** Accepted (2026-09-27). Owner decision 4, confirmed by the profile (plan §3.2a) and the feature probe.
@@ -226,11 +226,11 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 - **Consequences:** 29 rows, 2,163 chunks, 765 pages, 29 distinct fingerprints (`verify_readonly.sql` §16). The Qdrant payload will carry `document_id`; the retrieval filter stays per chunk (ADR-021).
 
 ## ADR-036 — Pipelines are scripts (percent format); notebooks archived
-- **Status:** Accepted (2026-10-01). Plan `docs/archive/2026-10-01_Scripts_and_ingestion_plan.md` (D1–D7). Supersedes the notebook parts of ADR-008 (one notebook per RAG source → one script per source) and the `notebook-dev-loop` skill.
+- **Status:** Accepted (2026-10-01). Plan `dev/history/archive/2026-10-01_Scripts_and_ingestion_plan.md` (D1–D7). Supersedes the notebook parts of ADR-008 (one notebook per RAG source → one script per source) and the `notebook-dev-loop` skill.
 - **Context:** The owner wants all work in scripts from now on. 15 notebooks (~23,900 code lines) hold every pipeline; their code had to keep the same flow and produce the same outputs.
-- **Decision:** Each notebook becomes `pipelines/scripts/<area>/<stem>.py` in percent format (`# %% cell N` = notebook cell N), generated by `tools/nb_to_script.py`, never retyped. Code cells are byte-identical except three listed changes: `from IPython.display import display` in the header; a bare last expression wrapped in `_display_result(...)` (Jupyter showed it unless None); an IPython `%pip` line commented. Markdown cells stay in place as comments. The closing Final Checkpoint narrative moves unchanged to `pipelines/checkpoints/<area>/<stem>.md` (D1: a scripts folder and a checkpoints folder inside `pipelines/`). `tools/nb_to_script.py check` proves the equality statically; `tools/run.py --compare` runs a script, compares its ✅ lines with the notebook's saved outputs and reports every changed artifact by SHA-256. Paths written into outputs (e.g. the AIS / EDI manifests' `generator`, migration 010's header) keep the notebook path so the outputs stay byte-identical. Notebooks move to `docs/archive/notebooks/` after the owner's local run (D2); refactoring a script is allowed afterwards, one script at a time, each re-verified with the same check (D3).
-- **Consequences:** `tools/run.py` replaces `tools/nb.py run`; skill `script-dev-loop` replaces `notebook-dev-loop`. `ExtractPortsConnection.py`: its INSERT into `port_connections` (cell 21) is disabled at the owner's request (kept as `#! ` comments, restorable by the converter), so the script is safe to re-run. A bare tuple `a, b` ending a cell is wrapped in `_display_tuple(...)` (shows the tuple, as Jupyter did). New pipelines (RAG retrieval, the PDF ingestion agent) are scripts.
-- **Amendment (2026-10-01, refactor D3):** two levels. **Level A** (functions + `main()`, assertions instead of exploration prints, by hand): ExtractPortsAttributes, ExtractPortsConnection (its INSERT became `insert_port_connections()`, run only with `--insert` and refused on a non-empty table), SyntheticGenerator (the random-draw order is kept; vessels.csv and containers.csv regenerated identical in the cloud session), Documents_registry (migration 010 re-rendered byte-identical from the mirror), EDI_generator. **Level B** (`tools/nb_to_script.py clean`, generated from the archived notebook): the 7 RAG chunking scripts, AIS_EDI_profiling, AIS_generator, MongoDB_loader keep their linear phase structure (the flow, with a reviewed validation after each phase) as `# %% <Phase title>` sections with the narrative as comments; Jupyter's implicit display of a last expression and `display()` become `print()`; `check` proves the AST equals the archived notebook's code under exactly those rules. Verification: `tools/run.py all --compare` on the owner's machine (same ✅ lines in order, new ones allowed for level A; `files changed: 0`).
+- **Decision:** Each notebook becomes `pipelines/scripts/<area>/<stem>.py` in percent format (`# %% cell N` = notebook cell N), generated by `dev/tools/nb_to_script.py`, never retyped. Code cells are byte-identical except three listed changes: `from IPython.display import display` in the header; a bare last expression wrapped in `_display_result(...)` (Jupyter showed it unless None); an IPython `%pip` line commented. Markdown cells stay in place as comments. The closing Final Checkpoint narrative moves unchanged to `dev/checkpoints/<area>/<stem>.md` (D1: a scripts folder and a checkpoints folder inside `pipelines/`). `dev/tools/nb_to_script.py check` proves the equality statically; `dev/tools/run.py --compare` runs a script, compares its ✅ lines with the notebook's saved outputs and reports every changed artifact by SHA-256. Paths written into outputs (e.g. the AIS / EDI manifests' `generator`, migration 010's header) keep the notebook path so the outputs stay byte-identical. Notebooks move to `dev/history/archive/notebooks/` after the owner's local run (D2); refactoring a script is allowed afterwards, one script at a time, each re-verified with the same check (D3).
+- **Consequences:** `dev/tools/run.py` replaces `dev/tools/nb.py run`; skill `script-dev-loop` replaces `notebook-dev-loop`. `ExtractPortsConnection.py`: its INSERT into `port_connections` (cell 21) is disabled at the owner's request (kept as `#! ` comments, restorable by the converter), so the script is safe to re-run. A bare tuple `a, b` ending a cell is wrapped in `_display_tuple(...)` (shows the tuple, as Jupyter did). New pipelines (RAG retrieval, the PDF ingestion agent) are scripts.
+- **Amendment (2026-10-01, refactor D3):** two levels. **Level A** (functions + `main()`, assertions instead of exploration prints, by hand): ExtractPortsAttributes, ExtractPortsConnection (its INSERT became `insert_port_connections()`, run only with `--insert` and refused on a non-empty table), SyntheticGenerator (the random-draw order is kept; vessels.csv and containers.csv regenerated identical in the cloud session), Documents_registry (migration 010 re-rendered byte-identical from the mirror), EDI_generator. **Level B** (`dev/tools/nb_to_script.py clean`, generated from the archived notebook): the 7 RAG chunking scripts, AIS_EDI_profiling, AIS_generator, MongoDB_loader keep their linear phase structure (the flow, with a reviewed validation after each phase) as `# %% <Phase title>` sections with the narrative as comments; Jupyter's implicit display of a last expression and `display()` become `print()`; `check` proves the AST equals the archived notebook's code under exactly those rules. Verification: `dev/tools/run.py all --compare` on the owner's machine (same ✅ lines in order, new ones allowed for level A; `files changed: 0`).
 
 ## ADR-037 — Embedding model: Gemini `gemini-embedding-2` (3,072 dimensions)
 - **Status:** Accepted (2026-10-05) for the model; **D5 decided 2026-10-08: the composed unit** (complete run,
@@ -264,7 +264,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
     reranker and Phase 6 context shaping, judged by the ADR-040 rule.
   - Voyage limits confirmed by its 429 text: 3 RPM / 10K TPM without a payment method.
 - **Amendment (2026-10-08, plan close, owner decision):** the bake-off vectors of every candidate (≈ 110 MB, the
-  plan had called them "scratch") live in `Data/embeddings/bakeoff/` (git-ignored), not in `Notebooks/_scratch/`:
+  plan had called them "scratch") live in `Data/embeddings/bakeoff/` (git-ignored), not in `dev/_scratch/`:
   `Embeddings.py` seeds from them, and `Retrieval.py`, `Lib_selftest.py` and `Search_index_benchmark.py` assert on them,
   so emptying `_scratch` would have made those scripts re-spend the free quota. Moved; the three scripts re-ran ✅ with
   `files changed: 0`.
@@ -286,7 +286,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 
 ## ADR-038 — Retrieval defaults: exact dense search + Jina reranker; no hybrid, no context shaping
 - **Status:** Accepted (2026-10-08). RAG plan Phase 7, decided by the ADR-040 rule (fixed before the run);
-  `pipelines/scripts/retrieval/Evaluation.py` → `Data/processed/rag/eval/results_2026-10-08.json`. Also records the
+  `dev/checks/retrieval/Evaluation.py` → `Data/processed/rag/eval/results_2026-10-08.json`. Also records the
   search-index and cache decisions taken with the owner the same day.
 - **Results** (64 golden queries through the real tool as the CEO; Gemini composed unit; balanced = mean of fact
   recall@10, nDCG@10, sufficiency@8, each EN / AR averaged):
@@ -339,7 +339,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   - `pipelines/lib/` (imported after putting the project root on `sys.path`): `common` (root, `.env`, redaction),
     `chunks` (the 16-column contract), `embeddings` (per-provider budgets, retries incl. Gemini's `retryDelay`, stop
     on a wait > 15 min, resumable cache keyed by id + text SHA-256), `qdrant_store` (collection spec, point identity,
-    version-safe upsert, verification). Verified by `pipelines/scripts/retrieval/Lib_selftest.py` (no API call; a
+    version-safe upsert, verification). Verified by `dev/checks/retrieval/Lib_selftest.py` (no API call; a
     throwaway Qdrant collection).
   - Point id = UUID5(`document_id` + "/" + `chunk_id`) in a project namespace: a reload overwrites (never
     duplicates); each version has its own points.
@@ -369,7 +369,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   Measured on the bake-off cache: q22 (three incidents) counted as found with two of them; only 13-15 % of the top-10
   chunks were labelled, so the rest could not be judged; near-duplicate restated recommendations took slots.
 - **Decision:**
-  - **Golden facts** (`pipelines/scripts/retrieval/Golden_facts.py` → `Data/processed/rag/eval/golden_facts.jsonl`,
+  - **Golden facts** (`dev/build/retrieval/Golden_facts.py` → `Data/processed/rag/eval/golden_facts.jsonl`,
     a separate file: the frozen golden set is untouched): 1-4 facts per English question (80), each a claim = groups
     of regex alternatives that must all match one chunk (a USCG fact is vessel AND claim, because every chunk of a
     report carries the vessel name). Validated: every fact stated by an expected chunk, the expected chunks together
@@ -408,7 +408,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
     title plus at most a label / number ("Table:", "17.") moves to `title`; a "<title>. " run-in heading is removed;
     anything else is content and stays (prose such as "Road infrastructure plays …" under the title "Road").
     Lossless (old text = new title + newline or ". " + new text, up to whitespace) and idempotent, both asserted.
-  - Applied in the **owning** chunking scripts as an appended last phase (`tools/nb_to_script.py` APPENDED, proven by
+  - Applied in the **owning** chunking scripts as an appended last phase (`dev/tools/nb_to_script.py` APPENDED, proven by
     `check`: notebook + patches + exactly this phase), after their own validations and coverage audits, which keep
     validating the chunking itself. Chunk boundaries, ids, order and the count (2,163) are unchanged: the frozen golden
     set, the golden facts and `documents.chunk_count` stay valid; no migration.
@@ -485,7 +485,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
     (ADR-018).
   - **Embedding (D16, ADR-037, Q1):** every session upload is embedded **locally with ONNX Runtime** — no upload text
     leaves the machine, no Gemini quota is spent, one vector space and one floor. Models are exported once by
-    `tools/export_onnx.py` (fp32 + weight-only int8 / int4, MatMulNBits; checked against PyTorch, min cosine fp32
+    `dev/tools/export_onnx.py` (fp32 + weight-only int8 / int4, MatMulNBits; checked against PyTorch, min cosine fp32
     1.0). Measured (32 chunks of 4 documents, 30 English + 30 Egyptian Arabic questions; rule: hit@3 >= 0.85 EN and
     >= 0.75 AR):
 
@@ -563,7 +563,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   (Was PROPOSED 2026-10-11; gemma's LITE finished after 15 runs: it ties the writer leaders but loses the tie-break
   on packs per day.)
 - **Context:** Agents plan D1 (free APIs only, main + fallback per role) and §7a; rules fixed before any call (owner,
-  2026-10-10). `pipelines/scripts/agents/LLM_bakeoff.py`, frozen tasks `Data/processed/agents/eval/bakeoff_tasks.json`
+  2026-10-10). `dev/build/agents/LLM_bakeoff.py`, frozen tasks `Data/processed/agents/eval/bakeoff_tasks.json`
   (sha256 `ed6723f5…`: T1 20 tool-calling questions, T2 10 weekly KPI tables, T3 10 invoice-exception tables, T4 the
   40 English golden questions with frozen top-8 passages; OpenRouter, `gemini-3.8-flash` and `gemma-4-31b-it` run
   the stratified LITE subset 8 / 4 / 4 / 8), results `llm_bakeoff_2026-10-12.json`. Deterministic scoring, no LLM
@@ -667,7 +667,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 
 ## ADR-046 — Synthetic finance data for the Weekly Finance Pack; `invoices.status` is a label
 - **Status:** Accepted (2026-10-13 rules approved, 2026-10-14 migration 012 applied and verified). Agents plan §4a
-  R1–R10 (D6, amended). `pipelines/scripts/synthetic/Finance_generator.py`, `db/migrations/012_finance_data.sql`.
+  R1–R10 (D6, amended). `dev/build/synthetic/Finance_generator.py`, `db/migrations/012_finance_data.sql`.
 - **Context:** the finance KPIs (AR aging, DSO, collections, customers, budget variance) need customers, terms,
   payments and a budget, which did not exist. The stored `invoices.status` turned out to be a random label (689 of
   1,000 not Paid, evenly over the four quarters): payments consistent with it would have shown DSO ≈ 250 days.
@@ -684,12 +684,12 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 - **Results:** top-10 customers 57.0 % of 2025 billing; DSO 55 days; 150 invoices (40.2 M SDR) open at 2025-12-31,
   6 unpaid at the horizon; paid on or before due 36 % (owner kept); budget 302.1 M vs actual 267.9 M (−11.3 %,
   explained by the laden assumption); label vs derived agree on 379 / 1,000. `verify_readonly.sql` §17 =
-  40 | 500 | 994 | 0 | 0 | 0 | 676 | 88 | 52, §14 / §15 clean (`db/audit/2026-10-14_after_012_report.txt`); a second
+  40 | 500 | 994 | 0 | 0 | 0 | 676 | 88 | 52, §14 / §15 clean (`dev/db_audit/postgres/2026-10-14_after_012_report.txt`); a second
   generator run with another hash seed changed 0 files.
 
 ## ADR-047 — Schema `finance`: plain star / KPI views, one definition per metric
 - **Status:** Accepted (2026-10-14). Agents plan Phase 2, owner decisions P2-1…P2-9; `db/migrations/013_finance_views.sql`,
-  `docs/finance_metrics.md`, `pipelines/scripts/finance/Finance_views_check.py`. Takes up ADR-018's star-schema
+  `docs/finance_metrics.md`, `dev/checks/finance/Finance_views_check.py`. Takes up ADR-018's star-schema
   trigger (Power BI phase) in its preferred shape.
 - **Context:** the Weekly Finance Pack needs the same numbers in Power BI (DirectQuery: complex DAX is limited) and in
   the agent tools (the Validator compares deck numbers exactly). Receivables "as of" a week must come from dates
@@ -715,7 +715,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   week its 13 trend rows, so Power BI's single week slicer drives the trend chart with no DAX (rejected: a
   disconnected slicer table with DAX measures; a 52-week chart that ignores the slicer).
 - **Note (2026-11-16, web dashboards plan Phase 5):** the one-definition rule held across three readers on week 17:
-  Power BI's measures (DAX through the Power BI Modeling MCP), the views read directly and the API's `finance_kpi`
+  Power BI's measures (DAX through Power BI Desktop's TMDL editing), the views read directly and the API's `finance_kpi`
   rows agree on 249 values with 0 differences, and the web's tiles show those values only rounded
   (`web/tests/stack/parity.stack.spec.ts`). W16 was matched the same way by the frontend plan (D-FE-7).
 
@@ -727,8 +727,8 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   numbers exactly), with no paid Power BI Service account, no gateway and no copy of the data; the model must be
   reviewable in git.
 - **Decision:** (1) **Power BI Desktop + PBIP** (TMDL / PBIR in `powerbi/`; `.pbi/localSettings.json`, `cache.abf`
-  and `*.pbix` git-ignored); the model is edited through the official **Power BI Modeling MCP**
-  (`@microsoft/powerbi-modeling-mcp@1.0.0`, pinned in `.mcp.json`), report pages in Desktop. (2) **DirectQuery** on
+  and `*.pbix` git-ignored); the model is edited through Power BI Desktop's **TMDL** model files
+ , report pages in Desktop. (2) **DirectQuery** on
   the 12 `finance` views used (all but `dim_date`) through the login `ports_bi` (member of `finance_bi` only,
   `default_transaction_read_only`, password in `.env`). (3) **One week dimension** `Week` (`dim_week`) filters every
   table: 18 many-to-one, single-direction relationships named `<from> -> <to>`; **Assume referential integrity off**
@@ -742,11 +742,11 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   Exceptions = placeholder until the Auditor tool, P3-11) with one **single-select week slicer synced on all pages**
   (filter "is not (Blank)"); money `#,0.00` (the new Card visual abbreviates itself); where a visual sum of rounded
   SQL values would differ from the SQL KPI (customer shares), the visual shows the KPI and hides the total.
-  (7) Visuals are built on screen with the owner (computer use, explained per visual), not generated.
+  (7) Visuals are built on screen with the owner (explained per visual), not generated.
 - **Consequences:** every number of pages 1–4 equals `finance.kpi_weekly` read straight from PostgreSQL for weeks
   5 / 23 / 49 (and the revenue / AR / customer breakdowns each sum to the week's KPI); the dashboard is current when
   opened (no refresh) but **needs the database running** (an error otherwise — the containers restart with Docker,
-  P3-12); MCP edits reach disk only after Desktop's Save (clear the "refresh manually" banner first). Upgrade path
+  P3-12); model edits reach disk only after Desktop's Save (clear the "refresh manually" banner first). Upgrade path
   (D5): a work / school account → Power BI Service as an adapter; Import mode stays a fallback. Rejected: DAX KPI
   logic (would fork the definitions); a disconnected slicer table; a `.pbix` in git.
 - **Amendment 1 (2026-11-02, weekly-pack plan Phase F, owner: "نعملها النهارده"):** the migration 021 columns join the
@@ -791,9 +791,9 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 
 ## ADR-049 — Stage 1 agent tools: one contract, the user and the dataset from the run context, SQL audit views
 - **Status:** Accepted (2026-10-18, owner decisions P4-1…P4-8, Agents plan §5a); migration 015 applied by the owner
-  (2026-10-19; `verify_readonly.sql` §19 as expected, `db/audit/2026-10-19_after_015_report.txt`), `Tools_check.py`
+  (2026-10-19; `verify_readonly.sql` §19 as expected, `dev/db_audit/postgres/2026-10-19_after_015_report.txt`), `Tools_check.py`
   8 / 8 ✅. `pipelines/agents/tools/`, `pipelines/agents/skill_loader.py`, `pipelines/agents/skills/`,
-  `db/migrations/015_invoice_audit_views.sql`, `pipelines/scripts/agents/Tools_check.py`.
+  `db/migrations/015_invoice_audit_views.sql`, `dev/checks/agents/Tools_check.py`.
 - **Context:** the Weekly Finance Pack's agents need governed tools whose numbers equal the dashboard (ADR-047 /
   048), that free models (small token budgets, varying JSON-schema support) can call reliably, and that cannot leak
   data or be talked into acting as another user.
@@ -903,7 +903,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   revise first). On approve the publisher also writes `run.json` `summary` (slide 2 as the deck says it) + `approved`,
   and — only for the live dataset published to the real `reports/` — the rows of migration 024
   (`agent_state.pack_approved*`, login ports_agent) after the files; a failed write is a WARNING, never a lost deck.
-- **Amendment 4 (2026-11-09, external-context plan, `docs/archive/2026-11-09_Pack_external_context_plan.md`; owner
+- **Amendment 4 (2026-11-09, external-context plan, `dev/history/archive/2026-11-09_Pack_external_context_plan.md`; owner
   E1–E5, ec2 kept):** the week's external context is **fetched by code**, not left to the Insight model's choice. A
   deterministic node `external_context` (`audit → external_context → insight_llm`) calls, as the run's user,
   `suez_transits` (the week and the 4 weeks before) and `web_search` (a fixed query, the week's dates, 3 results),
@@ -914,7 +914,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   its tools for drill-downs (E2). `run.json` records `external_context` (status + note per id). Fake models get
   `no_context` (no network, D-EC-1). Acceptance (ADR-052, golden weeks × 2, packs scope): every gate held in both
   runs; narrative recall 0.948 vs c5b's 0.931.
-- **Amendment 5 (2026-11-16, `docs/archive/2026-11-16_Targeted_revise_plan.md`, owner T1 / T2) — supersedes amendment 2's D2 ("the
+- **Amendment 5 (2026-11-16, `dev/history/archive/2026-11-16_Targeted_revise_plan.md`, owner T1 / T2) — supersedes amendment 2's D2 ("the
   Writer drafts the deck again, nothing of the earlier draft is carried"):** a revise re-drafts **only the related
   slides**. Code picks them (`weekly_pack.revise_slides`): slide 2 always (the summary follows every change); the
   changed note's own slide (a driver → 4, a context item → 9); and every slide whose current Writer texts (a bullet's
@@ -937,7 +937,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 - **Status:** Accepted (2026-10-19, owner decisions P6-1…P6-8, Agents plan §5c; S6 decisions the same day).
   `pipelines/agents/deck/` (`slots.py`, `validator.py`, `style.py`, `render.py`, `readback.py`, `sample.py`),
   `pipelines/agents/graphs/` (`weekly_pack.py`, `models.py`: `DeckPatch`), the skills `deck-style-guide` and
-  `number-validation` (rewritten, owner-reviewed), `pipelines/scripts/agents/Deck_check.py` (4 / 4 ✅),
+  `number-validation` (rewritten, owner-reviewed), `dev/checks/agents/Deck_check.py` (4 / 4 ✅),
   `Weekly_pack_check.py` (7 / 7 ✅).
 - **Context:** Phase 5's real Writer failed on signs dropped next to direction words and on fields cited from the
   wrong dataset, and its Validator accepted a number equal to **any** numeric field of the cited evidence (a
@@ -1099,7 +1099,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   but are not silently migrated or declared synchronized. No new schema, queue or database ownership is added.
   Five offline recovery phases and desktop/mobile notices verified; live DB/Power BI acceptance remains open.
 
-- **Amendment 11 (2026-11-14, traffic-billing link plan Phase 6, `docs/archive/2026-11-14_Traffic_billing_link_plan.md`;
+- **Amendment 11 (2026-11-14, traffic-billing link plan Phase 6, `dev/history/archive/2026-11-14_Traffic_billing_link_plan.md`;
   owner D-TL-11 "fix the check in code", D-TL-12 "widen the scorer rules") — supersedes amendment 9's "invalid
   generated notes stop before the Writer":**
   - (1) **A refused traffic sentence in the Insight notes is repaired, not fatal.** The first real-model run of the
@@ -1129,7 +1129,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
     the code-drawn line and the title, but the refused bullet costs rewrites. A brief / skill question for a later
     plan. Rejected: reverting the notes-stage check (the Writer would again receive unsafe notes), an LLM judge.
 
-- **Amendment 12 (2026-11-14, `docs/archive/2026-11-14_Slide9_link_bullet_plan.md`; owner L1 "code drop only"):
+- **Amendment 12 (2026-11-14, `dev/history/archive/2026-11-14_Slide9_link_bullet_plan.md`; owner L1 "code drop only"):
   a slide-9 Writer bullet built on `context.link` is dropped by code before the Validator.** The slide → evidence
   table the Writer brief prints says slide 9 may cite `context.*`, so `context.link` looks allowed there; V5's
   second check refuses it (PortPilot data on the context slide, amendment 8 (1)). The table cannot simply drop
@@ -1155,7 +1155,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   models, skipped as always); lint ratchet 0 / 0. ADR-052: a Validator change can move the evaluation (more refusals
   → more rewrites) — the real Stage 1 run (× 2 vs ec2) is the owner's call on quota, not run yet.
 
-- **Amendment 14 (2026-11-16, `docs/archive/2026-11-16_Targeted_revise_plan.md`, owner T3 "code only"): rare fallbacks, and what
+- **Amendment 14 (2026-11-16, `dev/history/archive/2026-11-16_Targeted_revise_plan.md`, owner T3 "code only"): rare fallbacks, and what
   code wrote shown on the text itself.** Measured first (a scratch replay of the `s9` caches, 0 requests, and the live
   threads W16:5 / W17:1): **every pack reached the fallback** (22 / 22 in `s9`); of the 57 problems left after the two
   rewrites in 16 replayed packs, 25 were V9 rule 5 (a comment repeating the slide's tiles; 13 / 16 packs, 11 on slide
@@ -1450,8 +1450,8 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 - **Status:** Accepted (2026-10-27, Agents plan Phase 9, §6a "Concrete design" approved by the owner as written;
   decisions P9-1…P9-8, deviations D-P9-1…D-P9-11). `pipelines/agents/tools/` `routes.py`, `vessels.py`,
   `voyages.py`, `weather.py`, `mongo.py`, `registry.STAGE2`; `db/migrations/020_vessel_performance.sql` (applied
-  2026-10-27, `db/audit/2026-10-27_after_020_report.txt` §24 as expected); `db/mongo/005_create_reader_user.js`;
-  `pipelines/scripts/agents/Stage2_tools_check.py` Phases 0–5 ✅; `Tools_check.py` 8 / 8 unchanged.
+  2026-10-27, `dev/db_audit/postgres/2026-10-27_after_020_report.txt` §24 as expected); `db/mongo/005_create_reader_user.js`;
+  `dev/checks/agents/Stage2_tools_check.py` Phases 0–5 ✅; `Tools_check.py` 8 / 8 unchanged.
 - **Context:** the Operations Desk (route advice, voyage watch, Phases 10–11) needs governed tools for routes, our
   vessels' voyages, fuel and weather, under the Stage 1 rules (no number without a tool, RBAC first, failures never
   guessed) — over a replayed world: the synthetic tracks end at 2026-09-13T00:00Z (ADR-032) and the ETA evaluation
@@ -1672,7 +1672,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   the frontend plan's, written after the API plan. Nothing is built yet.
 - **Context:** the products are reached today through CLIs (`Ask.py`, `Weekly_pack.py`, `Route_advice.py`,
   `Voyage_watch.py`) and Power BI Desktop; a web UI is planned after the FastAPI layer (ROADMAP). Free / open-source
-  tools only (owner rule). Node.js 24 is already installed (the Power BI Modeling MCP, ADR-048).
+  tools only (owner rule). Node.js 24 is already installed (Power BI Desktop's TMDL editing, ADR-048).
 - **Decision:** (1) **React / Next.js** (TypeScript) for the web UI. (2) **The browser never decides who asks:** the
   API maps the login to the employee id (today's `run_as`) and applies RBAC; the UI only shows what the API returns
   (partial answers marked as partial). (3) **Model text is untrusted in the browser too:** answers are rendered as
@@ -1692,30 +1692,15 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   running, a tool called / refused (name only, never its arguments for a refused one), approval needed, done /
   failed, the final answer with its slots filled — never the model's reasoning; the contract is written in the API
   plan and the UI only renders it. (c) Candidate libraries for the frontend plan: Tailwind + shadcn/ui, TanStack
-  Query + Orval (the OpenAPI client of (4)), React Flow (the graph view). (d) Claude Code tooling at the start of the
-  frontend phase, each reviewed before install like the langchain-skills (`.claude/skills/README_third_party.md`):
-  the Anthropic Frontend Design skill (aesthetic direction; already enabled as the owner's plugin 2026-10-30), **UI UX
-  Pro Max** (`nextlevelbuilder/ui-ux-pro-max-skill`, MIT open-source edition only — not its paid Premium tier: a
-  searchable design database — styles, palettes, font pairings, chart types for the finance views, UX /
-  accessibility rules — and a design system persisted as `MASTER.md`; its Python search scripts are said to make no
-  network calls and install nothing: the review checks that, the stdlib-only imports and a pinned version; it says
-  nothing about RTL, so the Arabic fonts and RTL rules stay ours; added 2026-10-30), the Vercel React skills (best
-  practices, composition patterns), the shadcn MCP and Context7 MCP in `.mcp.json`; a PostToolUse hook for ESLint / Prettier on `.ts` / `.tsx`. Not taken: the
-  Playwright MCP (the app's built-in browser drives the dev server; `@playwright/test` stays the E2E runner), three
-  frontend subagents (each starts cold: a `frontend-dev-loop` skill like `script-dev-loop` instead).
-- **Amendment 2 (2026-11-04, owner, during the FastAPI plan; choices as asked: now, a visible browser on a temporary
-  profile, the internet allowed) — the Chrome DevTools MCP is taken**, for what the built-in browser does not give:
-  performance traces, network request / response detail, network and CPU emulation, memory snapshots. `.mcp.json`
-  `chrome-devtools` = `chrome-devtools-mcp@1.11.0` (pinned, the newest release ≥ 2 weeks old; Apache-2.0; official,
-  ChromeDevTools), run with `--isolated` (a throw-away profile: none of the owner's sign-ins or cookies),
-  `--no-usage-statistics` + `CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS=1` (Google collects tool usage by default),
-  `--no-performance-crux` (else trace URLs go to Google's CrUX API), `--redactNetworkHeaders` (an allowlist of
-  harmless headers: the API's bearer `Authorization` never reaches the model), `--no-file-navigations` (no `file://`
-  page such as `.env`; the tool itself says this is not a full sandbox), `CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS=1`.
-  Reviewed from the package (its option definitions, the redaction list, `--help`), not from its README alone; the
-  bundled skills are not installed. Page text it reads is untrusted data (project rule 5), more so with the internet
-  allowed. The Playwright MCP stays not taken (`@playwright/test` remains the E2E runner).
-- **Amendment 3 (2026-11-08, the frontend plan F0–F7, `docs/archive/2026-11-16_Frontend_plan.md`; owner decisions F1–F4,
+  Query + Orval (the OpenAPI client of (4)), React Flow (the graph view). (d) The development tooling of the
+  frontend phase (design guidance, component registries, a format-on-save hook) is local configuration on the
+  owner's machine, reviewed before install, and not part of the repository (ADR-072).
+- **Amendment 2 (2026-11-04, owner, during the FastAPI plan)** — a local browser-debugging tool for what the
+  built-in browser does not give (performance traces, network request / response detail, network and CPU
+  emulation, memory snapshots): pinned, run on a throw-away profile, usage statistics and CrUX off, request headers
+  redacted (the API's bearer token never leaves), no `file://` pages; page text it reads is untrusted data (project
+  rule 5). Local configuration, not part of the repository (ADR-072); `@playwright/test` remains the E2E runner.
+- **Amendment 3 (2026-11-08, the frontend plan F0–F7, `dev/history/archive/2026-11-16_Frontend_plan.md`; owner decisions F1–F4,
   D-FE-1 … D-FE-10) — what was built:** (a) **auth through a BFF:** the Next.js server holds the API's bearer token
   in an httpOnly, `SameSite=Strict`, `Secure` cookie (`ng_session`); the browser gets `me` only; CSRF in three layers
   (SameSite, an Origin / `Sec-Fetch-Site` check, a double-submit token compared in constant time); the BFF proxies
@@ -1746,11 +1731,11 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   API restart/expiry may remove a run; that is reported without re-submitting an action. Interpreted approval
   requests are shown read-only and require fresh review before confirmation. This supplements stream reconnect
   and does not introduce durable backend execution or automatic retries of POST requests.
-- **Closing note (2026-11-16, the frontend plan archived `docs/archive/2026-11-16_Frontend_plan.md`):** the done-when
+- **Closing note (2026-11-16, the frontend plan archived `dev/history/archive/2026-11-16_Frontend_plan.md`):** the done-when
   met. The owner decided a real pack (W17) through the UI; EN and Egyptian Arabic questions with follow-ups on the
   real models, after seven memory / language fixes (ADR-065 note 2026-11-16); Power BI parity for week 16; the
   pushed CI `web` job green; and the **local-stack E2E** 15 / 15 with leakage 0. The stack suite
-  (`web/playwright.stack.config.ts`, `web/tests/stack/`, runner `ops/tests/run_web_stack.ps1`) replaces the hand-run
+  (`web/playwright.stack.config.ts`, `web/tests/stack/`, runner `dev/tests/run_web_stack.ps1`) replaces the hand-run
   smoke of amendment 3 (f) as the real-API proof. It runs on the full-data clone, not the application database
   (ADR-064 note 2026-11-16), and it stays outside CI, which keeps the mocked suite. "New conversation" on `/ask`
   remounts the workspace, because the first question moves the address with `history.replaceState`.
@@ -1759,17 +1744,17 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   API computes every number, the browser computes none, and model text is rendered as plain text.
 
 ## ADR-061 — The executive financial-intelligence deck: code-built from the finance views, a DSO split (M12), period measures
-- **Status:** Accepted (2026-10-31, owner: R0–R5 of `docs/analysis/financial_intelligence/implementation_roadmap.md`,
+- **Status:** Accepted (2026-10-31, owner: R0–R5 of `dev/history/analysis/financial_intelligence/implementation_roadmap.md`,
   all as recommended). **Amendment 1 (2026-10-31, owner):** the request behind it was to improve the **weekly**
   pack; the annual deck came from a misread scope. The owner keeps it as a separate year-end product; the weekly-pack
-  improvement is a new plan (`docs/analysis/financial_intelligence/implementation_roadmap.md`, PROPOSED, after c4),
+  improvement is a new plan (`dev/history/analysis/financial_intelligence/implementation_roadmap.md`, PROPOSED, after c4),
   which will amend ADR-051. M12 and the Power BI fixes stay in use.
 - **Context:** the weekly pack (ADR-051) and the Power BI report (ADR-048) answer "what happened this week"; an
-  executive view of the year was missing. The investigation (`docs/analysis/financial_intelligence/`) found that
+  executive view of the year was missing. The investigation (`dev/history/analysis/financial_intelligence/`) found that
   weekly billing is noise in this data (uniform invoice dates), the budget gap is a pricing assumption (volume +0.45 M,
   ticket −34.66 M), and receivables risk sits with a few customers (largest customer 14.5 % of revenue, 21.2 % of AR;
   C-rated 63.3 % of overdue; 90+ mostly one customer).
-- **Decision:** (1) three read-only scripts in `pipelines/scripts/finance/` — `Executive_analysis.py` (every number
+- **Decision:** (1) three read-only scripts in `dev/build/finance/` — `Executive_analysis.py` (every number
   into `Data/processed/finance/executive_2025/numbers.json`, reconciled with `kpi_weekly`, as of 2025-12-28, reviewed
   snapshot), `Executive_charts.py` (13 PNG charts, dataviz-validated colours), `Executive_deck.py` (a 17-slide PPTX in
   `reports/executive/2025/`, every number written by a registering formatter and read back — the ADR-051 idea without
@@ -1812,8 +1797,8 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
     any other exit or an exception = error. The voyage watch (every 12 h on a laptop that sleeps) sends errors only.
   - **A Sentry failure never fails a run:** every call swallows its own errors (`sentry_sdk.flush` lets a transport
     error through from the log batcher → `monitoring.flush` catches it); the exit flush waits ≤ 5 s.
-  - **The Sentry MCP** (the owner's claude.ai connector): Claude reads issues, events and logs freely; resolving,
-    assigning or commenting needs the owner's yes per change.
+  - **Sentry access:** issues, events and logs are read freely; resolving, assigning or commenting needs the owner's
+    yes per change.
 - **Consequences:** a crashed or missed weekly pack reaches the owner by Sentry's email, not only a log line; LLM
   behaviour stays in LangSmith alone. Not covered on the free plan: a cron monitor for the voyage watch ($0.78 /
   month). `Monitoring_check.py` (Phases 1–5, 0 network; Phase 6 live with `MONITORING_LIVE=1`) is the contract.
@@ -1830,7 +1815,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   "NileGate: new, regressed or reappeared issue (any priority)" → email, beside the default high-priority alert; the
   cron monitor is connected to it after its first check-in.
   - **Done 2026-11-03 (D-S1-6, owner: "اربطه"):** the monitor's detector 10829356 (`nilegate-weekly-pack`,
-    `monitor_check_in_failure`) connected to alert 6273246 through the Sentry MCP; the alert's sources are the
+    `monitor_check_in_failure`) connected to alert 6273246 through the Sentry API; the alert's sources are the
     project issue stream + the monitor, so a missed or failed Monday check-in now sends the email.
 - **Amendment 2 (2026-11-04, FastAPI plan P7) — the API is the fifth entry:** `Serve.py`'s `main()` calls
   `monitoring.init(entry="api", launched_by="api")` (same settings: no AI / web-framework integration, no tracing, no
@@ -1841,14 +1826,14 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 
 ## ADR-063 — Engineering hygiene: a lint ratchet, a database-free CI, dependency audit and a threat model
 - **Status:** Accepted (2026-11-01, owner: "Engineering hygiene" + pyright, as recommended; plan
-  `docs/archive/2026-11-01_Engineering_hygiene_plan.md`). Free tools only.
+  `dev/history/archive/2026-11-01_Engineering_hygiene_plan.md`). Free tools only.
 - **Context:** the code base predates linting and type checking (490 ruff findings on bug rules, 278 pyright errors on
   `pipelines/agents` + `pipelines/lib`), the full checks need the owner's loaded databases, and the scheduled products
   run the code on disk — a mass fix would change their behaviour untested.
 - **Decision:** (1) `ruff==0.17.1` (rules E4 / E7 / E9 / F / B; the project's script idioms E402, E701, E702, E731,
   E741, B007, B905 ignored) and `pyright==1.1.414` (basic mode, `pipelines/agents` + `pipelines/lib`) as uv dev tools,
-  configured in `pyproject.toml`. (2) **A ratchet, not a clean slate:** `tools/lint_ratchet.py` compares the counts
-  per tool × rule × file with `tools/lint_baseline.json` (325 on 2026-11-01: ruff 49, pyright 276) and fails on any
+  configured in `pyproject.toml`. (2) **A ratchet, not a clean slate:** `dev/tools/lint_ratchet.py` compares the counts
+  per tool × rule × file with `dev/tools/lint_baseline.json` (325 on 2026-11-01: ruff 49, pyright 276) and fails on any
   increase; fixes are paid down file by file and locked with `--update`. (3) **CI** (`.github/workflows/ci.yml`,
   GitHub Actions free minutes, ubuntu, `uv sync --frozen`, `.env` from `.env.example`): the ratchet, `Monitoring_check.py`
   and the offline phase of `Langsmith_mirror.py`; every `*_check.py` that needs the databases stays on the owner's
@@ -1861,14 +1846,14 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   down. Open at acceptance: the 2026-11-01 audit lists 63 advisories in 8 packages (pillow, filelock, pyasn1, tornado,
   certifi, dnspython, langgraph-checkpoint-postgres, pymongo) — upgraded as one change with the full checks after the
   2026-11-02 scheduled firing. CI first runs when the owner pushes.
-- **Note (2026-11-02) — the dependency upgrade done** (`docs/archive/2026-11-02_Dependency_upgrade_plan.md`): the 8
+- **Note (2026-11-02) — the dependency upgrade done** (`dev/history/archive/2026-11-02_Dependency_upgrade_plan.md`): the 8
   packages moved to their lowest fixing releases through `uv add` with `==` pins, `uv.lock` 0 packages added / removed,
   9 versions changed (the 8 + `langgraph-checkpoint` 4.2.0 → 4.3.0, held below the six-day-old 4.3.1; same database
   migrations, `setup()` not called — D-U4); `pip-audit` 63 → 0; every check green with 0 files changed. Exception to
   the two-week rule, owner 2026-11-01: pyasn1 0.6.5 and tornado 6.6 taken while younger than two weeks, because they
   close advisories (D-U2). The rule otherwise stands.
 - **Amendment 2 (2026-11-03) — the lint baseline paid down to 0** (plan `docs/plans/Hygiene_followups_plan.md` F1,
-  owner: fix all 324 now): `tools/lint_baseline.json` is empty (ruff 48 → 0, pyright 276 → 0), so the ratchet now
+  owner: fix all 324 now): `dev/tools/lint_baseline.json` is empty (ruff 48 → 0, pyright 276 → 0), so the ratchet now
   fails on **any** finding. How each kind was fixed, without changing behaviour: (1) a lambda / nested function that
   reads a loop variable inside the same loop pass (ruff B023, 31 — none was a real late-binding bug) binds it as a
   default argument, or carries `# noqa: B023` with the reason where it is a nested `def`; (2) unused or doubled
@@ -1893,12 +1878,12 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   remains pending owner/CI proof; a passing target guard is not integration acceptance.
 - **Validation follow-up (2026-11-12):** the owner ran the disposable PostgreSQL suite; all five phases passed,
   including bootstrap/grants, ownership/replay, independent advisory-lock connections and publication rollback/
-  retry. Saved validation log inspected; evidence `db/audit/2026-11-12_api_integration_report.txt`. This closes
+  retry. Saved validation log inspected; evidence `dev/db_audit/postgres/2026-11-12_api_integration_report.txt`. This closes
   the local isolated-database proof, not the pending full-data application acceptance or pushed CI run.
 
 ## ADR-064 — The NileGate API: FastAPI, one process on the loopback, runs outside the request, shared LLM state in PostgreSQL
 - **Status:** **Accepted (2026-11-05, the FastAPI plan's done-when met;** plan archived as
-  `docs/archive/2026-11-05_FastAPI_plan.md`, approved 2026-11-03 with owner answers A1 local login, A2 PostgreSQL only,
+  `dev/history/archive/2026-11-05_FastAPI_plan.md`, approved 2026-11-03 with owner answers A1 local login, A2 PostgreSQL only,
   A3 conversation memory → ADR-065, A4 one commit at the end). Was PROPOSED 2026-11-03.
 - **Context:** the products are reached through four CLIs that trust `--as`; a web UI is planned behind an API
   (ADR-060). Several requests at once break today's per-process state (the ROADMAP's nine concurrency requirements),
@@ -1954,7 +1939,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   state or check changed. **Finance reads (D-FE-7, F0b):** `GET /finance/weeks`, `GET /finance/{dataset}?week=&limit=`
   (wraps `finance_kpi`), `GET /finance/invoice-audit?week=&ytd=` (wraps `invoice_audit`) — the tools' RBAC and rows,
   each read in `audit_log`, no KPI math. **Test mode:** `Serve.py --fake-roles` (needs `API_FAKE_ROLES=1`; a scripted
-  model, `pipelines/api/fake.py`) for the web's E2E on the real databases. `tools/export_approval_cases.py` exports the
+  model, `pipelines/api/fake.py`) for the web's E2E on the real databases. `dev/tools/export_approval_cases.py` exports the
   decision rules as the web's fixture (`--check` in the CI). Proof: `Api_check.py` **12 / 12** (new Phase 11: the
   contract, the finance reads = the tools' rows, 3 number spans at their exact offsets, every event validates);
   OpenAPI snapshot regenerated (31 paths); lint ratchet clean.
@@ -1973,7 +1958,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   needs one employee without a login per profile — the owner's 11 test logins of 2026-11-07 took the only CEO, so the
   check was verified on the running API instead: 297 ETA rows, 219 with an ETA = the vessels in transit).
 - **Note (2026-11-16, Frontend local-stack E2E):** the test mode now runs the web's stack suite on the full-data
-  clone, not the application database (`ops/tests/run_web_stack.ps1`, `Web_stack_fixture.py`, guide
+  clone, not the application database (`dev/tests/run_web_stack.ps1`, `Web_stack_fixture.py`, guide
   `docs/api/integration_testing.md`); 15 / 15. It found `GET /packs/{thread}` answering **500** for the five packs
   saved before migration 021 (W08, W10–W13 on the application database too): today's renderer draws
   `budget_variance_13w_pct`, which their evidence lacks, so `charts_drawn` raised `SlotError`. `charts_drawn` now
@@ -1983,7 +1968,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 ## ADR-065 — Conversation memory: a code-built entity frame, a guarded standalone rewrite, asking back instead of guessing
 - **Status:** Accepted (2026-11-05; FastAPI plan §6a, owner answer A3 "intelligent memory" 2026-11-03; the golden
   set reviewed and frozen by the owner 2026-11-04). `pipelines/agents/memory.py`, `pipelines/api/routers/ask.py`
-  (`work`, `_save_turn`), `api.conversation_turns` (migration 023), `pipelines/scripts/agents/Memory_golden.py`
+  (`work`, `_save_turn`), `api.conversation_turns` (migration 023), `dev/build/agents/Memory_golden.py`
   (`memory_golden.jsonl`, 22 dialogs, sha `212b1204…`), `Memory_check.py`.
 - **Context:** in a conversation an employee asks follow-ups ("and week 24?", "when will it arrive?", "وسفنه فين
   دلوقتي؟"). The supervisor answers one standalone question per thread (ADR-059), and every guarantee — RBAC per
@@ -2036,7 +2021,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 
 ## ADR-066 — One chart catalogue for the pack's approver and the reader's "smart" view; the model chooses, code draws
 - **Status:** Accepted (2026-11-06, approver-additions plan, owner decisions C2 / C3 / D5 / D6;
-  `docs/archive/2026-11-07_Pack_approver_additions_plan.md`). `pipelines/agents/deck/charts.py`, `pipelines/agents/views.py`,
+  `dev/history/archive/2026-11-07_Pack_approver_additions_plan.md`). `pipelines/agents/deck/charts.py`, `pipelines/agents/views.py`,
   `pipelines/api/routers/views.py`, `pipelines/scripts/agents/View.py`, `Views_eval.py`,
   `Data/processed/agents/eval/views_golden.jsonl` (frozen) + `views_eval_2026-11-06.json`.
 - **Context:** the owner asked that the approver change the pack's charts (series, period, breakdown) and for a view
@@ -2074,7 +2059,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   Frontend plan D-FE-7's duplicate entry, without changing this ADR's catalogue/API or Power BI Smart View.
 
 ## ADR-067 — The manager's request in words: one structured call proposes the pack's own decisions, code checks, he confirms
-- **Status:** Accepted (2026-11-07, approver-request plan `docs/archive/2026-11-07_Approver_request_plan.md`, owner decisions R1–R5;
+- **Status:** Accepted (2026-11-07, approver-request plan `dev/history/archive/2026-11-07_Approver_request_plan.md`, owner decisions R1–R5;
   evaluation `Data/processed/agents/eval/approver_request_eval_2026-11-07.json`).
 - **Context:** the owner (2026-11-07): "a trigger builds the weekly pack, it is shown to the manager before it is
   published, he may dislike it and change the analysis, the charts or the text — as if you take a prompt from him —
@@ -2178,20 +2163,20 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   row (`export:<figure>`). The page workbook stays beside it as "Export whole page" (owner D-WD-6b). Evidence: the
   live smoke of all 8 figures × 2 formats on W16 + the refusal outside Finance; `Api_check.py` Phase 11 gained the
   figure assertions (owner gate, clone); `npm run check` all ✅ with two new dashboard tests.
-- **Note (2026-11-16, closing — the plan archived as `docs/archive/2026-11-16_Web_dashboards_and_reports_plan.md`):**
+- **Note (2026-11-16, closing — the plan archived as `dev/history/archive/2026-11-16_Web_dashboards_and_reports_plan.md`):**
   parity on week 17, the last published pack (owner: "we did W17"): Power BI (DAX on the open Desktop model) = the
   `finance` views = the API on 249 values (KPI row, 13 categories, 4 age buckets, top 5 customers, 13 trend weeks,
   overdue rows, audit findings), 0 differences; the Dashboards page over the real API on the full-data clone shows
   them rounded only — new stack test `web/tests/stack/parity.stack.spec.ts`, the stack suite 16 / 16
-  (`ops/tests/run_web_stack.ps1`). Full-data `Api_check` 12 / 12 (2026-11-16). W17 decided and published through
+  (`dev/tests/run_web_stack.ps1`). Full-data `Api_check` 12 / 12 (2026-11-16). W17 decided and published through
   the Reports bar.
 
 ## ADR-070 — Just-in-Time arrival: the RTA as a port-call message, the `arrival_advice` graph, RTA alerts in the watch
 - **Status:** Accepted (2026-11-15, owner: the JIT arrival plan's J1–J7 in one round of clickable answers; J6 "also
   inside the voyage watch" with the request that it "simulate reality, dynamic and real, so that real data needs no
-  change", the design left to the assistant (D-J1) and migration 030 approved; no CO₂ (owner)).
-  `docs/archive/2026-11-15_JIT_arrival_plan.md`. Files: `db/migrations/030_port_call_messages.sql`,
-  `pipelines/scripts/synthetic/Port_call_generator.py`, `pipelines/agents/tools/arrival.py`,
+  change", the design left to the implementation (D-J1) and migration 030 approved; no CO₂ (owner)).
+  `dev/history/archive/2026-11-15_JIT_arrival_plan.md`. Files: `db/migrations/030_port_call_messages.sql`,
+  `dev/build/synthetic/Port_call_generator.py`, `pipelines/agents/tools/arrival.py`,
   `pipelines/agents/graphs/arrival_advice.py`, `graphs/models.py` (`ArrivalRequest`, `ArrivalAdvice`,
   `ArrivalAdviceResult`), `skills/arrival-advice/SKILL.md`, `tools/products.py` (`run_arrival_advice`,
   `make_arrival_advice_tool`), `registry.ARRIVAL_ADVICE`, `graphs/supervisor.py` (rule `arrival`), `graphs/voyage_watch.py`
@@ -2243,7 +2228,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   revisions — the way real data comes); IMF PortWatch congestion as the berth time (a signal, not a time); always
   showing the Cape; a code template with no model (J5); a CO₂ factor table now (owner); widening the supervisor's
   `SLOT_RULES` for the new rows (every question's prompt would change — the row keys travel in the tool's note).
-- **Amendment 1 (2026-11-17, Arrival advice web plan `docs/archive/2026-11-18_Arrival_advice_web_plan.md`).** The owner asked
+- **Amendment 1 (2026-11-17, Arrival advice web plan `dev/history/archive/2026-11-18_Arrival_advice_web_plan.md`).** The owner asked
   whether arrival advice should merge with route advice or with the voyage watch, and chose the most accurate form
   that adds real value. Model calls are not the constraint.
   - **What merges, and what stays apart.** The graphs stay apart from route advice: a different question, inputs,
@@ -2273,7 +2258,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
     advice, receipts, RTL, on demand, the routes prefill) and `npm run check` ✅. The stack suite on the clone.
     Lint 0.
   - **Real run (2026-11-17).** The watch was re-run at the clock on the real models (`voyage_watch:20260913T0000Z:2`,
-    run by Claude on the owner's word): 53 alerts, 24 `jit` + 17 `rta_late`; 41 advices — 28 written and validated,
+    run on the owner's word): 53 alerts, 24 `jit` + 17 `rta_late`; 41 advices — 28 written and validated,
     12 decided by code (`late`), 1 `validation_failed` (157: a slot on the text field `arrival_utc`). The supervisor's
     answer forms already repair that (ADR-059 note (b)), but they are off for this graph. The brief was `ok`. One
     on-demand advice (vessel 28): "Slow down to 9.5 kn … instead of waiting 56.6 h at anchor", `ok`.
@@ -2311,11 +2296,11 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 ## ADR-071 — Deployment: one Linux VM per environment running one Compose stack, Caddy TLS, the schedules in a container
 - **Status:** Accepted (2026-11-17, owner decisions S1–S8 in one round of clickable answers: "production هيبقى على
   Azure ب free trial"; staging rehearsed locally now, a VM later; free models with a written paid path; staging = a
-  restore of today's stores; deploy from GitHub Actions; production gates). `docs/archive/2026-11-18_Staging_readiness_plan.md`.
+  restore of today's stores; deploy from GitHub Actions; production gates). `dev/history/archive/2026-11-18_Staging_readiness_plan.md`.
   Files: `deploy/compose.yaml`, `deploy/Caddyfile`, `deploy/env.example`, `ops/docker/api.Dockerfile` (+ `.dockerignore`),
   `ops/deploy/{new_env.py,render_env.sh,deploy.sh}`, `.github/workflows/deploy.yml` (+ the CI `images` job),
   `pipelines/lib/environment.py`, `pipelines/scripts/ops/{Scheduler_service,Backup,Migrate,Deploy_smoke,Deploy_check}.py`,
-  `db/migrations/031_schema_migrations.sql`, `tools/secrets_scan.py`, `.gitleaks.toml`, `docs/deploy/RUNBOOK.md`.
+  `db/migrations/031_schema_migrations.sql`, `dev/tools/secrets_scan.py`, `.gitleaks.toml`, `docs/deploy/RUNBOOK.md`.
 - **Context:** everything ran on the owner's Windows machine: the API on the loopback, the stores in local containers,
   the schedules on Windows Task Scheduler, the secrets in `.env`. The API keeps per-process state by design (ADR-064:
   one process, uploads in memory, run events), MongoDB holds a time-series collection (ADR-029), and the data is
@@ -2368,6 +2353,43 @@ Staging and production keep `models.toml` unchanged while the data is synthetic 
 paid tier, the same model ids, a `max_usd_per_day` cap per ADR-045 amendment 4, then ADR-052) is required before any
 real or personal data, and recommended when the shared daily quota is exhausted on two days in a row
 (`/health/ready`'s `llm_requests_today`, the scheduled logs). Steps: `docs/deploy/RUNBOOK.md` §Paid models.
+
+## ADR-072 — Repository layout: the runtime in place, development and building under `dev/`; local tool files untracked
+
+Status: Accepted (2026-11-19, owner; Repository layout plan, `dev/history/archive/2026-11-19_Repo_layout_and_hygiene_plan.md`)
+
+**Context.** After the staging-readiness work (ADR-071) the repository mixed what production runs with what was made
+to build the data once or to test the system: 61 check, evaluation and builder scripts sat beside the runtime CLIs
+in `pipelines/scripts/<area>/` and were copied into the API image; the run tooling, the Final Checkpoint narratives,
+the saved database audits, the finished plans and the stack-test runners were spread over `tools/`,
+`pipelines/checkpoints/`, `db/audit/`, `docs/archive/` and `ops/tests/`. Local editor and tool configuration files
+were tracked beside the code.
+
+**Decision.**
+1. **Runtime stays where it is**: `pipelines/agents`, `pipelines/api`, `pipelines/lib`, the runtime CLIs in
+   `pipelines/scripts/<area>/` (agents: `Weekly_pack`, `Voyage_watch`, `Ask`, `Route_advice`, `Arrival_advice`, `View`,
+   `Checkpointer_setup`; api: `Serve`, `Api_admin`; ops: `Scheduler_service`, `Migrate`, `Backup`, `Deploy_smoke`;
+   retrieval: `Upload_promotion`), `db/`, `deploy/`, `ops/docker|deploy|scheduler`, `web/`, `powerbi/`, `Data/`. No
+   `pipelines.*` import, compose file, deploy script or scheduled task changes.
+2. **Everything made for development or building moves under `dev/`**: `checks/<area>/` (checks, evaluations, smoke
+   tests, probes, benchmarks, fixtures), `build/<area>/` (the one-time data builders), `checkpoints/`, `tools/`,
+   `tests/` (stack runners), `db_audit/`, `history/` (`archive/`, the four plain-language checkpoints, the financial
+   study), `_scratch/` (git-ignored). `dev/README.md` describes each folder; `dev/tools/layout_map.json` records every
+   old → new path.
+3. **Paths are guarded**: `dev/tools/path_refs_check.py` (a CI step) fails when a repository path written in a
+   tracked text file does not exist (outside `Data/` and the historical records in `dev/history/archive/` and
+   `dev/db_audit/`), when a relative Markdown link does not resolve, or when a local tool name appears in a tracked
+   file; the references that already pointed at deleted files are listed in `dev/tools/path_refs_allow.txt`.
+4. **Local tool and editor configuration is never tracked**: it is listed in `.git/info/exclude` (local, never
+   versioned), so the tracked `.gitignore` names only what the project itself generates.
+5. The API image no longer contains a check, evaluation or builder script, nor the run tool.
+
+**Consequences.** Checks run as `uv run python dev/tools/run.py dev/checks/<area>/<X>.py`. The files in
+`dev/history/archive/` keep the paths they were written with (they are a record); every live document, script,
+workflow and test uses the new ones. The web concept gate (sample-data pages of the Frontend plan, D-FE-3) left the
+production build; it stays in git history. Supersedes the folder conventions of ADR-036 (scripts in
+`pipelines/scripts/<area>/`, narratives in `pipelines/checkpoints/`) for the moved files; ADR-063's ratchet now also
+covers `dev/`; ADR-071's image rules are unchanged except that `tools/run.py` is no longer copied.
 
 ## Dropped (history)
 - Danish Maritime Authority AIS template (`ais_real_sample_template.csv`): dropped. AIS sources are `AISHub sample.json` (type/status diversity) and `NOAA AccessAIS.csv` (movement behaviour).

@@ -4,7 +4,6 @@
 !pyproject.toml
 !uv.lock
 !pipelines/
-!tools/run.py
 !db/migrations/
 !Data/
 Data/raw/

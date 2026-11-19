@@ -23,33 +23,35 @@ jobs:
       - name: An empty .env (every key blank = Sentry, LangSmith and the databases off)
         run: cp .env.example .env
       - name: Lint ratchet (ruff + pyright may not get worse)
-        run: uv run python tools/lint_ratchet.py
+        run: uv run python dev/tools/lint_ratchet.py
       - name: Monitoring check (Sentry contract, 0 network)
-        run: uv run python tools/run.py pipelines/scripts/agents/Monitoring_check.py
+        run: uv run python dev/tools/run.py dev/checks/agents/Monitoring_check.py
       - name: LangSmith mirror, build phase (0 network)
-        run: uv run python tools/run.py pipelines/scripts/agents/Langsmith_mirror.py
+        run: uv run python dev/tools/run.py dev/checks/agents/Langsmith_mirror.py
       - name: API OpenAPI snapshot (the committed schema = the app; 0 network, no database)
-        run: uv run python tools/openapi_snapshot.py --check
+        run: uv run python dev/tools/openapi_snapshot.py --check
       - name: Run lifecycle regressions (0 network, no database)
-        run: uv run python tools/run.py pipelines/scripts/agents/Run_lifecycle_check.py
+        run: uv run python dev/tools/run.py dev/checks/agents/Run_lifecycle_check.py
       - name: Integration target guard (0 network, no database)
-        run: uv run python pipelines/scripts/api/Api_integration_check.py --guard-only
+        run: uv run python dev/checks/api/Api_integration_check.py --guard-only
       - name: Scheduled business outcomes (0 network, no database)
-        run: uv run python tools/run.py pipelines/scripts/agents/Scheduled_outcome_check.py
+        run: uv run python dev/tools/run.py dev/checks/agents/Scheduled_outcome_check.py
       - name: Publication recovery (0 network, no database)
-        run: uv run python tools/run.py pipelines/scripts/agents/Publication_check.py
+        run: uv run python dev/tools/run.py dev/checks/agents/Publication_check.py
       - name: Approval safety regressions (0 network, no database)
-        run: uv run python tools/run.py pipelines/scripts/agents/Approval_safety_check.py
+        run: uv run python dev/tools/run.py dev/checks/agents/Approval_safety_check.py
       - name: Shared EN/AR traffic claims (0 network, no database)
-        run: uv run python tools/run.py pipelines/scripts/agents/Traffic_claims_check.py
+        run: uv run python dev/tools/run.py dev/checks/agents/Traffic_claims_check.py
       - name: PortPilot upload and Power BI compatibility (0 network, no database)
-        run: uv run python tools/run.py pipelines/scripts/retrieval/Brand_compatibility_check.py
+        run: uv run python dev/tools/run.py dev/checks/retrieval/Brand_compatibility_check.py
       - name: Approval rule cases for the web = the API's DecisionIn (Frontend plan F0; 0 network)
-        run: uv run python tools/export_approval_cases.py --check
+        run: uv run python dev/tools/export_approval_cases.py --check
       - name: Deployment rules (environment, compose exposure, image, scheduler, migrations, backups; ADR-071)
-        run: uv run python tools/run.py pipelines/scripts/ops/Deploy_check.py
+        run: uv run python dev/tools/run.py dev/checks/ops/Deploy_check.py
       - name: No secret in the tracked files (the .env values and key shapes; ADR-071)
-        run: uv run python tools/secrets_scan.py
+        run: uv run python dev/tools/secrets_scan.py
+      - name: Every repository path written in a file exists; no local tool name (ADR-072)
+        run: uv run python dev/tools/path_refs_check.py
 
   # Staging readiness plan P10 (ADR-071): both deployment images build from a clean checkout and start as their
   # non-root users; nothing is pushed (deploy.sh builds on the VM from the same ref).
@@ -106,7 +108,7 @@ jobs:
       - name: Install the locked environment
         run: uv sync --frozen
       - name: Real PostgreSQL auth, ownership, locks and publication transactions (no .env or models)
-        run: uv run python tools/run.py pipelines/scripts/api/Api_integration_check.py
+        run: uv run python dev/tools/run.py dev/checks/api/Api_integration_check.py
 
   # Frontend plan §11.1 (ADR-060): the web app, database-free (the BFF tests never reach the API).
   web:

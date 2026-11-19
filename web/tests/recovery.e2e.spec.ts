@@ -144,7 +144,7 @@ for (const kind of ["ask", "ask_ar", "route", "view", "pack_request", "pack_deci
     expect(axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical")).toEqual([]);
     if (kind === "ask_ar")
       await page.screenshot({
-        path: `../Notebooks/_scratch/recovery-${info.project.name}.png`,
+        path: `../dev/_scratch/recovery-${info.project.name}.png`,
         fullPage: true,
       });
     await recovery.getByRole("button", { name: "Dismiss reminder" }).click();

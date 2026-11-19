@@ -41,7 +41,7 @@ test("the list opens a pack reviewed slide by slide, with the Validator's note a
   await expect(page.getByText("W45 is the report week.")).toBeVisible();
   await page
     .getByRole("img", { name: /chart:trend/ })
-    .screenshot({ path: `../Notebooks/_scratch/reports-trend-marker.png`, animations: "disabled" });
+    .screenshot({ path: `../dev/_scratch/reports-trend-marker.png`, animations: "disabled" });
   await expect(page.getByRole("link", { name: "Preview PowerPoint" })).toHaveAttribute(
     "href",
     /\/bff\/packs\/.+\/preview$/,

@@ -1,6 +1,6 @@
 // Web dashboards plan Phase 5 (parity, week 17 = the last published pack): the Dashboards page over the real API and
 // the full-data clone shows exactly the `finance` views' numbers. The same numbers were read from Power BI by DAX
-// (Power BI Modeling MCP) and from the views on 2026-11-16: 249 values, 0 differences (the parity table in the plan).
+// (Power BI TMDL editing) and from the views on 2026-11-16: 249 values, 0 differences (the parity table in the plan).
 // The web adds no arithmetic (ADR-047): it rounds for display only (formatValue: SDR as M / k, % and days to 0.1).
 import { expect, test } from "@playwright/test";
 import { person, signIn } from "./people";

@@ -1,4 +1,4 @@
-// One command, one ✅ line per suite (the project's tools/run.py style, Frontend plan §10).
+// One command, one ✅ line per suite (the project's dev/tools/run.py style, Frontend plan §10).
 // Usage: npm run check            (static checks + Playwright against the dev server or a fresh build in CI)
 //        npm run check -- --static (static checks only)
 import { spawnSync } from "node:child_process";

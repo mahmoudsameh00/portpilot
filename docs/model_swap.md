@@ -18,7 +18,7 @@ line — no code. This page is the order of proof before a new model serves a pa
 ## 1. Probe the model (≈ 12 real calls, nothing changes)
 
 ```powershell
-uv run python tools/run.py pipelines/scripts/agents/Model_probe.py -- <model entry name>
+uv run python dev/tools/run.py dev/checks/agents/Model_probe.py -- <model entry name>
 ```
 
 It checks: the provider serves the id; one tool call on the project's real tool schema; structured output with each
@@ -29,13 +29,13 @@ Writer, ≈ 17K tokens) inside `timeout_s`. It prints a pass / fail per line and
 ## 2. Fake-model checks (0 model calls) — the wiring, not the model
 
 ```powershell
-uv run python tools/run.py pipelines/scripts/agents/Models_config_check.py
-uv run python tools/run.py pipelines/scripts/agents/Weekly_pack_check.py
-uv run python tools/run.py pipelines/scripts/agents/Deck_check.py
-uv run python tools/run.py pipelines/scripts/agents/Finance_qa_check.py
-uv run python tools/run.py pipelines/scripts/agents/Supervisor_check.py
-uv run python tools/run.py pipelines/scripts/agents/Traffic_claims_check.py
-uv run python tools/lint_ratchet.py
+uv run python dev/tools/run.py dev/checks/agents/Models_config_check.py
+uv run python dev/tools/run.py dev/checks/agents/Weekly_pack_check.py
+uv run python dev/tools/run.py dev/checks/agents/Deck_check.py
+uv run python dev/tools/run.py dev/checks/agents/Finance_qa_check.py
+uv run python dev/tools/run.py dev/checks/agents/Supervisor_check.py
+uv run python dev/tools/run.py dev/checks/agents/Traffic_claims_check.py
+uv run python dev/tools/lint_ratchet.py
 ```
 
 ## 3. A small real run on the candidate, without editing the reviewed file (M4)
@@ -44,7 +44,7 @@ Put a copy of `models.toml` with the candidate in `[roles]` somewhere outside th
 
 ```powershell
 $env:EVAL_MODELS = 'C:\path\to\candidate_models.toml'; $env:PACK_REAL_MODELS = '1'
-uv run python tools/run.py pipelines/scripts/agents/Weekly_pack_check.py
+uv run python dev/tools/run.py dev/checks/agents/Weekly_pack_check.py
 Remove-Item Env:EVAL_MODELS, Env:PACK_REAL_MODELS
 ```
 

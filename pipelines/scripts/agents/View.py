@@ -7,7 +7,7 @@ Commands (from the project root):
         question without a week is asked back
     uv run python pipelines/scripts/agents/View.py --as 13 --choice '{"kind": "trend", "week": 30, "weeks": 26}'
         code only, no model call
-    add  --pptx Notebooks/_scratch/view.pptx  to draw it as one native-chart slide (read back: the file = the spec)
+    add  --pptx dev/_scratch/view.pptx  to draw it as one native-chart slide (read back: the file = the spec)
 
 Reads:   PostgreSQL read-only through `finance_kpi` as the employee (RBAC, ADR-006); the `tools` role's models for
          --ask (ADR-045; llm.py cache and quota).

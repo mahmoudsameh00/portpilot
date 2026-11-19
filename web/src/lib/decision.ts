@@ -1,6 +1,6 @@
 // The weekly-pack decision rules, mirrored in the browser for early messages (Frontend plan §6.4, approver plan D1).
 // The API and the graph stay authoritative; tests/decision.logic.spec.ts runs these rules on the cases exported from
-// the API's own DecisionIn (tools/export_approval_cases.py), so the two sides cannot drift.
+// the API's own DecisionIn (dev/tools/export_approval_cases.py), so the two sides cannot drift.
 import type { DecisionIn } from "@/api/generated/client";
 
 export type Limits = {

@@ -8,7 +8,7 @@ import { Download, FileClock, Info, Loader2, RefreshCw, TriangleAlert } from "lu
 import { useState } from "react";
 import { getPackApiV1PacksThreadIdGet as getPack } from "@/api/generated/client";
 import { decideApiV1PacksThreadIdDecisionPostBodyAdditionsItemTextMax as MAX_ADDITION } from "@/api/generated/zod";
-import { StatusBadge } from "@/components/concept/StatusBadge";
+import { StatusBadge } from "@/components/packs/StatusBadge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { DecisionPanel, type Bullet } from "./DecisionPanel";

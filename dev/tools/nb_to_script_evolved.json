@@ -1,0 +1,62 @@
+{
+ "rag/FBL_chunking": {
+  "reason": "paths only, repository layout 2026-11-19 (ADR-072): reverting the layout map on the script and its checkpoint gives the 2026-11-17 fingerprints exactly",
+  "recorded": "2026-11-19",
+  "statements_sha256": "1ff8a4f78228cea132311c8f7fe251dea0d6ee1459fa0b2b0c17b3e152131134",
+  "checkpoint_sha256": "92e65ebad76fc987c60d3488d29cfe038f2245abf106a66866e37691745a93e6"
+ },
+ "rag/HbR_Annual_report_2025_chunking": {
+  "reason": "paths only, repository layout 2026-11-19 (ADR-072): reverting the layout map on the script and its checkpoint gives the 2026-11-17 fingerprints exactly",
+  "recorded": "2026-11-19",
+  "statements_sha256": "d8c1ee9c4e8326ac99fd2484f4047e63de1864e301332a56c032b38d4cda3483",
+  "checkpoint_sha256": "6a561ed0cf5ebf41d5d0507be0b83f8e25191572f44dc8a7d75f7f1efa6fc6d5"
+ },
+ "rag/IMO_MSC-MEPC_3_Circ_4_Rev_1_chunking": {
+  "reason": "paths only, repository layout 2026-11-19 (ADR-072): reverting the layout map on the script and its checkpoint gives the 2026-11-17 fingerprints exactly",
+  "recorded": "2026-11-19",
+  "statements_sha256": "4de882d892a4bb91db3f1ef4f23b33f54546cf84486522f80a2667b9ef71e1de",
+  "checkpoint_sha256": "1a9d686a95bb57284c61fcfa2c46cd540212b3fc15c424fa1daa4ed3f51d3f94"
+ },
+ "rag/LPI_Connecting_to_Compete_chunking": {
+  "reason": "paths only, repository layout 2026-11-19 (ADR-072): reverting the layout map on the script and its checkpoint gives the 2026-11-17 fingerprints exactly",
+  "recorded": "2026-11-19",
+  "statements_sha256": "132c2699cdec013e7aae213e33d4fe646681836dfef133295cdc74745b871048",
+  "checkpoint_sha256": "149ee574f80c0c7f769487049bf7c1032c15f541f91de0d2369ec9991a298756"
+ },
+ "rag/LPI_methodology_chunking": {
+  "reason": "paths only, repository layout 2026-11-19 (ADR-072): reverting the layout map on the script and its checkpoint gives the 2026-11-17 fingerprints exactly",
+  "recorded": "2026-11-19",
+  "statements_sha256": "431745776c49211cb59f7bf9d79d508328d7fbcb2cd8d175318e127b3bf09ae9",
+  "checkpoint_sha256": "bfca221c354b1af26a67442d59f84989804433b77b1a1f8680d405d266d7de72"
+ },
+ "rag/Suez_Notes_chunking": {
+  "reason": "paths only, repository layout 2026-11-19 (ADR-072): reverting the layout map on the script and its checkpoint gives the 2026-11-17 fingerprints exactly",
+  "recorded": "2026-11-19",
+  "statements_sha256": "3b2e0496b0caa8bcf4f21a2e4ba4bd6eef8638b279e3048433a56d1f3cdbc6cd",
+  "checkpoint_sha256": "e241178f46aa4c817d8e1930e7937cd0d2d6024b5cb902ff296e7ba651dae158"
+ },
+ "rag/USCG_ROI_chunking": {
+  "reason": "paths only, repository layout 2026-11-19 (ADR-072): reverting the layout map on the script and its checkpoint gives the 2026-11-17 fingerprints exactly",
+  "recorded": "2026-11-19",
+  "statements_sha256": "8d04d088837126f8a0caef5dbd87aa0b16440869ffded4508b98a8cf0dd672bb",
+  "checkpoint_sha256": "0ff29a30e0fd127bf8acda1c5bce7b9d500a00eb6f8e54da2726c4bcdbbe7dc8"
+ },
+ "semi_structured/AIS_EDI_profiling": {
+  "reason": "paths only, repository layout 2026-11-19 (ADR-072): reverting the layout map on the script and its checkpoint gives the 2026-11-17 fingerprints exactly",
+  "recorded": "2026-11-19",
+  "statements_sha256": "732e970cb64e383120414c0d9d1d64a07acc47e14c204f7d9b1ff2e3fc6ecc22",
+  "checkpoint_sha256": "f39fe8733bb5c330752854815a9e54fd088d3fcf232112b2c3ec93b2ff25f7cb"
+ },
+ "semi_structured/AIS_generator": {
+  "reason": "paths only, repository layout 2026-11-19 (ADR-072): reverting the layout map on the script and its checkpoint gives the 2026-11-17 fingerprints exactly",
+  "recorded": "2026-11-19",
+  "statements_sha256": "da01e3dcd7de279c9012464469194de7ebe2b97e783552fccb687745e8bdbe12",
+  "checkpoint_sha256": "b3e06393dcd6a29568fdb0ed61e38d29c5f2f7ed9dc2798fd32a30844954a3d8"
+ },
+ "semi_structured/MongoDB_loader": {
+  "reason": "paths only, repository layout 2026-11-19 (ADR-072): reverting the layout map on the script and its checkpoint gives the 2026-11-17 fingerprints exactly",
+  "recorded": "2026-11-19",
+  "statements_sha256": "90b03f41f531aaaf82cd0fdc6063bdadb05a9d80bc19c995597f6ca17e306e1d",
+  "checkpoint_sha256": "5e80c0dc37257e80071b11deaecb4dacfdbf68ddf48e6d9938f42a52001fc899"
+ }
+}

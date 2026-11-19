@@ -63,6 +63,12 @@ const PAGES: [typeof finance, string][] = [
 // one test per page (each with its own time budget): the CSP with its nonce, the security headers, axe
 for (const [u, path] of PAGES) {
   test(`${path}: CSP with a nonce, the security headers, axe 0 serious / critical`, async ({ page }) => {
+    const problems: string[] = [];
+    page.on("console", (m) => {
+      if (m.type() === "error" && /Content Security Policy|Refused to (execute|load|apply)/i.test(m.text()))
+        problems.push(m.text());
+    });
+    page.on("pageerror", (e) => problems.push(e.message));
     await signedIn(page, u, path);
     const res = await page.reload();
     expect(res?.status()).toBe(200);
@@ -79,5 +85,7 @@ for (const [u, path] of PAGES) {
     expect(
       axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id),
     ).toEqual([]);
+    await page.waitForLoadState("networkidle");
+    expect(problems).toEqual([]);
   });
 }

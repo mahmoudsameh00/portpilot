@@ -51,7 +51,7 @@ for (const screen of ["review", "finance"] as const) {
     const axe = await new AxeBuilder({ page }).analyze();
     expect(axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical")).toEqual([]);
     await page.screenshot({
-      path: `../Notebooks/_scratch/publication-${info.project.name}-${screen}.png`,
+      path: `../dev/_scratch/publication-${info.project.name}-${screen}.png`,
       fullPage: true,
     });
   });
