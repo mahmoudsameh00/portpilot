@@ -23,6 +23,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any, cast
 
 import httpx
@@ -30,13 +31,16 @@ import numpy as np
 import psycopg
 from qdrant_client import models
 
-from pipelines.lib import embeddings, qdrant_store
+from pipelines.lib import embeddings, qdrant_store, shared_files
 from pipelines.lib.chunks import compose
 from pipelines.lib.common import project_root, redact
 
 QUERY_LIMITS = {"rpm": 60, "tpm": 30_000}   # query time: Gemini's per-minute limits, not the batch budget
 QUERY_MAX_WAIT_S = 5.0
 QUERY_CACHE = project_root() / "Data" / "embeddings" / "gemini-embedding-2" / "cache_queries"  # git-ignored
+# called before every Gemini query embedding (a cache miss); set by a caller that counts them — the API reserves one
+# request of the shared daily counter (FastAPI plan D-F2-2). The library itself imports nothing from the agents.
+ON_QUERY_EMBED: Callable[[], None] | None = None
 RERANK_MODEL = "jina-reranker-v3.5"
 # Jina publishes no limit headers; the evaluation hit 429 after a few back-to-back calls of ~8k tokens each.
 RERANK_LIMITS = {"rpm": 60, "tpm": 60_000}
@@ -85,24 +89,30 @@ class QueryCache:
     def __init__(self, folder: Path):
         self.folder = folder
         folder.mkdir(parents=True, exist_ok=True)
-        self.vectors = {k: v for k, (_, v) in embeddings.load_cache(folder).items()}
-        parts = sorted(folder.glob("part_*.npz"))
-        if len(parts) > self.COMPACT_AT:
-            keys = sorted(self.vectors)
-            tmp = folder / "compact.tmp.npz"
-            np.savez(tmp, ids=np.array(keys), shas=np.array(keys), vecs=np.stack([self.vectors[k] for k in keys]))
-            for p in parts:
-                p.unlink()
-            tmp.rename(folder / "part_00000.npz")
+        with shared_files.lock_for(folder / "parts"):            # no other process adds a part while compacting
+            self.vectors = {k: v for k, (_, v) in embeddings.load_cache(folder).items()}
+            parts = sorted(folder.glob("part_*.npz"))
+            if len(parts) > self.COMPACT_AT:
+                keys = sorted(self.vectors)
+                tmp = folder / "compact.tmp.npz"
+                np.savez(tmp, ids=np.array(keys), shas=np.array(keys),
+                         vecs=np.stack([self.vectors[k] for k in keys]))
+                for p in parts:
+                    p.unlink()
+                tmp.rename(folder / "part_00000.npz")
 
     def get(self, key: str):
         return self.vectors.get(key)
 
     def put(self, key: str, vec) -> None:
+        """One part file per new question. Its name was the part count, which two processes (the API and a CLI,
+        FastAPI plan C3) could read at once and overwrite each other's file: the count is now taken under a file
+        lock, together with the write."""
         self.vectors[key] = vec
-        n = len(list(self.folder.glob("part_*.npz")))
-        np.savez(self.folder / f"part_{n:05d}.npz", ids=np.array([key]), shas=np.array([key]),
-                 vecs=np.asarray([vec], dtype=np.float32))
+        with shared_files.lock_for(self.folder / "parts"):
+            n = len(list(self.folder.glob("part_*.npz")))
+            np.savez(self.folder / f"part_{n:05d}.npz", ids=np.array([key]), shas=np.array([key]),
+                     vecs=np.asarray([vec], dtype=np.float32))
 
 
 DEDUPE_CONTAINMENT = 0.8  # >= 80 % of the shorter body's 5-word shingles appear in the other body
@@ -177,6 +187,8 @@ class Retriever:
         key = hashlib.sha256(query.encode("utf-8")).hexdigest()
         vec = self.qcache.get(key)
         if vec is None:
+            if ON_QUERY_EMBED is not None:              # the API counts each Gemini query call (FastAPI plan D-F2-2)
+                ON_QUERY_EMBED()
             vec = np.asarray(self.embedder.embed([query], "query")[0], dtype=np.float32)
             self.qcache.put(key, vec)
         return cast(Any, vec).tolist()

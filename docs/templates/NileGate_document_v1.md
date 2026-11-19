@@ -1,5 +1,8 @@
 # NileGate Document v1 — the company document shape
 
+Historical format, still accepted for compatibility. New documents use
+[`PortPilot_document_v1.md`](PortPilot_document_v1.md); existing document codes remain unchanged.
+
 Every document an employee uploads to the assistant follows this one shape (RAG plan Phase 8, owner decision D15;
 ADR-042). The assistant checks it at upload time and says exactly what to fix. A filled example:
 `docs/templates/NileGate_document_v1_example.docx`. Checked by `pipelines/lib/uploads.py` (`validate_upload`).

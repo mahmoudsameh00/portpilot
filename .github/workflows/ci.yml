@@ -1,5 +1,5 @@
 # Engineering hygiene H1 (free GitHub Actions minutes): what runs without the owner's databases.
-# The full *_check.py runs stay on the owner's machine (they need the loaded PostgreSQL / MongoDB / Qdrant).
+# Full-data checks stay owner-run. api-integration below uses a fresh, disposable PostgreSQL service only.
 name: CI
 
 on:
@@ -23,8 +23,121 @@ jobs:
       - name: An empty .env (every key blank = Sentry, LangSmith and the databases off)
         run: cp .env.example .env
       - name: Lint ratchet (ruff + pyright may not get worse)
-        run: uv run python tools/lint_ratchet.py
+        run: uv run python dev/tools/lint_ratchet.py
       - name: Monitoring check (Sentry contract, 0 network)
-        run: uv run python tools/run.py pipelines/scripts/agents/Monitoring_check.py
+        run: uv run python dev/tools/run.py dev/checks/agents/Monitoring_check.py
       - name: LangSmith mirror, build phase (0 network)
-        run: uv run python tools/run.py pipelines/scripts/agents/Langsmith_mirror.py
+        run: uv run python dev/tools/run.py dev/checks/agents/Langsmith_mirror.py
+      - name: API OpenAPI snapshot (the committed schema = the app; 0 network, no database)
+        run: uv run python dev/tools/openapi_snapshot.py --check
+      - name: Run lifecycle regressions (0 network, no database)
+        run: uv run python dev/tools/run.py dev/checks/agents/Run_lifecycle_check.py
+      - name: Integration target guard (0 network, no database)
+        run: uv run python dev/checks/api/Api_integration_check.py --guard-only
+      - name: Scheduled business outcomes (0 network, no database)
+        run: uv run python dev/tools/run.py dev/checks/agents/Scheduled_outcome_check.py
+      - name: Publication recovery (0 network, no database)
+        run: uv run python dev/tools/run.py dev/checks/agents/Publication_check.py
+      - name: Approval safety regressions (0 network, no database)
+        run: uv run python dev/tools/run.py dev/checks/agents/Approval_safety_check.py
+      - name: Shared EN/AR traffic claims (0 network, no database)
+        run: uv run python dev/tools/run.py dev/checks/agents/Traffic_claims_check.py
+      - name: PortPilot upload and Power BI compatibility (0 network, no database)
+        run: uv run python dev/tools/run.py dev/checks/retrieval/Brand_compatibility_check.py
+      - name: Approval rule cases for the web = the API's DecisionIn (Frontend plan F0; 0 network)
+        run: uv run python dev/tools/export_approval_cases.py --check
+      - name: Deployment rules (environment, compose exposure, image, scheduler, migrations, backups; ADR-071)
+        run: uv run python dev/tools/run.py dev/checks/ops/Deploy_check.py
+      - name: No secret in the tracked files (the .env values and key shapes; ADR-071)
+        run: uv run python dev/tools/secrets_scan.py
+      - name: Every repository path written in a file exists; no local tool name (ADR-072)
+        run: uv run python dev/tools/path_refs_check.py
+
+  # Staging readiness plan P10 (ADR-071): both deployment images build from a clean checkout and start as their
+  # non-root users; nothing is pushed (deploy.sh builds on the VM from the same ref).
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the API / scheduler image
+        run: docker build -f ops/docker/api.Dockerfile -t portpilot-api:ci .
+      - name: Build the web image
+        run: docker build -t portpilot-web:ci web
+      - name: The API image runs as portpilot, imports the app, refuses fake roles outside local
+        run: |
+          test "$(docker run --rm portpilot-api:ci id -un)" = portpilot
+          docker run --rm -e PORTPILOT_ENV=staging -e API_CORS_ORIGINS=https://staging.example.com portpilot-api:ci \
+            python -c "from pipelines.api.app import create_app; create_app(access_log=None); print('app ok')"
+          ! docker run --rm -e PORTPILOT_ENV=staging -e API_FAKE_ROLES=1 portpilot-api:ci \
+            python pipelines/scripts/api/Serve.py --fake-roles
+      - name: The web image runs as node
+        run: test "$(docker run --rm --entrypoint id portpilot-web:ci -un)" = node
+      - name: The compose file is valid with the example env
+        run: |
+          sed -e 's/^PORTPILOT_STACK=.*/PORTPILOT_STACK=portpilot-ci/' deploy/env.example > /tmp/ci.env
+          for k in PGPASSWORD PG_RO_USER PG_RO_PASSWORD PG_AGENT_USER PG_AGENT_PASSWORD PG_API_USER PG_API_PASSWORD \
+                   MONGO_ROOT_USER MONGO_ROOT_PASSWORD MONGO_RO_USER MONGO_RO_PASSWORD QDRANT_API_KEY PACK_RUN_AS WATCH_RUN_AS; do
+            sed -i "s/^$k=.*/$k=ci-placeholder/" /tmp/ci.env
+          done
+          docker compose -f deploy/compose.yaml --env-file /tmp/ci.env config --quiet
+
+  api-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16.9
+        env:
+          POSTGRES_DB: portpilot_api_test
+          POSTGRES_USER: postgres
+          # Disposable CI service credential only; never an application secret.
+          POSTGRES_PASSWORD: ci-${{ github.run_id }}-${{ github.run_attempt }}
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portpilot_api_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PORTPILOT_API_TEST_DSN: host=127.0.0.1 port=55432 dbname=portpilot_api_test user=postgres password=ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+      - name: Install the locked environment
+        run: uv sync --frozen
+      - name: Real PostgreSQL auth, ownership, locks and publication transactions (no .env or models)
+        run: uv run python dev/tools/run.py dev/checks/api/Api_integration_check.py
+
+  # Frontend plan §11.1 (ADR-060): the web app, database-free (the BFF tests never reach the API).
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install the locked packages
+        run: npm ci
+      - name: Static checks (allow-list = OpenAPI, tsc, eslint, prettier, npm audit runtime high+)
+        run: npm run check -- --static
+      - name: Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Tests on the production build + the mock API (logic, E2E, auth, axe, BFF rules)
+        run: npx playwright test
+      - name: Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7

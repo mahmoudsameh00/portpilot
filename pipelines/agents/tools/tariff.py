@@ -65,7 +65,7 @@ def toll(vessel_category: str, laden_ballast: str, scnt_tons) -> dict:
 
 
 class TollArgs(BaseModel):
-    vessel_id: int | None = Field(default=None, description="one of NileGate's vessels; its category, condition and "
+    vessel_id: int | None = Field(default=None, description="one of PortPilot's vessels; its category, condition and "
                                                             "SCNT are read from the vessels table")
     vessel_category: Literal[CATEGORIES] | None = Field(default=None, description="tariff vessel category")  # pyright: ignore[reportInvalidTypeForm]
     laden_ballast: Literal["Laden", "Ballast"] | None = Field(default=None, description="the vessel's condition")
@@ -111,5 +111,5 @@ def compute_toll(user, **args) -> ToolResult:
 @tool("compute_toll", args_schema=TollArgs)
 def compute_toll_tool(runtime: ToolRuntime, **args) -> dict:
     """Compute the Suez Canal transit dues (SDR) of one transit from the official progressive toll bands, for one of
-    NileGate's vessels (vessel_id) or for a category, condition and tonnage."""
+    PortPilot's vessels (vessel_id) or for a category, condition and tonnage."""
     return compute_toll(context.user_of(runtime), **args).model_dump(mode="json")

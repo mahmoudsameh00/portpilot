@@ -5,19 +5,24 @@ Run by the owner once, from the project root, in a normal (not elevated) PowerSh
     powershell -NoProfile -ExecutionPolicy Bypass -File ops\scheduler\register_weekly_pack.ps1
     powershell -NoProfile -ExecutionPolicy Bypass -File ops\scheduler\register_weekly_pack.ps1 -Unregister
 
-The task "NileGate Weekly Finance Pack" runs `Weekly_pack.py scheduled` every Monday at 10:30 local time (Cairo:
+The task "PortPilot Weekly Finance Pack" runs `Weekly_pack.py scheduled` every Monday at 10:30 local time (Cairo:
 after the Gemini daily reset), only while the owner is logged on (no stored Windows password; Docker Desktop starts
 after logon anyway — the firing itself waits up to 30 min for PostgreSQL), as soon as possible after a missed start,
 restarted twice every 30 min if it fails to start, stopped after 1 h, never two at once. The command needs nothing
 but .env (PACK_RUN_AS = the scheduled Finance manager, LANGSMITH_API_KEY optional). Its console output is appended
 to reports\_log\scheduled_console.log; the record of each firing is reports\_log\scheduled.jsonl. A firing by hand:
 
-    Start-ScheduledTask -TaskName "NileGate Weekly Finance Pack"
-    Get-ScheduledTaskInfo -TaskName "NileGate Weekly Finance Pack"     (LastRunTime, LastTaskResult, NextRunTime)
+    Start-ScheduledTask -TaskName "PortPilot Weekly Finance Pack"
+    Get-ScheduledTaskInfo -TaskName "PortPilot Weekly Finance Pack"     (LastRunTime, LastTaskResult, NextRunTime)
 #>
 param([switch]$Unregister, [string]$At = "10:30", [string]$Day = "Monday")
 $ErrorActionPreference = "Stop"
-$name = "NileGate Weekly Finance Pack"
+$name = "PortPilot Weekly Finance Pack"
+$legacyName = "NileGate Weekly Finance Pack"
+$legacy = Get-ScheduledTask -TaskName $legacyName -ErrorAction SilentlyContinue
+if (-not $Unregister -and $legacy -and $legacy.State -ne 'Disabled') {
+    throw "Disable the legacy task '$legacyName' before registering '$name', to avoid duplicate firings."
+}
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 
 if ($Unregister) {
@@ -34,7 +39,8 @@ $log = Join-Path $root "reports\_log"
 New-Item -ItemType Directory -Force $log | Out-Null
 
 # powershell -Command: UTF-8 output appended to the console log, and the exit code of Weekly_pack.py kept for
-# LastTaskResult (0 done / wait, 1 the pack raised, 2 database unreachable, 3 identity not a Finance manager)
+# LastTaskResult (0 done / valid wait, 1 exception, 2 database unreachable, 3 invalid identity,
+# 4 stopped/incomplete product, 5 saved deck with pending synchronization)
 $cmd = ('$env:PYTHONIOENCODING = ''utf-8''; & ''{0}'' run python pipelines/scripts/agents/Weekly_pack.py scheduled ' +
         '2>&1 | Out-File -Append -Encoding utf8 ''reports\_log\scheduled_console.log''; exit $LASTEXITCODE') -f $uv
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -WorkingDirectory $root `

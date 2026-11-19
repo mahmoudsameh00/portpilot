@@ -1,0 +1,145 @@
+{
+ "rule": "JIT arrival plan \u00a73e: see Arrival_advice_check.py Phase 2",
+ "cases": [
+  {
+   "case": 1,
+   "vessel_id": 28,
+   "rta_utc": null,
+   "location": "berth",
+   "kind": "jit"
+  },
+  {
+   "case": 2,
+   "vessel_id": 38,
+   "rta_utc": null,
+   "location": "berth",
+   "kind": "jit"
+  },
+  {
+   "case": 3,
+   "vessel_id": 106,
+   "rta_utc": null,
+   "location": "berth",
+   "kind": "jit"
+  },
+  {
+   "case": 4,
+   "vessel_id": 124,
+   "rta_utc": null,
+   "location": "berth",
+   "kind": "jit"
+  },
+  {
+   "case": 5,
+   "vessel_id": 209,
+   "rta_utc": null,
+   "location": "berth",
+   "kind": "jit"
+  },
+  {
+   "case": 6,
+   "vessel_id": 231,
+   "rta_utc": null,
+   "location": "berth",
+   "kind": "jit"
+  },
+  {
+   "case": 7,
+   "vessel_id": 36,
+   "rta_utc": null,
+   "location": "berth",
+   "kind": "floor"
+  },
+  {
+   "case": 8,
+   "vessel_id": 100,
+   "rta_utc": null,
+   "location": "berth",
+   "kind": "floor"
+  },
+  {
+   "case": 9,
+   "vessel_id": 2,
+   "rta_utc": null,
+   "location": "berth",
+   "kind": "late"
+  },
+  {
+   "case": 10,
+   "vessel_id": 5,
+   "rta_utc": null,
+   "location": "berth",
+   "kind": "late"
+  },
+  {
+   "case": 11,
+   "vessel_id": 110,
+   "rta_utc": null,
+   "location": "berth",
+   "kind": "late"
+  },
+  {
+   "case": 12,
+   "vessel_id": 46,
+   "rta_utc": null,
+   "location": "berth",
+   "kind": "on_time"
+  },
+  {
+   "case": 13,
+   "vessel_id": 15,
+   "rta_utc": "2026-10-20T22:23Z",
+   "location": "berth",
+   "kind": "cape"
+  },
+  {
+   "case": 14,
+   "vessel_id": 23,
+   "rta_utc": "2026-10-28T13:14Z",
+   "location": "berth",
+   "kind": "cape"
+  },
+  {
+   "case": 15,
+   "vessel_id": 28,
+   "rta_utc": "2026-09-18T22:30Z",
+   "location": "pilot_boarding_place",
+   "kind": "pbp"
+  },
+  {
+   "case": 16,
+   "vessel_id": 38,
+   "rta_utc": "2026-09-18T09:30Z",
+   "location": "pilot_boarding_place",
+   "kind": "pbp"
+  },
+  {
+   "case": 17,
+   "vessel_id": 1,
+   "rta_utc": "2026-10-29T17:01Z",
+   "location": "berth",
+   "kind": "given_early"
+  },
+  {
+   "case": 18,
+   "vessel_id": 6,
+   "rta_utc": "2026-09-24T14:21Z",
+   "location": "berth",
+   "kind": "given_early"
+  },
+  {
+   "case": 19,
+   "vessel_id": 10,
+   "rta_utc": "2026-09-16T19:34Z",
+   "location": "berth",
+   "kind": "given_late"
+  },
+  {
+   "case": 20,
+   "vessel_id": 12,
+   "rta_utc": "2026-09-21T08:43Z",
+   "location": "berth",
+   "kind": "given_on_time"
+  }
+ ]
+}

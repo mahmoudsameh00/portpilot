@@ -18,7 +18,9 @@ from psycopg_pool import ConnectionPool
 
 from pipelines.lib.common import load_env
 
-POOL_MAX = 4          # one pack runs its steps one after another; the supervisor may call a few tools at once
+# one pack runs its steps one after another; the supervisor may call a few tools at once; PG_RO_POOL_MAX in .env
+# overrides (FastAPI plan C6: 8 for the API process)
+POOL_MAX = 4
 CONNECT_TIMEOUT_S = 5
 
 _pool: ConnectionPool | None = None
@@ -32,7 +34,7 @@ def pool() -> ConnectionPool:
         conninfo = make_conninfo(host=e["PGHOST"], port=e["PGPORT"], dbname=e["PGDATABASE"], user=e["PG_RO_USER"],
                                  password=e["PG_RO_PASSWORD"], connect_timeout=CONNECT_TIMEOUT_S,
                                  options="-c default_transaction_read_only=on")
-        _pool = ConnectionPool(conninfo, min_size=1, max_size=POOL_MAX, open=True,
+        _pool = ConnectionPool(conninfo, min_size=1, max_size=int(e.get("PG_RO_POOL_MAX") or POOL_MAX), open=True,
                                kwargs={"row_factory": dict_row, "autocommit": True})
         atexit.register(close)
     return _pool

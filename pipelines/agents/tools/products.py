@@ -16,13 +16,15 @@ Statuses (S2 decision 3): ok / no_suez_on_route / suez_only → `ok` with the ro
 marked with that status and no recommendation (the numbers are the code's; only the words failed); not_permitted /
 no_data → the same status, no rows. Access is checked by the graph's tools before any model call (level 1).
 """
-from datetime import datetime
+import re
+from datetime import datetime, timezone
 
 from langchain.tools import ToolRuntime, tool
 from langchain_core.runnables import RunnableConfig
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from pipelines.agents import checkpointer as cp
+from pipelines.agents import locks
 from pipelines.agents.graphs import route_advice as ra
 from pipelines.agents.graphs.models import RouteRequest
 from pipelines.agents.tools import context
@@ -30,10 +32,11 @@ from pipelines.agents.tools.schemas import Source, ToolResult
 
 CODE_ROWS = ("route.compare", "route.difference", "route.traffic")
 WORDS_FAILED = ("validation_failed", "output_invalid")
+MAX_THREAD_TRIES = 50                 # route thread numbers tried before giving up (one per earlier same-day question)
 
 
 class RouteAdviceArgs(RouteRequest):
-    vessel_id: int | None = Field(default=None, ge=1, description="one of NileGate's vessels (or give vessel_type + "
+    vessel_id: int | None = Field(default=None, ge=1, description="one of PortPilot's vessels (or give vessel_type + "
                                                                   "condition + scnt_tons for a hypothetical vessel)")
     vessel_type: str | None = Field(default=None, description="tariff vessel category of a hypothetical vessel")
     condition: str | None = Field(default=None, description="Laden or Ballast (a hypothetical vessel)")
@@ -56,9 +59,20 @@ def run_route_advice(user, roles, as_of: datetime | None = None, saver=None, poo
     pool = pool or cp.pool()
     g = ra.build_graph(roles, saver or cp.saver())
     tid = ra.new_thread_id(pool, user.employee_id, ctx.as_of, req.origin, req.destination)
-    cfg: RunnableConfig = {"configurable": {"thread_id": tid},
-                           "metadata": {"run_as": user.employee_id, "trigger": "supervisor"}}
-    g.invoke({"request": req.model_dump(mode="json")}, cfg, context=ctx, durability="sync")
+    # The number comes from PostgreSQL's checkpoints; the thread itself lives in `saver`. A thread that already
+    # holds a state — another process took the number first, or the saver is not the PostgreSQL one (the
+    # evaluations run on InMemorySaver, where the same route asked twice got the same number and the whole
+    # question failed, 2026-11-13) — is never written into: the next free number is taken, under its own lock.
+    for _ in range(MAX_THREAD_TRIES):
+        cfg: RunnableConfig = {"configurable": {"thread_id": tid},
+                               "metadata": {"run_as": user.employee_id, "trigger": "supervisor"}}
+        with locks.thread_lock(tid):
+            if not g.get_state(cfg).values:
+                g.invoke({"request": req.model_dump(mode="json")}, cfg, context=ctx, durability="sync")
+                break
+        tid = re.sub(r"(\d+)$", lambda m: str(int(m.group(1)) + 1), tid)
+    else:
+        raise RuntimeError(f"no free route thread after {MAX_THREAD_TRIES} numbers; retry")
     st = g.get_state(cfg).values
     res, status, ev = st.get("result") or {}, st.get("status") or "ok", st.get("evidence") or {}
     if status in ("not_permitted", "no_data"):
@@ -91,10 +105,96 @@ def make_route_advice_tool(roles, saver=None, pool=None):
     @tool("route_advice", args_schema=RouteAdviceArgs)
     def route_advice_tool(runtime: ToolRuntime, **args) -> dict:
         """Suez Canal or the Cape of Good Hope for one voyage: distance, sea days, fuel and its cost in SDR, the Suez
-        dues, the Cape − Suez difference and the cheaper route, with a validated recommendation (one of NileGate's
+        dues, the Cape − Suez difference and the cheaper route, with a validated recommendation (one of PortPilot's
         vessels, or a hypothetical one). Rows by `route`: the Suez dues = the `suez` row's suez_dues_sdr; the saving
         or extra of the Cape = the `difference` row's change_* fields (change_total_sdr, change_sea_days)."""
         return run_route_advice(context.user_of(runtime), roles, as_of=context.as_of_of(runtime), saver=saver,
                                 pool=pool, **args).model_dump(mode="json")
 
     return route_advice_tool
+
+
+# --- arrival_advice (JIT arrival plan §3d): the arrival graph as one tool call, the same pattern ------------------------
+# Rows keyed by `option`: the graph's option rows (keep / jit / floor / catch_up / cape), one `summary` row (the RTA,
+# the target, the situation, the rule's choice) and one `advice` row (status, recommendation, rendered words, thread).
+
+ARRIVAL_STOPS = ("not_permitted", "no_data", "not_at_sea", "not_destination", "no_rta")
+
+
+class ArrivalAdviceArgs(BaseModel):
+    vessel_id: int = Field(ge=1, description="one of PortPilot's vessels, at sea")
+    port: str | None = Field(default=None, pattern=r"^[A-Z]{2}[A-Z2-9]{3}$",
+                             description="UN/LOCODE of the port the question names (must be the vessel's destination)")
+    rta_utc: str | None = Field(default=None, description="the requested time of arrival the question gives, ISO "
+                                                          "with Z, e.g. 2026-09-15T14:00Z; leave empty to use the "
+                                                          "RTA the port sent (known at the clock)")
+    location: str = Field(default="berth", pattern="^(berth|pilot_boarding_place)$",
+                          description="where the RTA applies: berth (default) or pilot_boarding_place")
+
+
+def run_arrival_advice(user, roles, as_of: datetime | None = None, saver=None, pool=None, **args) -> ToolResult:
+    """One arrival question through the graph in a new thread (rows keyed by option, see above)."""
+    from pipelines.agents.graphs import arrival_advice as aa
+    from pipelines.agents.graphs.models import ArrivalRequest
+
+    a = ArrivalAdviceArgs.model_validate(args)
+    rta = datetime.fromisoformat(a.rta_utc.replace("Z", "+00:00")) if a.rta_utc else None
+    if rta is not None and rta.tzinfo is None:
+        rta = rta.replace(tzinfo=timezone.utc)
+    req = ArrivalRequest(vessel_id=a.vessel_id, port=a.port, rta_utc=rta, location=a.location)  # pyright: ignore[reportArgumentType]
+    ctx = context.RunContext(user, as_of=as_of or context.DATA_AS_OF)
+    pool = pool or cp.pool()
+    g = aa.build_graph(roles, saver or cp.saver())
+    tid = aa.new_thread_id(pool, user.employee_id, ctx.as_of, req.vessel_id)
+    for _ in range(MAX_THREAD_TRIES):
+        cfg: RunnableConfig = {"configurable": {"thread_id": tid},
+                               "metadata": {"run_as": user.employee_id, "trigger": "supervisor"}}
+        with locks.thread_lock(tid):
+            if not g.get_state(cfg).values:
+                g.invoke({"request": req.model_dump(mode="json")}, cfg, context=ctx, durability="sync")
+                break
+        tid = re.sub(r"(\d+)$", lambda m: str(int(m.group(1)) + 1), tid)
+    else:
+        raise RuntimeError(f"no free arrival thread after {MAX_THREAD_TRIES} numbers; retry")
+    st = g.get_state(cfg).values
+    res, status = st.get("result") or {}, st.get("status") or "ok"
+    if status in ARRIVAL_STOPS:
+        return ToolResult(tool="arrival_advice", status="not_permitted" if status == "not_permitted" else "no_data",
+                          note="; ".join(res.get("problems") or []) or f"arrival advice: {status} (thread {tid})")
+    failed = status in WORDS_FAILED
+    rows = [dict(o) for o in res.get("options") or []]
+    rows.append({"option": "summary", **{k: v for k, v in (res.get("summary") or {}).items() if k != "vessel_id"},
+                 "vessel_id": req.vessel_id})
+    rows.append({"option": "advice", "status": status, "recommendation": None if failed else res.get("recommendation"),
+                 "headline": None if failed else res.get("headline"), "reasons": [] if failed else res.get("reasons") or [],
+                 "risks": [] if failed else res.get("risks") or [], "assumptions": res.get("assumptions") or [],
+                 "thread_id": tid})
+    note = ("numbers computed by code (voyage_status, vessel_params, the RTA message; cube-law fuel); rows keyed by "
+            "option: keep / jit / floor / catch_up / cape, `summary` (rta_utc, target_utc, situation, keep_wait_h, "
+            "rule_option) and `advice` — cite e.g. {<id>[jit]:speed_kn}, {<id>[summary]:keep_wait_h}; rta_utc is "
+            "the port's requested time; an option's arrival_utc is when the vessel arrives (jit arrives margin_h "
+            "before the RTA, at target_utc) — never call an arrival time the RTA; "
+            + ("the advice failed its Validator — cite the rows, give no recommendation" if failed
+               else "the advice passed the arrival Validator (the cheapest option at the berth by the RTA unless a "
+                    "cited risk)"))
+    return ToolResult(tool="arrival_advice", status="ok", rows=rows, note=note,
+                      source=Source(kind="library", name=f"arrival_advice graph (thread {tid})",
+                                    filter=f"vessel_id = {req.vessel_id}, RTA "
+                                           f"{'given ' + a.rta_utc if a.rta_utc else 'known at the clock'}, "
+                                           f"as of {ctx.as_of.isoformat()}"))
+
+
+def make_arrival_advice_tool(roles, saver=None, pool=None):
+    """The `arrival_advice` LangChain tool bound to `roles` (real `Roles()` or a check's `FakeRoles`)."""
+
+    @tool("arrival_advice", args_schema=ArrivalAdviceArgs)
+    def arrival_advice_tool(runtime: ToolRuntime, **args) -> dict:
+        """Just-in-Time arrival for one of PortPilot's vessels at sea: given the port's requested time of arrival
+        (the RTA the port sent, or one in the question), what speed to sail — keep the speed and wait at anchor, slow
+        down to arrive just in time, the lowest allowed speed, speed up, or the Cape — with arrival times, waiting
+        hours, fuel in tonnes and SDR per option and a validated recommendation. Rows keyed by option (keep, jit,
+        floor, catch_up, cape, summary, advice)."""
+        return run_arrival_advice(context.user_of(runtime), roles, as_of=context.as_of_of(runtime), saver=saver,
+                                  pool=pool, **args).model_dump(mode="json")
+
+    return arrival_advice_tool

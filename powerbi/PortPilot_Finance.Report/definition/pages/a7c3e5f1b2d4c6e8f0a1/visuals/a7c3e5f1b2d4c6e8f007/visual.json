@@ -1,0 +1,136 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "name": "a7c3e5f1b2d4c6e8f007",
+  "position": {
+    "x": 340,
+    "y": 200,
+    "z": 5000,
+    "height": 860,
+    "width": 1560,
+    "tabOrder": 5000
+  },
+  "visual": {
+    "visualType": "lineChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Weekly Trend"
+                    }
+                  },
+                  "Property": "trend_week_label"
+                }
+              },
+              "queryRef": "Weekly Trend.trend_week_label",
+              "nativeQueryRef": "trend_week_label",
+              "active": true
+            }
+          ]
+        },
+        "Series": {
+          "projections": []
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Weekly KPIs"
+                    }
+                  },
+                  "Property": "Trend Billed SDR"
+                }
+              },
+              "queryRef": "Weekly KPIs.Trend Billed SDR",
+              "nativeQueryRef": "Billed",
+              "displayName": "Billed"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Weekly KPIs"
+                    }
+                  },
+                  "Property": "Trend Budget SDR"
+                }
+              },
+              "queryRef": "Weekly KPIs.Trend Budget SDR",
+              "nativeQueryRef": "Budget",
+              "displayName": "Budget"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Weekly KPIs"
+                    }
+                  },
+                  "Property": "Trend Overdue SDR"
+                }
+              },
+              "queryRef": "Weekly KPIs.Trend Overdue SDR",
+              "nativeQueryRef": "Overdue",
+              "displayName": "Overdue"
+            }
+          ],
+          "fieldParameters": [
+            {
+              "parameterExpr": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Trend Series"
+                    }
+                  },
+                  "Property": "Trend Series"
+                }
+              },
+              "index": 0,
+              "length": 3
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'The last 13 weeks to the selected week'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "subTitle": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "isHidden": true
+}

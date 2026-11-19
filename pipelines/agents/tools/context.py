@@ -11,6 +11,7 @@
   Stage 1 tools ignore it.
 """
 from dataclasses import dataclass
+from collections.abc import Callable
 from datetime import datetime, timezone
 
 from pipelines.agents.tools import db
@@ -35,6 +36,7 @@ PORTS = Resource("ports", 1, "Operations")
 # MongoDB ais_positions / ais_vessels (§3) and their generator file voyages_synthetic.parquet (same data, same row)
 AIS_TRACKS = Resource("ais_positions + voyages_synthetic", 1, "Operations")
 VESSEL_PARAMS = Resource("vessel_performance + bunker_prices", 1, "Operations")      # migration 020
+PORT_CALLS = Resource("port_call_messages", 1, "Operations")                       # migration 030 (JIT D-J1)
 
 # the synthetic data's as-of instant (ADR-032): no fix is later than it
 DATA_AS_OF = datetime(2026, 9, 13, tzinfo=timezone.utc)
@@ -49,6 +51,11 @@ class RunContext:
     # the instant the Stage 2 tools see the world at (fixes with ts <= as_of only); the harness moves it back to cut
     # a voyage at t, nothing moves it past the data
     as_of: datetime = DATA_AS_OF
+    # the conversation's uploads (`session_store.Session`, ADR-043): set by the API only, for its owner (FastAPI plan
+    # P5); the document tool adds them as a separate, untrusted list; None everywhere else
+    session: object | None = None
+    # API deadline guard, carried outside checkpoint/model data; CLI and offline checks have no deadline.
+    check_active: Callable[[], None] = lambda: None
 
     def __post_init__(self):
         if self.dataset not in ("live", "test"):
@@ -57,6 +64,9 @@ class RunContext:
             raise ValueError("as_of must be timezone-aware (UTC)")
         if self.as_of > DATA_AS_OF:
             raise ValueError(f"as_of {self.as_of.isoformat()} is after the data's as-of instant {DATA_AS_OF.isoformat()}")
+        owner = getattr(self.session, "employee_id", None)
+        if self.session is not None and owner != self.user.employee_id:
+            raise PermissionError("an upload session belongs to its owner's runs only")
 
 
 def load_user(employee_id: int) -> User:

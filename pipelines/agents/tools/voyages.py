@@ -102,7 +102,7 @@ def _covered(cand: np.ndarray, cog, odometer: float) -> float:
 
 
 class StatusArgs(BaseModel):
-    vessel_id: int = Field(ge=1, description="one of NileGate's vessels")
+    vessel_id: int = Field(ge=1, description="one of PortPilot's vessels")
 
 
 def _iso(t) -> str:
@@ -168,6 +168,6 @@ def voyage_status(user, as_of: datetime | None = None, **args) -> ToolResult:
 
 @tool("voyage_status", args_schema=StatusArgs)
 def voyage_status_tool(runtime: ToolRuntime, **args) -> dict:
-    """Where one of NileGate's vessels is on its current voyage: last AIS position and speed, status, next port, ports
+    """Where one of PortPilot's vessels is on its current voyage: last AIS position and speed, status, next port, ports
     left and the distance covered / left along the route, as of the run's clock."""
     return voyage_status(context.user_of(runtime), as_of=context.as_of_of(runtime), **args).model_dump(mode="json")

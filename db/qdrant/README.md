@@ -7,7 +7,7 @@
 | `probe_qdrant.py` | Probe of the pinned server in a throwaway collection (deleted at the end): API key enforced, LAN closed, the collection shape we need, **server-side BM25 (D4)**, the ADR-006 filter inside both prefetches of a hybrid RRF query. Raw REST on purpose (qdrant-client could run BM25 locally and hide the answer). |
 | `audit/` | Saved outputs of the probe (`YYYY-MM-DD_probe.txt`). |
 
-The collection `nilegate_docs` is **not** created here: `pipelines/scripts/retrieval/Qdrant_loader.py` (RAG plan
+The collection `nilegate_docs` is **not** created here: `dev/build/retrieval/Qdrant_loader.py` (RAG plan
 Phase 5) is the only writer (ADR-031 pattern).
 
 ## Pinned image

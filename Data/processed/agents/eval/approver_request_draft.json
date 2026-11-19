@@ -1,0 +1,1256 @@
+{
+ "charts": {},
+ "draft": {
+  "bullets": [
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "slide": 2,
+    "text": "Billed {kpi.weekly:billed_sdr|M} in week 14, up {kpi.weekly:billed_wow_pct|%1} WoW, staying within the typical swing of {kpi.weekly:billed_wow_typical_pct|%1}"
+   },
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "slide": 2,
+    "text": "Budget variance reached {kpi.weekly:budget_variance_sdr|M|dir} ({kpi.weekly:budget_variance_pct|%2}), with a 13-week period variance of {kpi.weekly:budget_variance_13w_pct|%2}"
+   },
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "slide": 2,
+    "text": "Overdue receivables stood at {kpi.weekly:overdue_sdr|M}, with {kpi.weekly:overdue_new_sdr|M} newly falling due unpaid and {kpi.weekly:overdue_paid_sdr|M} of older overdue collected"
+   },
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "slide": 2,
+    "text": "DSO settled at {kpi.weekly:dso_days}, reflecting a best-day level of {kpi.weekly:dso_best_days} and a delinquency impact of {kpi.weekly:dso_delinquency_days}"
+   },
+   {
+    "evidence_ids": [
+     "audit.week",
+     "audit.ytd"
+    ],
+    "slide": 2,
+    "text": "Checked {audit.week:invoices_checked} invoices in week 14 with {audit.week:invoices_flagged} flagged, bringing year-to-date checks to {audit.ytd:invoices_checked} with {audit.ytd:invoices_flagged} flagged"
+   },
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "slide": 3,
+    "text": "Billed {kpi.weekly:billed_sdr|M} across {kpi.weekly:invoices_billed} invoices in week 14, {kpi.weekly:billed_wow_pct|%1|dir} WoW against a typical swing of {kpi.weekly:billed_wow_typical_pct|%1}"
+   },
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "slide": 3,
+    "text": "Payments received reached {kpi.weekly:collected_sdr|M} from {kpi.weekly:payments_received} payments, {kpi.weekly:collected_wow_pct|%1|dir} WoW compared to the typical swing of {kpi.weekly:collected_wow_typical_pct|%1}"
+   },
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "slide": 3,
+    "text": "Accounts receivable closed at {kpi.weekly:ar_sdr|M} across {kpi.weekly:ar_invoices} invoices, {kpi.weekly:ar_wow_pct|%1|dir} WoW against a typical swing of {kpi.weekly:ar_wow_typical_pct|%1}"
+   },
+   {
+    "evidence_ids": [
+     "kpi.trend",
+     "kpi.weekly",
+     "audit.week"
+    ],
+    "slide": 4,
+    "text": "Billed {kpi.weekly:billed_sdr|M} in week 14 against a budget of {kpi.weekly:budget_sdr|M}, following week 13 billing of {kpi.trend[2025-W13]:billed_sdr|M}"
+   },
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "slide": 4,
+    "text": "Thirteen-week cumulative billing reached {kpi.weekly:billed_13w_sdr|M} against a budget of {kpi.weekly:budget_13w_sdr|M}"
+   },
+   {
+    "evidence_ids": [
+     "kpi.category",
+     "audit.week"
+    ],
+    "slide": 4,
+    "text": "Liquefied Natural Gas (LNG) Carriers led the week by billing {kpi.category[Liquefied Natural Gas (LNG) Carriers]:billed_sdr|M} across {kpi.category[Liquefied Natural Gas (LNG) Carriers]:invoices_billed} invoices"
+   },
+   {
+    "evidence_ids": [
+     "kpi.category"
+    ],
+    "slide": 5,
+    "text": "Liquefied Natural Gas (LNG) Carriers recorded the largest positive variance of {kpi.category[Liquefied Natural Gas (LNG) Carriers]:budget_variance_sdr|M} with billing of {kpi.category[Liquefied Natural Gas (LNG) Carriers]:billed_sdr|M} and a budget variance of {kpi.category[Liquefied Natural Gas (LNG) Carriers]:budget_variance_pct|%2}"
+   },
+   {
+    "evidence_ids": [
+     "kpi.category"
+    ],
+    "slide": 5,
+    "text": "Containerships missed budget by {kpi.category[Containerships]:budget_variance_sdr|M|dir} with {kpi.category[Containerships]:billed_sdr|M} billed across {kpi.category[Containerships]:invoices_billed} invoices"
+   },
+   {
+    "evidence_ids": [
+     "kpi.category"
+    ],
+    "slide": 5,
+    "text": "Cruise Ships missed budget by {kpi.category[Cruise Ships]:budget_variance_sdr|M|dir}, billing {kpi.category[Cruise Ships]:billed_sdr|M} across {kpi.category[Cruise Ships]:invoices_billed} invoices with a budget of {kpi.category[Cruise Ships]:budget_sdr|M}"
+   },
+   {
+    "evidence_ids": [
+     "kpi.weekly",
+     "kpi.overdue"
+    ],
+    "slide": 6,
+    "text": "Overdue receivables stood at {kpi.weekly:overdue_sdr|M} across {kpi.weekly:overdue_invoices} invoices, {kpi.weekly:overdue_wow_pct|%1|dir} WoW against a typical swing of {kpi.weekly:overdue_wow_typical_pct|%1}"
+   },
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "slide": 6,
+    "text": "Aging receivables concentrated {kpi.weekly:aging_current_sdr|M} in current balances and {kpi.weekly:aging_1_30_sdr|M} in the one-to-thirty-day bucket"
+   },
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "slide": 6,
+    "text": "Collected {kpi.weekly:due_week_collected_sdr|M} out of {kpi.weekly:due_week_sdr|M} due this week, achieving a collection rate of {kpi.weekly:due_week_collected_pct|%1}"
+   },
+   {
+    "evidence_ids": [
+     "kpi.customers"
+    ],
+    "slide": 7,
+    "text": "Korilis Cruises ranked second with {kpi.customers[Korilis Cruises]:billed_13w_sdr|M} billed and a 13-week share of {kpi.customers[Korilis Cruises]:share_13w_pct|%2} on rating B"
+   },
+   {
+    "evidence_ids": [
+     "kpi.customers"
+    ],
+    "slide": 7,
+    "text": "Four customers including Belanor Tankers, Nilomar Tankers, Ostanor Lines, and Levavia Tankers are currently placed on the credit watchlist"
+   },
+   {
+    "evidence_ids": [
+     "audit.week",
+     "audit.ytd"
+    ],
+    "slide": 8,
+    "text": "Checked {audit.week:invoices_checked} invoices in week 14 with {audit.week:invoices_flagged} flagged, maintaining a clean audit record for the week compared to {audit.ytd:invoices_flagged} YTD flag"
+   },
+   {
+    "evidence_ids": [
+     "audit.ytd"
+    ],
+    "slide": 8,
+    "text": "Checked {audit.ytd:invoices_checked} invoices year to date, with {audit.ytd:invoices_flagged} invoice flagged representing {audit.ytd:amount_at_stake_sdr|k} at stake in week {audit.ytd:report_week}"
+   },
+   {
+    "evidence_ids": [
+     "audit.week"
+    ],
+    "slide": 8,
+    "text": "No corrective actions were required for week 14 following zero audit findings across all billed items"
+   },
+   {
+    "evidence_ids": [],
+    "slide": 9,
+    "text": "External context unavailable for this week"
+   }
+  ],
+  "slide_titles": [
+   {
+    "slide": 1,
+    "title": "Liquefied Natural Gas Carriers led category billing at {kpi.weekly:billed_sdr|M}"
+   },
+   {
+    "slide": 2,
+    "title": "Billing up 7.3 % WoW while budget misses by {kpi.weekly:budget_variance_pct|%1}"
+   },
+   {
+    "slide": 3,
+    "title": "Billed 4.13 M SDR in week 14 within normal swing"
+   },
+   {
+    "slide": 4,
+    "title": "Billing reached 4.13 M SDR against a budget of 5.60 M SDR"
+   },
+   {
+    "slide": 5,
+    "title": "LNG Carriers led category billing with {kpi.category[Liquefied Natural Gas (LNG) Carriers]:billed_sdr|M}"
+   },
+   {
+    "slide": 6,
+    "title": "Overdue receivables reached 11.44 M SDR with 11.44 M SDR overdue"
+   },
+   {
+    "slide": 7,
+    "title": "Belanor Tankers led top customers with 8.86 M SDR billed"
+   },
+   {
+    "slide": 8,
+    "title": "Zero invoices flagged out of 15 checked in week 14"
+   },
+   {
+    "slide": 9,
+    "title": "External context unavailable"
+   },
+   {
+    "slide": 10,
+    "title": "Sources, filters, and freshness"
+   }
+  ],
+  "title": "NileGate Weekly Finance Pack — 2025-W14 — Approved"
+ },
+ "evidence": {
+  "audit.week": {
+   "amount_at_stake_sdr": 0.0,
+   "findings_by_check": {},
+   "invoices_checked": 15,
+   "invoices_flagged": 0,
+   "invoices_manual_review": 0,
+   "note": "15 invoices checked, 0 flagged",
+   "rows": [],
+   "source": {
+    "filter": "report_week = 14",
+    "kind": "view",
+    "name": "finance.invoice_audit",
+    "retrieved_at": null
+   },
+   "status": "ok",
+   "tool": "invoice_audit"
+  },
+  "audit.ytd": {
+   "amount_at_stake_sdr": 81837.02,
+   "findings_by_check": {
+    "duplicate_charge": 1
+   },
+   "invoices_checked": 254,
+   "invoices_flagged": 1,
+   "invoices_manual_review": 0,
+   "note": "254 invoices checked, 1 flagged",
+   "rows": [
+    {
+     "billed_sdr": 81837.02,
+     "check_code": "duplicate_charge",
+     "difference_sdr": 81837.02,
+     "duplicate_of": "INV-0000293",
+     "evidence": "same vessel, date and amount as INV-0000293: the whole charge is billed twice",
+     "expected_sdr": 0.0,
+     "invoice_date": "2025-03-03",
+     "invoice_number": "INV-0000626",
+     "probable_cause": null,
+     "report_week": 10,
+     "review": "error",
+     "vessel_category": "Cruise Ships",
+     "vessel_condition": "Laden",
+     "vessel_id": 341,
+     "vessel_name": "Cruise Voyager 341"
+    }
+   ],
+   "source": {
+    "filter": "report_week <= 14",
+    "kind": "view",
+    "name": "finance.invoice_audit",
+    "retrieved_at": null
+   },
+   "status": "ok",
+   "tool": "invoice_audit"
+  },
+  "insight.call_4135664591327547152": {
+   "amount_at_stake_sdr": 0.0,
+   "findings_by_check": {},
+   "invoices_checked": 15,
+   "invoices_flagged": 0,
+   "invoices_manual_review": 0,
+   "note": "15 invoices checked, 0 flagged",
+   "rows": [],
+   "source": {
+    "filter": "report_week = 14",
+    "kind": "view",
+    "name": "finance.invoice_audit",
+    "retrieved_at": null
+   },
+   "status": "ok",
+   "tool": "invoice_audit"
+  },
+  "kpi.category": {
+   "note": null,
+   "rows": [
+    {
+     "billed_prev_sdr": 0.0,
+     "billed_sdr": 1001745.75,
+     "billed_wow_change_sdr": 1001745.75,
+     "billed_wow_pct": null,
+     "budget_sdr": 820267.68,
+     "budget_variance_pct": 22.12,
+     "budget_variance_sdr": 181478.07,
+     "invoices_billed": 2,
+     "invoices_prev": 0,
+     "report_week": 14,
+     "vessel_category": "Liquefied Natural Gas (LNG) Carriers"
+    },
+    {
+     "billed_prev_sdr": 638561.31,
+     "billed_sdr": 0.0,
+     "billed_wow_change_sdr": -638561.31,
+     "billed_wow_pct": -100.0,
+     "budget_sdr": 628667.88,
+     "budget_variance_pct": -100.0,
+     "budget_variance_sdr": -628667.88,
+     "invoices_billed": 0,
+     "invoices_prev": 2,
+     "report_week": 14,
+     "vessel_category": "Containerships"
+    },
+    {
+     "billed_prev_sdr": 1030092.33,
+     "billed_sdr": 429542.11,
+     "billed_wow_change_sdr": -600550.22,
+     "billed_wow_pct": -58.3,
+     "budget_sdr": 680154.32,
+     "budget_variance_pct": -36.85,
+     "budget_variance_sdr": -250612.21,
+     "invoices_billed": 1,
+     "invoices_prev": 2,
+     "report_week": 14,
+     "vessel_category": "Cruise Ships"
+    },
+    {
+     "billed_prev_sdr": 790248.74,
+     "billed_sdr": 245910.35,
+     "billed_wow_change_sdr": -544338.39,
+     "billed_wow_pct": -68.88,
+     "budget_sdr": 401634.92,
+     "budget_variance_pct": -38.77,
+     "budget_variance_sdr": -155724.57,
+     "invoices_billed": 1,
+     "invoices_prev": 2,
+     "report_week": 14,
+     "vessel_category": "Crude Oil Tankers"
+    },
+    {
+     "billed_prev_sdr": 338037.26,
+     "billed_sdr": 878663.23,
+     "billed_wow_change_sdr": 540625.97,
+     "billed_wow_pct": 159.93,
+     "budget_sdr": 266389.23,
+     "budget_variance_pct": 229.84,
+     "budget_variance_sdr": 612274.0,
+     "invoices_billed": 3,
+     "invoices_prev": 1,
+     "report_week": 14,
+     "vessel_category": "Vehicles Carriers"
+    },
+    {
+     "billed_prev_sdr": 395936.89,
+     "billed_sdr": 0.0,
+     "billed_wow_change_sdr": -395936.89,
+     "billed_wow_pct": -100.0,
+     "budget_sdr": 457392.21,
+     "budget_variance_pct": -100.0,
+     "budget_variance_sdr": -457392.21,
+     "invoices_billed": 0,
+     "invoices_prev": 1,
+     "report_week": 14,
+     "vessel_category": "Special Floating Units"
+    },
+    {
+     "billed_prev_sdr": 0.0,
+     "billed_sdr": 373249.31,
+     "billed_wow_change_sdr": 373249.31,
+     "billed_wow_pct": null,
+     "budget_sdr": 425921.9,
+     "budget_variance_pct": -12.37,
+     "budget_variance_sdr": -52672.59,
+     "invoices_billed": 2,
+     "invoices_prev": 0,
+     "report_week": 14,
+     "vessel_category": "Liquefied Petroleum Gas (LPG) Carriers"
+    },
+    {
+     "billed_prev_sdr": 0.0,
+     "billed_sdr": 297029.99,
+     "billed_wow_change_sdr": 297029.99,
+     "billed_wow_pct": null,
+     "budget_sdr": 204970.41,
+     "budget_variance_pct": 44.91,
+     "budget_variance_sdr": 92059.58,
+     "invoices_billed": 1,
+     "invoices_prev": 0,
+     "report_week": 14,
+     "vessel_category": "Chemical Tankers & Other Liquid Bulk Tankers"
+    },
+    {
+     "billed_prev_sdr": 264984.46,
+     "billed_sdr": 545801.95,
+     "billed_wow_change_sdr": 280817.49,
+     "billed_wow_pct": 105.98,
+     "budget_sdr": 594423.29,
+     "budget_variance_pct": -8.18,
+     "budget_variance_sdr": -48621.34,
+     "invoices_billed": 2,
+     "invoices_prev": 1,
+     "report_week": 14,
+     "vessel_category": "Petroleum Product Tankers"
+    },
+    {
+     "billed_prev_sdr": 363508.65,
+     "billed_sdr": 180449.11,
+     "billed_wow_change_sdr": -183059.54,
+     "billed_wow_pct": -50.36,
+     "budget_sdr": 311370.29,
+     "budget_variance_pct": -42.05,
+     "budget_variance_sdr": -130921.18,
+     "invoices_billed": 1,
+     "invoices_prev": 2,
+     "report_week": 14,
+     "vessel_category": "General Cargo / Multi-Purpose / Heavy Lift Vessels"
+    },
+    {
+     "billed_prev_sdr": 30352.29,
+     "billed_sdr": 115938.89,
+     "billed_wow_change_sdr": 85586.6,
+     "billed_wow_pct": 281.98,
+     "budget_sdr": 225344.32,
+     "budget_variance_pct": -48.55,
+     "budget_variance_sdr": -109405.43,
+     "invoices_billed": 1,
+     "invoices_prev": 1,
+     "report_week": 14,
+     "vessel_category": "Roll-On/Roll-Off (Ro/Ro) Vessels"
+    },
+    {
+     "billed_prev_sdr": 0.0,
+     "billed_sdr": 63752.99,
+     "billed_wow_change_sdr": 63752.99,
+     "billed_wow_pct": null,
+     "budget_sdr": 208362.47,
+     "budget_variance_pct": -69.4,
+     "budget_variance_sdr": -144609.48,
+     "invoices_billed": 1,
+     "invoices_prev": 0,
+     "report_week": 14,
+     "vessel_category": "Other Vessels"
+    },
+    {
+     "billed_prev_sdr": 0.0,
+     "billed_sdr": 0.0,
+     "billed_wow_change_sdr": 0.0,
+     "billed_wow_pct": null,
+     "budget_sdr": 379143.58,
+     "budget_variance_pct": -100.0,
+     "budget_variance_sdr": -379143.58,
+     "invoices_billed": 0,
+     "invoices_prev": 0,
+     "report_week": 14,
+     "vessel_category": "Dry Bulk Vessels"
+    }
+   ],
+   "source": {
+    "filter": "report_week = 14",
+    "kind": "view",
+    "name": "finance.kpi_weekly_category",
+    "retrieved_at": null
+   },
+   "status": "ok",
+   "tool": "finance_kpi"
+  },
+  "kpi.customers": {
+   "note": "10 of 40 rows (ranked by rank_13w)",
+   "rows": [
+    {
+     "ar_sdr": 8670252.22,
+     "ar_to_billed_13w_pct": 97.84,
+     "billed_13w_sdr": 8861665.05,
+     "billed_week_sdr": 1216081.25,
+     "country": "Singapore",
+     "credit_rating": "B",
+     "customer_id": 9,
+     "customer_name": "Belanor Tankers",
+     "is_top10": true,
+     "is_watchlist": true,
+     "ontime_13w_pct": 0.0,
+     "overdue_sdr": 2463938.97,
+     "payment_terms_days": 60,
+     "rank_13w": 1,
+     "rank_13w_prev": 1,
+     "report_week": 14,
+     "segment": "tanker",
+     "share_13w_pct": 12.93
+    },
+    {
+     "ar_sdr": 3617921.67,
+     "ar_to_billed_13w_pct": 71.61,
+     "billed_13w_sdr": 5052572.68,
+     "billed_week_sdr": 429542.11,
+     "country": "United Arab Emirates",
+     "credit_rating": "B",
+     "customer_id": 34,
+     "customer_name": "Korilis Cruises",
+     "is_top10": true,
+     "is_watchlist": false,
+     "ontime_13w_pct": 20.0,
+     "overdue_sdr": 371461.23,
+     "payment_terms_days": 30,
+     "rank_13w": 2,
+     "rank_13w_prev": 3,
+     "report_week": 14,
+     "segment": "cruise",
+     "share_13w_pct": 7.37
+    },
+    {
+     "ar_sdr": 875972.15,
+     "ar_to_billed_13w_pct": 18.13,
+     "billed_13w_sdr": 4832752.45,
+     "billed_week_sdr": 0.0,
+     "country": "Japan",
+     "credit_rating": "A",
+     "customer_id": 37,
+     "customer_name": "Kororia Shipping Agency",
+     "is_top10": true,
+     "is_watchlist": false,
+     "ontime_13w_pct": 100.0,
+     "overdue_sdr": 0.0,
+     "payment_terms_days": 30,
+     "rank_13w": 3,
+     "rank_13w_prev": 2,
+     "report_week": 14,
+     "segment": "agent",
+     "share_13w_pct": 7.05
+    },
+    {
+     "ar_sdr": 3922104.02,
+     "ar_to_billed_13w_pct": 100.0,
+     "billed_13w_sdr": 3922104.02,
+     "billed_week_sdr": 0.0,
+     "country": "Saudi Arabia",
+     "credit_rating": "B",
+     "customer_id": 17,
+     "customer_name": "Nilomar Tankers",
+     "is_top10": true,
+     "is_watchlist": true,
+     "ontime_13w_pct": null,
+     "overdue_sdr": 835231.57,
+     "payment_terms_days": 60,
+     "rank_13w": 4,
+     "rank_13w_prev": 4,
+     "report_week": 14,
+     "segment": "tanker",
+     "share_13w_pct": 5.72
+    },
+    {
+     "ar_sdr": 530382.73,
+     "ar_to_billed_13w_pct": 14.5,
+     "billed_13w_sdr": 3658013.29,
+     "billed_week_sdr": 0.0,
+     "country": "Singapore",
+     "credit_rating": "A",
+     "customer_id": 10,
+     "customer_name": "Thalomar Shipping",
+     "is_top10": true,
+     "is_watchlist": false,
+     "ontime_13w_pct": 20.0,
+     "overdue_sdr": 265398.27,
+     "payment_terms_days": 30,
+     "rank_13w": 5,
+     "rank_13w_prev": 5,
+     "report_week": 14,
+     "segment": "tanker",
+     "share_13w_pct": 5.34
+    },
+    {
+     "ar_sdr": 2590296.76,
+     "ar_to_billed_13w_pct": 74.32,
+     "billed_13w_sdr": 3485313.42,
+     "billed_week_sdr": 0.0,
+     "country": "United Arab Emirates",
+     "credit_rating": "C",
+     "customer_id": 12,
+     "customer_name": "Nilussa Shipping",
+     "is_top10": true,
+     "is_watchlist": false,
+     "ontime_13w_pct": 0.0,
+     "overdue_sdr": 937883.84,
+     "payment_terms_days": 45,
+     "rank_13w": 6,
+     "rank_13w_prev": 6,
+     "report_week": 14,
+     "segment": "tanker",
+     "share_13w_pct": 5.09
+    },
+    {
+     "ar_sdr": 2523770.36,
+     "ar_to_billed_13w_pct": 83.64,
+     "billed_13w_sdr": 3017577.77,
+     "billed_week_sdr": 0.0,
+     "country": "Switzerland",
+     "credit_rating": "B",
+     "customer_id": 1,
+     "customer_name": "Ostanor Lines",
+     "is_top10": true,
+     "is_watchlist": true,
+     "ontime_13w_pct": 100.0,
+     "overdue_sdr": 0.0,
+     "payment_terms_days": 45,
+     "rank_13w": 7,
+     "rank_13w_prev": 7,
+     "report_week": 14,
+     "segment": "container",
+     "share_13w_pct": 4.4
+    },
+    {
+     "ar_sdr": 637305.57,
+     "ar_to_billed_13w_pct": 24.72,
+     "billed_13w_sdr": 2578202.0,
+     "billed_week_sdr": 180449.11,
+     "country": "Denmark",
+     "credit_rating": "B",
+     "customer_id": 19,
+     "customer_name": "Ostavia Maritime",
+     "is_top10": true,
+     "is_watchlist": false,
+     "ontime_13w_pct": 55.56,
+     "overdue_sdr": 0.0,
+     "payment_terms_days": 30,
+     "rank_13w": 8,
+     "rank_13w_prev": 8,
+     "report_week": 14,
+     "segment": "bulk",
+     "share_13w_pct": 3.76
+    },
+    {
+     "ar_sdr": 2387310.66,
+     "ar_to_billed_13w_pct": 100.0,
+     "billed_13w_sdr": 2387310.66,
+     "billed_week_sdr": 245910.35,
+     "country": "China",
+     "credit_rating": "C",
+     "customer_id": 15,
+     "customer_name": "Levavia Tankers",
+     "is_top10": true,
+     "is_watchlist": true,
+     "ontime_13w_pct": null,
+     "overdue_sdr": 1895489.96,
+     "payment_terms_days": 45,
+     "rank_13w": 9,
+     "rank_13w_prev": 14,
+     "report_week": 14,
+     "segment": "tanker",
+     "share_13w_pct": 3.48
+    },
+    {
+     "ar_sdr": 57654.35,
+     "ar_to_billed_13w_pct": 2.42,
+     "billed_13w_sdr": 2386758.68,
+     "billed_week_sdr": 0.0,
+     "country": "Japan",
+     "credit_rating": "B",
+     "customer_id": 29,
+     "customer_name": "Thalondo Car Carriers",
+     "is_top10": true,
+     "is_watchlist": false,
+     "ontime_13w_pct": 8.33,
+     "overdue_sdr": 0.0,
+     "payment_terms_days": 30,
+     "rank_13w": 10,
+     "rank_13w_prev": 9,
+     "report_week": 14,
+     "segment": "roro",
+     "share_13w_pct": 3.48
+    }
+   ],
+   "source": {
+    "filter": "report_week = 14 ORDER BY rank_13w LIMIT 10",
+    "kind": "view",
+    "name": "finance.kpi_customer_13w",
+    "retrieved_at": null
+   },
+   "status": "ok",
+   "tool": "finance_kpi"
+  },
+  "kpi.overdue": {
+   "note": "10 of 33 rows (ranked by rank_by_amount)",
+   "rows": [
+    {
+     "aging_bucket": "1-30",
+     "amount_sdr": 797759.12,
+     "as_of_date": "2025-04-06",
+     "customer_id": 9,
+     "customer_name": "Belanor Tankers",
+     "days_past_due": 1,
+     "due_date": "2025-04-05",
+     "invoice_date": "2025-02-04",
+     "invoice_number": "INV-0000127",
+     "rank_by_amount": 1,
+     "report_week": 14,
+     "vessel_category": "Liquefied Natural Gas (LNG) Carriers",
+     "vessel_id": 314,
+     "vessel_name": "Liquefied Voyager 314"
+    },
+    {
+     "aging_bucket": "1-30",
+     "amount_sdr": 673471.35,
+     "as_of_date": "2025-04-06",
+     "customer_id": 15,
+     "customer_name": "Levavia Tankers",
+     "days_past_due": 30,
+     "due_date": "2025-03-07",
+     "invoice_date": "2025-01-21",
+     "invoice_number": "INV-0000676",
+     "rank_by_amount": 2,
+     "report_week": 14,
+     "vessel_category": "Liquefied Natural Gas (LNG) Carriers",
+     "vessel_id": 165,
+     "vessel_name": "Liquefied Voyager 165"
+    },
+    {
+     "aging_bucket": "1-30",
+     "amount_sdr": 622758.68,
+     "as_of_date": "2025-04-06",
+     "customer_id": 3,
+     "customer_name": "Cyravia Lines",
+     "days_past_due": 7,
+     "due_date": "2025-03-30",
+     "invoice_date": "2025-02-28",
+     "invoice_number": "INV-0000285",
+     "rank_by_amount": 3,
+     "report_week": 14,
+     "vessel_category": "Containerships",
+     "vessel_id": 420,
+     "vessel_name": "Containerships Voyager 420"
+    },
+    {
+     "aging_bucket": "31-60",
+     "amount_sdr": 522063.66,
+     "as_of_date": "2025-04-06",
+     "customer_id": 5,
+     "customer_name": "Ardanor Container Lines",
+     "days_past_due": 36,
+     "due_date": "2025-03-01",
+     "invoice_date": "2025-01-15",
+     "invoice_number": "INV-0000310",
+     "rank_by_amount": 4,
+     "report_week": 14,
+     "vessel_category": "Containerships",
+     "vessel_id": 271,
+     "vessel_name": "Containerships Voyager 271"
+    },
+    {
+     "aging_bucket": "1-30",
+     "amount_sdr": 517705.19,
+     "as_of_date": "2025-04-06",
+     "customer_id": 12,
+     "customer_name": "Nilussa Shipping",
+     "days_past_due": 7,
+     "due_date": "2025-03-30",
+     "invoice_date": "2025-02-13",
+     "invoice_number": "INV-0000755",
+     "rank_by_amount": 5,
+     "report_week": 14,
+     "vessel_category": "Petroleum Product Tankers",
+     "vessel_id": 69,
+     "vessel_name": "Petroleum Voyager 069"
+    },
+    {
+     "aging_bucket": "31-60",
+     "amount_sdr": 509274.75,
+     "as_of_date": "2025-04-06",
+     "customer_id": 15,
+     "customer_name": "Levavia Tankers",
+     "days_past_due": 36,
+     "due_date": "2025-03-01",
+     "invoice_date": "2025-01-15",
+     "invoice_number": "INV-0000855",
+     "rank_by_amount": 6,
+     "report_week": 14,
+     "vessel_category": "Petroleum Product Tankers",
+     "vessel_id": 25,
+     "vessel_name": "Petroleum Voyager 025"
+    },
+    {
+     "aging_bucket": "1-30",
+     "amount_sdr": 450861.08,
+     "as_of_date": "2025-04-06",
+     "customer_id": 17,
+     "customer_name": "Nilomar Tankers",
+     "days_past_due": 6,
+     "due_date": "2025-03-31",
+     "invoice_date": "2025-01-30",
+     "invoice_number": "INV-0000122",
+     "rank_by_amount": 7,
+     "report_week": 14,
+     "vessel_category": "Liquefied Natural Gas (LNG) Carriers",
+     "vessel_id": 139,
+     "vessel_name": "Liquefied Voyager 139"
+    },
+    {
+     "aging_bucket": "31-60",
+     "amount_sdr": 443600.85,
+     "as_of_date": "2025-04-06",
+     "customer_id": 25,
+     "customer_name": "Nilenta Maritime",
+     "days_past_due": 40,
+     "due_date": "2025-02-25",
+     "invoice_date": "2025-01-11",
+     "invoice_number": "INV-0000388",
+     "rank_by_amount": 8,
+     "report_week": 14,
+     "vessel_category": "Dry Bulk Vessels",
+     "vessel_id": 332,
+     "vessel_name": "Dry Voyager 332"
+    },
+    {
+     "aging_bucket": "1-30",
+     "amount_sdr": 443600.85,
+     "as_of_date": "2025-04-06",
+     "customer_id": 25,
+     "customer_name": "Nilenta Maritime",
+     "days_past_due": 29,
+     "due_date": "2025-03-08",
+     "invoice_date": "2025-01-22",
+     "invoice_number": "INV-0000669",
+     "rank_by_amount": 9,
+     "report_week": 14,
+     "vessel_category": "Dry Bulk Vessels",
+     "vessel_id": 332,
+     "vessel_name": "Dry Voyager 332"
+    },
+    {
+     "aging_bucket": "1-30",
+     "amount_sdr": 429483.37,
+     "as_of_date": "2025-04-06",
+     "customer_id": 18,
+     "customer_name": "Aegussa Tankers",
+     "days_past_due": 2,
+     "due_date": "2025-04-04",
+     "invoice_date": "2025-02-18",
+     "invoice_number": "INV-0000578",
+     "rank_by_amount": 10,
+     "report_week": 14,
+     "vessel_category": "Liquefied Natural Gas (LNG) Carriers",
+     "vessel_id": 72,
+     "vessel_name": "Liquefied Voyager 072"
+    }
+   ],
+   "source": {
+    "filter": "report_week = 14 ORDER BY rank_by_amount LIMIT 10",
+    "kind": "view",
+    "name": "finance.kpi_overdue_list",
+    "retrieved_at": null
+   },
+   "status": "ok",
+   "tool": "finance_kpi"
+  },
+  "kpi.trend": {
+   "note": null,
+   "rows": [
+    {
+     "ar_sdr": 7123225.91,
+     "billed_sdr": 3411357.09,
+     "budget_sdr": 5675545.44,
+     "budget_variance_pct": -39.89,
+     "budget_variance_sdr": -2264188.35,
+     "collected_sdr": 0.0,
+     "dso_days": 12.0,
+     "invoices_billed": 11,
+     "is_report_week": false,
+     "is_warmup": true,
+     "overdue_sdr": 0.0,
+     "report_week": 14,
+     "top10_share_13w_pct": 85.79,
+     "trend_week": 2,
+     "trend_week_end": "2025-01-12",
+     "trend_week_label": "2025-W02",
+     "week_offset": -12
+    },
+    {
+     "ar_sdr": 11046902.68,
+     "billed_sdr": 3923676.77,
+     "budget_sdr": 5621918.23,
+     "budget_variance_pct": -30.21,
+     "budget_variance_sdr": -1698241.46,
+     "collected_sdr": 0.0,
+     "dso_days": 19.0,
+     "invoices_billed": 15,
+     "is_report_week": false,
+     "is_warmup": true,
+     "overdue_sdr": 0.0,
+     "report_week": 14,
+     "top10_share_13w_pct": 74.34,
+     "trend_week": 3,
+     "trend_week_end": "2025-01-19",
+     "trend_week_label": "2025-W03",
+     "week_offset": -11
+    },
+    {
+     "ar_sdr": 16611981.14,
+     "billed_sdr": 5565078.46,
+     "budget_sdr": 5568291.04,
+     "budget_variance_pct": -0.06,
+     "budget_variance_sdr": -3212.58,
+     "collected_sdr": 0.0,
+     "dso_days": 26.0,
+     "invoices_billed": 22,
+     "is_report_week": false,
+     "is_warmup": true,
+     "overdue_sdr": 0.0,
+     "report_week": 14,
+     "top10_share_13w_pct": 68.63,
+     "trend_week": 4,
+     "trend_week_end": "2025-01-26",
+     "trend_week_label": "2025-W04",
+     "week_offset": -10
+    },
+    {
+     "ar_sdr": 22103124.27,
+     "billed_sdr": 6902530.53,
+     "budget_sdr": 5514663.83,
+     "budget_variance_pct": 25.17,
+     "budget_variance_sdr": 1387866.7,
+     "collected_sdr": 1411387.4,
+     "dso_days": 31.0,
+     "invoices_billed": 21,
+     "is_report_week": false,
+     "is_warmup": true,
+     "overdue_sdr": 114612.87,
+     "report_week": 14,
+     "top10_share_13w_pct": 62.58,
+     "trend_week": 5,
+     "trend_week_end": "2025-02-02",
+     "trend_week_label": "2025-W05",
+     "week_offset": -9
+    },
+    {
+     "ar_sdr": 26614788.86,
+     "billed_sdr": 5471234.68,
+     "budget_sdr": 5461036.65,
+     "budget_variance_pct": 0.19,
+     "budget_variance_sdr": 10198.03,
+     "collected_sdr": 959570.09,
+     "dso_days": 36.7,
+     "invoices_billed": 19,
+     "is_report_week": false,
+     "is_warmup": true,
+     "overdue_sdr": 540144.79,
+     "report_week": 14,
+     "top10_share_13w_pct": 62.81,
+     "trend_week": 6,
+     "trend_week_end": "2025-02-09",
+     "trend_week_label": "2025-W06",
+     "week_offset": -8
+    },
+    {
+     "ar_sdr": 29245782.92,
+     "billed_sdr": 5510496.64,
+     "budget_sdr": 5478912.37,
+     "budget_variance_pct": 0.58,
+     "budget_variance_sdr": 31584.27,
+     "collected_sdr": 2879502.58,
+     "dso_days": 39.8,
+     "invoices_billed": 21,
+     "is_report_week": false,
+     "is_warmup": true,
+     "overdue_sdr": 924435.65,
+     "report_week": 14,
+     "top10_share_13w_pct": 61.58,
+     "trend_week": 7,
+     "trend_week_end": "2025-02-16",
+     "trend_week_label": "2025-W07",
+     "week_offset": -7
+    },
+    {
+     "ar_sdr": 32258817.45,
+     "billed_sdr": 5060850.02,
+     "budget_sdr": 5496788.08,
+     "budget_variance_pct": -7.93,
+     "budget_variance_sdr": -435938.06,
+     "collected_sdr": 2047815.49,
+     "dso_days": 44.0,
+     "invoices_billed": 17,
+     "is_report_week": false,
+     "is_warmup": true,
+     "overdue_sdr": 2718804.15,
+     "report_week": 14,
+     "top10_share_13w_pct": 61.16,
+     "trend_week": 8,
+     "trend_week_end": "2025-02-23",
+     "trend_week_label": "2025-W08",
+     "week_offset": -6
+    },
+    {
+     "ar_sdr": 36344704.86,
+     "billed_sdr": 5589247.42,
+     "budget_sdr": 5514663.83,
+     "budget_variance_pct": 1.35,
+     "budget_variance_sdr": 74583.59,
+     "collected_sdr": 1503360.01,
+     "dso_days": 49.1,
+     "invoices_billed": 21,
+     "is_report_week": false,
+     "is_warmup": true,
+     "overdue_sdr": 4939137.06,
+     "report_week": 14,
+     "top10_share_13w_pct": 59.24,
+     "trend_week": 9,
+     "trend_week_end": "2025-03-02",
+     "trend_week_label": "2025-W09",
+     "week_offset": -5
+    },
+    {
+     "ar_sdr": 37575525.98,
+     "billed_sdr": 6563733.55,
+     "budget_sdr": 5532539.57,
+     "budget_variance_pct": 18.64,
+     "budget_variance_sdr": 1031193.98,
+     "collected_sdr": 5332912.43,
+     "dso_days": 49.4,
+     "invoices_billed": 19,
+     "is_report_week": false,
+     "is_warmup": true,
+     "overdue_sdr": 5293226.52,
+     "report_week": 14,
+     "top10_share_13w_pct": 56.41,
+     "trend_week": 10,
+     "trend_week_end": "2025-03-09",
+     "trend_week_label": "2025-W10",
+     "week_offset": -4
+    },
+    {
+     "ar_sdr": 40031048.13,
+     "billed_sdr": 6431244.46,
+     "budget_sdr": 5550415.29,
+     "budget_variance_pct": 15.87,
+     "budget_variance_sdr": 880829.17,
+     "collected_sdr": 3975722.31,
+     "dso_days": 51.6,
+     "invoices_billed": 22,
+     "is_report_week": false,
+     "is_warmup": true,
+     "overdue_sdr": 7483772.93,
+     "report_week": 14,
+     "top10_share_13w_pct": 57.71,
+     "trend_week": 11,
+     "trend_week_end": "2025-03-16",
+     "trend_week_label": "2025-W11",
+     "week_offset": -3
+    },
+    {
+     "ar_sdr": 42484995.08,
+     "billed_sdr": 6114936.19,
+     "budget_sdr": 5568291.04,
+     "budget_variance_pct": 9.82,
+     "budget_variance_sdr": 546645.15,
+     "collected_sdr": 3660989.24,
+     "dso_days": 54.2,
+     "invoices_billed": 24,
+     "is_report_week": false,
+     "is_warmup": true,
+     "overdue_sdr": 8996774.0,
+     "report_week": 14,
+     "top10_share_13w_pct": 58.09,
+     "trend_week": 12,
+     "trend_week_end": "2025-03-23",
+     "trend_week_label": "2025-W12",
+     "week_offset": -2
+    },
+    {
+     "ar_sdr": 42618551.47,
+     "billed_sdr": 3851721.93,
+     "budget_sdr": 5586166.78,
+     "budget_variance_pct": -31.05,
+     "budget_variance_sdr": -1734444.85,
+     "collected_sdr": 3718165.54,
+     "dso_days": 55.7,
+     "invoices_billed": 12,
+     "is_report_week": false,
+     "is_warmup": true,
+     "overdue_sdr": 10538420.04,
+     "report_week": 14,
+     "top10_share_13w_pct": 58.45,
+     "trend_week": 13,
+     "trend_week_end": "2025-03-30",
+     "trend_week_label": "2025-W13",
+     "week_offset": -1
+    },
+    {
+     "ar_sdr": 41290562.5,
+     "billed_sdr": 4132083.68,
+     "budget_sdr": 5604042.5,
+     "budget_variance_pct": -26.27,
+     "budget_variance_sdr": -1471958.82,
+     "collected_sdr": 5460072.65,
+     "dso_days": 54.8,
+     "invoices_billed": 15,
+     "is_report_week": true,
+     "is_warmup": false,
+     "overdue_sdr": 11435622.62,
+     "report_week": 14,
+     "top10_share_13w_pct": 58.64,
+     "trend_week": 14,
+     "trend_week_end": "2025-04-06",
+     "trend_week_label": "2025-W14",
+     "week_offset": 0
+    }
+   ],
+   "source": {
+    "filter": "report_week = 14",
+    "kind": "view",
+    "name": "finance.kpi_weekly_trend",
+    "retrieved_at": null
+   },
+   "status": "ok",
+   "tool": "finance_kpi"
+  },
+  "kpi.weekly": {
+   "note": null,
+   "rows": [
+    {
+     "aging_1_30_sdr": 9598539.51,
+     "aging_31_60_sdr": 1837083.11,
+     "aging_61_90_sdr": 0.0,
+     "aging_90_plus_sdr": 0.0,
+     "aging_current_sdr": 29854939.88,
+     "ar_invoices": 134,
+     "ar_sdr": 41290562.5,
+     "ar_wow_pct": -3.12,
+     "ar_wow_typical_pct": 10.3,
+     "billed_13w_sdr": 68528191.42,
+     "billed_sdr": 4132083.68,
+     "billed_wow_pct": 7.28,
+     "billed_wow_typical_pct": 10.44,
+     "budget_13w_sdr": 72173274.65,
+     "budget_sdr": 5604042.5,
+     "budget_variance_13w_pct": -5.05,
+     "budget_variance_pct": -26.27,
+     "budget_variance_sdr": -1471958.82,
+     "collected_sdr": 5460072.65,
+     "collected_wow_pct": 46.85,
+     "collected_wow_typical_pct": 28.88,
+     "dso_best_days": 39.6,
+     "dso_days": 54.8,
+     "dso_delinquency_days": 15.2,
+     "dso_window_billed_sdr": 68528191.42,
+     "dso_window_days": 91,
+     "dso_wow_days": -0.9,
+     "due_week_collected_pct": 29.7,
+     "due_week_collected_sdr": 1885127.64,
+     "due_week_sdr": 6347407.13,
+     "invoices_billed": 15,
+     "is_warmup": false,
+     "iso_week_label": "2025-W14",
+     "ontime_13w_pct": 49.17,
+     "overdue_invoices": 33,
+     "overdue_new_sdr": 4872564.78,
+     "overdue_paid_sdr": 3975362.2,
+     "overdue_sdr": 11435622.62,
+     "overdue_wow_pct": 8.51,
+     "overdue_wow_typical_pct": 41.38,
+     "payments_received": 17,
+     "report_week": 14,
+     "roll_window_weeks": 13,
+     "top10_share_13w_pct": 58.64,
+     "week_end": "2025-04-06",
+     "week_start": "2025-03-31"
+    }
+   ],
+   "source": {
+    "filter": "report_week = 14",
+    "kind": "view",
+    "name": "finance.kpi_weekly",
+    "retrieved_at": null
+   },
+   "status": "ok",
+   "tool": "finance_kpi"
+  }
+ },
+ "insight": {
+  "caveats": [
+   "warm-up week",
+   "flagged invoices",
+   "missing context"
+  ],
+  "context": [
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "text": "In week 14 of 2025, context is unavailable."
+   }
+  ],
+  "drivers": [
+   {
+    "direction": "up",
+    "evidence_ids": [
+     "kpi.category"
+    ],
+    "explanation": "Liquefied Natural Gas (LNG) Carriers billed 1,001,745.75 SDR across 2 invoices, increasing by 1,001,745.75 SDR WoW.",
+    "flagged_by_audit": false,
+    "vessel_category": "Liquefied Natural Gas (LNG) Carriers"
+   },
+   {
+    "direction": "down",
+    "evidence_ids": [
+     "kpi.category"
+    ],
+    "explanation": "Containerships billed 0.0 SDR across 0 invoices, decreasing by 638,561.31 SDR WoW.",
+    "flagged_by_audit": false,
+    "vessel_category": "Containerships"
+   },
+   {
+    "direction": "down",
+    "evidence_ids": [
+     "kpi.category"
+    ],
+    "explanation": "Cruise Ships billed 429,542.11 SDR across 1 invoice, decreasing by 600,550.22 SDR WoW.",
+    "flagged_by_audit": false,
+    "vessel_category": "Cruise Ships"
+   }
+  ],
+  "summary": [
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "text": "In week 14 of 2025, billing reached 4,132,083.68 SDR across 15 invoices with a WoW change of 7.28 percent, staying within the typical weekly swing of 10.44 percent."
+   },
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "text": "The week's budget variance was -26.27 percent (-1,471,958.82 SDR), while the 13-week period variance stood at -5.05 percent."
+   },
+   {
+    "evidence_ids": [
+     "kpi.category"
+    ],
+    "text": "The top driver was Liquefied Natural Gas (LNG) Carriers with 2 invoices billed."
+   },
+   {
+    "evidence_ids": [
+     "kpi.weekly"
+    ],
+    "text": "Overdue receivables rose to 11,435,622.62 SDR with 4,872,564.78 SDR newly falling due unpaid and 3,975,362.20 SDR of older overdue collected, while four customers are on the watchlist."
+   },
+   {
+    "evidence_ids": [
+     "audit.week",
+     "audit.ytd"
+    ],
+    "text": "Zero invoices were flagged out of 15 checked in week 14, while 1 invoice was flagged year to date with 81,837.02 SDR at stake."
+   }
+  ]
+ },
+ "report_week": 14,
+ "source_thread": "weekly_pack:live:2025-W14:1"
+}

@@ -1,0 +1,117 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "name": "b8d4f6a2c3e5d7f90004",
+  "position": {
+    "x": 20,
+    "y": 420,
+    "z": 3000,
+    "height": 640,
+    "width": 930,
+    "tabOrder": 3000
+  },
+  "visual": {
+    "visualType": "lineChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Approved Trend"
+                    }
+                  },
+                  "Property": "trend_week_label"
+                }
+              },
+              "queryRef": "Approved Trend.trend_week_label",
+              "nativeQueryRef": "trend_week_label",
+              "active": true
+            }
+          ]
+        },
+        "Series": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Approved Trend"
+                    }
+                  },
+                  "Property": "series_name"
+                }
+              },
+              "queryRef": "Approved Trend.series_name",
+              "nativeQueryRef": "Series",
+              "displayName": "Series"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Approved Trend"
+                    }
+                  },
+                  "Property": "Approved Trend Value"
+                }
+              },
+              "queryRef": "Approved Trend.Approved Trend Value",
+              "nativeQueryRef": "Value",
+              "displayName": "Value"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "Approved Trend"
+                  }
+                },
+                "Property": "trend_week_label"
+              }
+            },
+            "direction": "Ascending"
+          }
+        ],
+        "isDefaultSort": true
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Trend (slide 4): the approved series and window'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "name": "a7c3e5f1b2d4c6e8f003",
+  "position": {
+    "x": 20,
+    "y": 80,
+    "z": 1500,
+    "height": 40,
+    "width": 1300,
+    "tabOrder": 1500
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "This week = one measure by vessel category; 13 weeks = up to three series over time; Compare = the selected week against any other week. Every value is a field of the finance views (= the weekly pack).",
+                    "textStyle": {
+                      "fontSize": "11pt"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

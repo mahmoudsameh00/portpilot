@@ -1,0 +1,18 @@
+# Build context of ops/docker/api.Dockerfile (BuildKit reads <Dockerfile>.dockerignore): everything out, then the
+# few things the image needs back in. Never a secret, a cache, a model, a report or the raw data.
+*
+!pyproject.toml
+!uv.lock
+!pipelines/
+!db/migrations/
+!Data/
+Data/raw/
+Data/incoming/
+Data/embeddings/
+Data/processed/agents/eval/llm_cache/
+Data/processed/agents/tool_cache/
+Data/processed/semi-structured/synthetic/
+**/__pycache__/
+**/*.pyc
+**/.env
+**/.env.*

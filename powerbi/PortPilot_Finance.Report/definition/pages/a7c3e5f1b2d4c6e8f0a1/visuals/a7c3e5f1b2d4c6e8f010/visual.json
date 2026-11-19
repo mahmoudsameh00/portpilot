@@ -1,0 +1,124 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "name": "a7c3e5f1b2d4c6e8f010",
+  "position": {
+    "x": 340,
+    "y": 640,
+    "z": 8000,
+    "height": 420,
+    "width": 1560,
+    "tabOrder": 8000
+  },
+  "visual": {
+    "visualType": "clusteredColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "AR Snapshot"
+                    }
+                  },
+                  "Property": "aging_bucket"
+                }
+              },
+              "queryRef": "AR Snapshot.aging_bucket",
+              "nativeQueryRef": "aging_bucket",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Weekly KPIs"
+                    }
+                  },
+                  "Property": "AR by Bucket SDR"
+                }
+              },
+              "queryRef": "Weekly KPIs.AR by Bucket SDR",
+              "nativeQueryRef": "Selected week",
+              "displayName": "Selected week"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Weekly KPIs"
+                    }
+                  },
+                  "Property": "AR by Bucket SDR (compare week)"
+                }
+              },
+              "queryRef": "Weekly KPIs.AR by Bucket SDR (compare week)",
+              "nativeQueryRef": "Compare week",
+              "displayName": "Compare week"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "labels": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "labelPrecision": {
+              "expr": {
+                "Literal": {
+                  "Value": "2L"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Receivables by age: selected week vs compare week (SDR)'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "subTitle": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "isHidden": true
+}

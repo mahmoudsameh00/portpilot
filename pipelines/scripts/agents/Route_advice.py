@@ -25,7 +25,7 @@ from pathlib import Path
 
 ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / "pyproject.toml").exists() and (p / "Data").is_dir())
 sys.path.insert(0, str(ROOT))
-from pipelines.agents import checkpointer, monitoring, roles as roles_mod, scheduling, tracing  # noqa: E402
+from pipelines.agents import checkpointer, locks, monitoring, roles as roles_mod, scheduling, tracing  # noqa: E402
 from pipelines.agents.graphs import route_advice as ra  # noqa: E402
 from pipelines.agents.graphs.models import RouteRequest  # noqa: E402
 from pipelines.agents.tools import context  # noqa: E402
@@ -39,20 +39,16 @@ def ask(req: RouteRequest, employee: int, as_of: datetime, roles=None) -> tuple[
     tid = ra.new_thread_id(checkpointer.pool(), employee, as_of, req.origin, req.destination)
     cfg = {"configurable": {"thread_id": tid}, "metadata": {"run_as": employee, "trigger": "cli"}}
     monitoring.tag(thread_id=tid, run_as=employee)
-    with tracing.trace(tid, entry="route_advice", run_as=employee, extra_tags=("graph:route_advice",)) as traced:
+    with locks.thread_lock(tid), tracing.trace(tid, entry="route_advice", run_as=employee,
+                                              extra_tags=("graph:route_advice",)) as traced:
+        if g.get_state(cfg).values:
+            raise RuntimeError("this route thread was started by another process; retry for a new thread")
         g.invoke({"request": req.model_dump(mode="json")}, cfg, context=ctx, durability="sync")
     return tid, g.get_state(cfg).values, traced
 
 
-def summary(st: dict) -> dict:
-    r = st.get("result") or {}
-    usage = st.get("llm_usage") or []
-    return {"status": r.get("status"), "recommendation": r.get("recommendation"), "headline": r.get("headline"),
-            "comparison": r.get("comparison"), "reasons": r.get("reasons"), "risks": r.get("risks"),
-            "assumptions": r.get("assumptions"), "problems": r.get("problems"),
-            "sources": [f"{s['evidence']}: {s['tool']} {s['status']} — {s.get('name')} ({s.get('filter')})"
-                        for s in r.get("sources") or []],
-            "model_calls": len(usage), "cached": sum(bool(c.get("cached")) for c in usage)}
+# shared with the API since FastAPI plan P6 (one copy of what a caller sees)
+summary = ra.result_summary
 
 
 def main() -> None:

@@ -6,7 +6,7 @@ normal (not elevated) PowerShell, after adding WATCH_RUN_AS=<an Operations manag
     powershell -NoProfile -ExecutionPolicy Bypass -File ops\scheduler\register_voyage_watch.ps1
     powershell -NoProfile -ExecutionPolicy Bypass -File ops\scheduler\register_voyage_watch.ps1 -Unregister
 
-The task "NileGate Voyage Watch" runs `Voyage_watch.py scheduled` every day at 10:30 and 22:30 local time (every
+The task "PortPilot Voyage Watch" runs `Voyage_watch.py scheduled` every day at 10:30 and 22:30 local time (every
 12 h: the Open-Meteo free quota, F12), only while the owner is logged on (no stored Windows password; Docker Desktop
 starts after logon — the firing waits up to 30 min for PostgreSQL and MongoDB), as soon as possible after a missed
 start, stopped after 1 h, never two at once. Each firing resumes a run stopped mid-way, else watches the next instant
@@ -15,12 +15,17 @@ console output is appended to reports\_log\voyage_watch_console.log; the record 
 reports\_log\voyage_watch.jsonl; the alerts are in reports\voyage_watch\ (read them with `Voyage_watch.py alerts`).
 A firing by hand:
 
-    Start-ScheduledTask -TaskName "NileGate Voyage Watch"
-    Get-ScheduledTaskInfo -TaskName "NileGate Voyage Watch"     (LastRunTime, LastTaskResult, NextRunTime)
+    Start-ScheduledTask -TaskName "PortPilot Voyage Watch"
+    Get-ScheduledTaskInfo -TaskName "PortPilot Voyage Watch"     (LastRunTime, LastTaskResult, NextRunTime)
 #>
 param([switch]$Unregister, [string[]]$At = @("10:30", "22:30"))
 $ErrorActionPreference = "Stop"
-$name = "NileGate Voyage Watch"
+$name = "PortPilot Voyage Watch"
+$legacyName = "NileGate Voyage Watch"
+$legacy = Get-ScheduledTask -TaskName $legacyName -ErrorAction SilentlyContinue
+if (-not $Unregister -and $legacy -and $legacy.State -ne 'Disabled') {
+    throw "Disable the legacy task '$legacyName' before registering '$name', to avoid duplicate firings."
+}
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 
 if ($Unregister) {

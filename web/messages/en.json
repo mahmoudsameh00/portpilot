@@ -1,0 +1,12 @@
+{
+  "receipt": {
+    "open": "See where {value} comes from",
+    "title": "Where this number comes from",
+    "field": "Field",
+    "source": "Source",
+    "filter": "Filter",
+    "evidence": "Evidence",
+    "trust_checked": "Bound by code to the evidence, then validated",
+    "trust_untrusted": "From an uploaded file or the web — not from the database"
+  }
+}

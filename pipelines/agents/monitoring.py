@@ -23,7 +23,7 @@ from contextlib import contextmanager
 from typing import Any, cast
 
 CRON_WEEKLY_PACK = "nilegate-weekly-pack"
-WEEKLY_PACK_MONITOR = {                        # the task "NileGate Weekly Finance Pack" (ADR-054)
+WEEKLY_PACK_MONITOR = {                        # the task "PortPilot Weekly Finance Pack" (ADR-054)
     "schedule": {"type": "crontab", "value": "30 10 * * 1"},
     "timezone": "Africa/Cairo",
     "checkin_margin": 720,                     # minutes: the task starts when the owner logs on after a missed start
@@ -44,7 +44,16 @@ def is_on() -> bool:
 def _release() -> str:
     from pipelines.lib.common import project_root
     with open(project_root() / "pyproject.toml", "rb") as f:
-        return f"nilegate-agents@{tomllib.load(f)['project']['version']}"
+        return f"portpilot-agents@{tomllib.load(f)['project']['version']}"
+
+
+def _environment() -> str:
+    """Sentry's environment when `SENTRY_ENVIRONMENT` is empty: the `PORTPILOT_ENV` name (ADR-071), `local` here."""
+    try:
+        from pipelines.lib import environment
+        return environment.name()
+    except RuntimeError:
+        return "local"
 
 
 def _scrub(obj):
@@ -82,7 +91,8 @@ def init(entry: str, launched_by: str = "cli", *, transport=None) -> bool:
         from sentry_sdk.integrations.logging import LoggingIntegration
         from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
         sentry_sdk.init(
-            dsn=dsn, environment=os.environ.get("SENTRY_ENVIRONMENT", "").strip() or "local", release=_release(),
+            dsn=dsn, environment=os.environ.get("SENTRY_ENVIRONMENT", "").strip() or _environment(),
+            release=_release(),
             auto_enabling_integrations=False, traces_sample_rate=None, send_default_pii=False,
             include_local_variables=True, enable_logs=True, shutdown_timeout=SHUTDOWN_TIMEOUT_S,
             event_scrubber=EventScrubber(denylist=[*DEFAULT_DENYLIST, *EXTRA_DENYLIST]),
@@ -110,13 +120,18 @@ def tag(**labels) -> None:
         log.warning("Sentry tag failed: %s", type(exc).__name__)
 
 
-def capture(exc: BaseException) -> None:
-    """An exception a CLI caught and turned into an exit code (the excepthook never sees it)."""
+def capture(exc: BaseException, **tags) -> None:
+    """An exception a CLI caught and turned into an exit code (the excepthook never sees it). `tags` go on a scope of
+    this event only: the API serves many requests at once, and `tag()` sets the process's scope (FastAPI plan P7)."""
     if not _on:
         return
     try:
         import sentry_sdk
-        sentry_sdk.capture_exception(exc)
+        with sentry_sdk.new_scope() as scope:
+            for k, v in tags.items():
+                if v is not None:
+                    scope.set_tag(k, str(v))
+            scope.capture_exception(exc)
     except Exception as err:  # noqa: BLE001
         log.warning("Sentry capture failed: %s", type(err).__name__)
 

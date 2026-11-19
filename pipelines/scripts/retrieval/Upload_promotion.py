@@ -1,12 +1,12 @@
 """Promotion of a manager's upload to the corpus (RAG plan Phase 8 §b; owner decisions D12, D14, Q3, Q5, Q8):
 request (in the conversation) → review (offline, by the owner) → approval → registration like the siblings.
 
-Plan:    docs/archive/2026-10-08_RAG_Embeddings_Qdrant_plan.md, Phase 8.
+Plan:    dev/history/archive/2026-10-08_RAG_Embeddings_Qdrant_plan.md, Phase 8.
 Run:     uv run python pipelines/scripts/retrieval/Upload_promotion.py --list
          uv run python pipelines/scripts/retrieval/Upload_promotion.py --review <request_id>
          uv run python pipelines/scripts/retrieval/Upload_promotion.py --approve <request_id> [--commit]
          uv run python pipelines/scripts/retrieval/Upload_promotion.py --reject <request_id> --reason "..."
-         uv run python pipelines/scripts/retrieval/Upload_promotion.py --selftest   (tools/run.py passes no arguments)
+         uv run python pipelines/scripts/retrieval/Upload_promotion.py --selftest   (dev/tools/run.py passes no arguments)
 Reads:   Data/incoming/promotion/<request_id>/ (the file + request.json written by `SessionStore.request_promotion`
          when a manager asked); PostgreSQL (the requester's CURRENT role and department, read-only user); the corpus
          chunks (near-duplicate check)
@@ -301,9 +301,9 @@ def reject(folder: Path, reason: str) -> dict:
 
 # ----------------------------------------------------------------------------------------------------- selftest ---
 def selftest() -> None:
-    """End to end on fixtures, without touching the corpus: requests in Notebooks/_scratch/, a throwaway Qdrant
+    """End to end on fixtures, without touching the corpus: requests in dev/_scratch/, a throwaway Qdrant
     collection (dropped at the end). Gemini: the 8 chunks of a PUBLIC synthetic document + 2 query vectors."""
-    root = ROOT / "Notebooks" / "_scratch" / "promotion_selftest"
+    root = ROOT / "dev" / "_scratch" / "promotion_selftest"
     root.mkdir(parents=True, exist_ok=True)
     fx = ROOT / "Data" / "processed" / "rag" / "eval" / "uploads" / "fixtures"
     R = users()

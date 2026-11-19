@@ -1,7 +1,7 @@
 # Architecture Decision Log
 
 Format: context, then the decision, then its consequences. Status is one of `Accepted`, `Superseded`, `Rejected` or `Deferred`.
-Never delete an entry; supersede it with a new one. Sources for older entries are in `docs/archive/`.
+Never delete an entry; supersede it with a new one. Sources for older entries are in `dev/history/archive/`.
 
 ---
 
@@ -27,7 +27,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   - `amount` = Σ rate × tons inside each band (full progressive amount)
   - `toll_rate_band_id` and `rate_sdr_per_ton` = the terminal band that contains the vessel's SCNT
   - Special Floating Units are always priced as Laden (the source has Laden rates only)
-- **Verified 2026-09-23:** all 1,000 invoices satisfy these rules exactly (`db/audit/2026-09-23_verify_report.txt`, §12).
+- **Verified 2026-09-23:** all 1,000 invoices satisfy these rules exactly (`dev/db_audit/postgres/2026-09-23_verify_report.txt`, §12).
 - **Deferred business rules** (retrieval-only, via ADR-005): Ballast Petroleum Product / Oil-Chemical tankers → ballast Crude Oil rates; OBO/combined carriers → highest applicable cargo rate; refusal of transit inspection → gross tonnage plus extra charges; actual condition at transit controls.
 
 ## ADR-005 — The Suez tariff PDF has two roles
@@ -79,6 +79,10 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 - `document_chunks` → **dropped** (replaced by the Qdrant payload and the parquet chunk files).
 - `reports` → **dropped** (no consumer; revisit if scheduled reports are built).
 - `ais_tracking`, `edi_messages` → **moved** to MongoDB (ADR-001).
+- **Note (2026-11-04) — `audit_log` built** with the API (migration 023, FastAPI plan P1 / P3–P6): `api.audit_log` = the
+  redesign above (`employee_id INTEGER`, `resource_type`, `resource_id`, `decision` allowed / denied, `trace_id`,
+  `TIMESTAMPTZ`) + `request_id`, `action`, `detail` (small structured facts, never a password, token, question or
+  answer); append-only for the API's login.
 
 ## ADR-015 — Database credentials come from `.env`
 - **Status:** Accepted (2026-09-23).
@@ -104,6 +108,13 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   - **Redis job queue** (or another queue) → API phase, when ingestion or analysis must run in the background instead of in notebooks.
   - **Star schema** → Power BI phase. Preferred shape: fact/dimension **views** on top of the existing normalized tables, not a rebuild.
   - **MinIO / object storage** → API / Docker Compose phase, if several services need shared access to raw files, users upload documents, or document versions must be kept. Until then `Data/raw/` is the raw-file store.
+- **Note (2026-11-04, FastAPI plan, owner A2): Redis and a job queue decided for the API phase — not now.** One API
+  process; the shared LLM counters and the locks live in PostgreSQL (`agent_state.llm_*`, advisory locks), the caches
+  in files under locks, graph runs in a bounded in-process executor. Measured (`Load_test.py`, `Api_check.py` Phase 5):
+  exact counters across 4–8 processes, 50 simultaneous questions → 24 accepted / 26 × 429 / 0 × 500, the event loop
+  ≤ 3 ms under load. Triggers to revisit: a second API process (uploads in Redis with a TTL, events over pub/sub),
+  runs that must survive an API restart (a Dramatiq / Celery worker), or PostgreSQL lock / counter latency above
+  20 ms p95. MinIO: no trigger met (uploads stay memory-only, ADR-043).
 - **Consequences:** No change to the current stack. When a trigger is reached, the choice becomes a new ADR (adopt or reject, with reasons).
 
 ## ADR-019 — Cross-document dedup: item-level matching and a canonical-source policy
@@ -164,13 +175,13 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 - **Status:** Accepted (2026-09-27). Owner decision 1 of the semi-structured plan; implemented and verified the same day.
 - **Context:** ADR-001 puts AIS / EDI in MongoDB. The project runs PostgreSQL as a local Docker container; Docker Compose is deferred (ADR-018). Credentials are in `.env` (ADR-015).
 - **Decision:** MongoDB 8.0 runs in its own container `ports-mongo`, image pinned to `mongo:8.0.32` (digest `sha256:4968f22d0c6c10ef29952f3e807f62872ba22b3312f25803564fbfc08255efc2`), named volume `ports-mongo-data`, port published as `127.0.0.1:27017` only. A root user for administration and an application user with `readWrite` on `ports_logistics` only (created in `admin`). Credentials are `MONGO_*` variables in `.env` (names in `.env.example`); they are passed to Docker by name (`-e NAME`) and to `mongosh` through `db/mongo/run.ps1`, never on a command line. Administration uses `mongosh` inside the container. The driver is `pymongo==4.18.2`. All times are UTC.
-- **Consequences:** Verified (`db/mongo/audit/`): the app user can create / write / drop collections in its database and is refused `collMod`, other databases, user listing and the full database list (6/6); an unauthenticated `listDatabases` is refused. Because the app user has no `collMod`, validators are always set when a collection is created. `docker inspect` still shows the root credentials of the container (local development only, same as `ports-postgres`). The MongoDB init variables are read only on the first start of an empty volume.
+- **Consequences:** Verified (`dev/db_audit/mongo/`): the app user can create / write / drop collections in its database and is refused `collMod`, other databases, user listing and the full database list (6/6); an unauthenticated `listDatabases` is refused. Because the app user has no `collMod`, validators are always set when a collection is created. `docker inspect` still shows the root credentials of the container (local development only, same as `ports-postgres`). The MongoDB init variables are read only on the first start of an empty volume.
 
 ## ADR-028 — Vessel identity stays in PostgreSQL; MMSI added there; real AIS vessels are reference data
 - **Status:** Accepted (2026-09-27). Owner decision 3; migrations 004–005 applied 2026-09-27.
 - **Context:** AIS identifies ships by MMSI; `vessels` had only `imo_number`. The AIS samples contain 10,000+ real ships that are not NileGate's.
 - **Decision:** `vessels.mmsi varchar(9)` UNIQUE with CHECK `^[2-7][0-9]{8}$` (004), filled deterministically (005): `MID(flag_country) || lpad(((vessel_id * 7919 + 42) % 1000000), 6, '0')` — 7919 is coprime with 10⁶, so the tail is unique per vessel; 42 is the seed offset. The MID comes from the ITU table (`db/reference/itu_mid_table.csv`, captured from https://www.itu.int/gladapp/Allocation/MIDs) through a reviewed mapping (`db/reference/flag_country_mid.csv`: 144 automatic, 15 name forms, Guam → 338 USA and Mayotte → 226 France as sovereign fallbacks). MongoDB documents reference `mmsi` / `imo`; PostgreSQL stays the system of record. Real AIS vessels are stored with `real_or_synthetic = real` and `vessel_id = null`, never linked.
-- **Consequences:** 500 unique MMSIs, 0 collisions with the 10,051 real MMSIs of the samples (checked before 005 and audited after every load, together with IMO and call signs). `vessels.csv` ends with the database-owned `mmsi` (`db/export_vessels_mirror.py`); `SyntheticGenerator.ipynb` declares it in `DB_OWNED_COLUMNS`. Our IMO and container numbers stay sequential (not checksummed, owner decision Q-A): check digits are enforced on real data only.
+- **Consequences:** 500 unique MMSIs, 0 collisions with the 10,051 real MMSIs of the samples (checked before 005 and audited after every load, together with IMO and call signs). `vessels.csv` ends with the database-owned `mmsi` (`dev/build/db/export_vessels_mirror.py`); `SyntheticGenerator.ipynb` declares it in `DB_OWNED_COLUMNS`. Our IMO and container numbers stay sequential (not checksummed, owner decision Q-A): check digits are enforced on real data only.
 
 ## ADR-029 — Semi-structured collections and how each is validated
 - **Status:** Accepted (2026-09-27). Owner decision 4, confirmed by the profile (plan §3.2a) and the feature probe.
@@ -215,11 +226,11 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 - **Consequences:** 29 rows, 2,163 chunks, 765 pages, 29 distinct fingerprints (`verify_readonly.sql` §16). The Qdrant payload will carry `document_id`; the retrieval filter stays per chunk (ADR-021).
 
 ## ADR-036 — Pipelines are scripts (percent format); notebooks archived
-- **Status:** Accepted (2026-10-01). Plan `docs/archive/2026-10-01_Scripts_and_ingestion_plan.md` (D1–D7). Supersedes the notebook parts of ADR-008 (one notebook per RAG source → one script per source) and the `notebook-dev-loop` skill.
+- **Status:** Accepted (2026-10-01). Plan `dev/history/archive/2026-10-01_Scripts_and_ingestion_plan.md` (D1–D7). Supersedes the notebook parts of ADR-008 (one notebook per RAG source → one script per source) and the `notebook-dev-loop` skill.
 - **Context:** The owner wants all work in scripts from now on. 15 notebooks (~23,900 code lines) hold every pipeline; their code had to keep the same flow and produce the same outputs.
-- **Decision:** Each notebook becomes `pipelines/scripts/<area>/<stem>.py` in percent format (`# %% cell N` = notebook cell N), generated by `tools/nb_to_script.py`, never retyped. Code cells are byte-identical except three listed changes: `from IPython.display import display` in the header; a bare last expression wrapped in `_display_result(...)` (Jupyter showed it unless None); an IPython `%pip` line commented. Markdown cells stay in place as comments. The closing Final Checkpoint narrative moves unchanged to `pipelines/checkpoints/<area>/<stem>.md` (D1: a scripts folder and a checkpoints folder inside `pipelines/`). `tools/nb_to_script.py check` proves the equality statically; `tools/run.py --compare` runs a script, compares its ✅ lines with the notebook's saved outputs and reports every changed artifact by SHA-256. Paths written into outputs (e.g. the AIS / EDI manifests' `generator`, migration 010's header) keep the notebook path so the outputs stay byte-identical. Notebooks move to `docs/archive/notebooks/` after the owner's local run (D2); refactoring a script is allowed afterwards, one script at a time, each re-verified with the same check (D3).
-- **Consequences:** `tools/run.py` replaces `tools/nb.py run`; skill `script-dev-loop` replaces `notebook-dev-loop`. `ExtractPortsConnection.py`: its INSERT into `port_connections` (cell 21) is disabled at the owner's request (kept as `#! ` comments, restorable by the converter), so the script is safe to re-run. A bare tuple `a, b` ending a cell is wrapped in `_display_tuple(...)` (shows the tuple, as Jupyter did). New pipelines (RAG retrieval, the PDF ingestion agent) are scripts.
-- **Amendment (2026-10-01, refactor D3):** two levels. **Level A** (functions + `main()`, assertions instead of exploration prints, by hand): ExtractPortsAttributes, ExtractPortsConnection (its INSERT became `insert_port_connections()`, run only with `--insert` and refused on a non-empty table), SyntheticGenerator (the random-draw order is kept; vessels.csv and containers.csv regenerated identical in the cloud session), Documents_registry (migration 010 re-rendered byte-identical from the mirror), EDI_generator. **Level B** (`tools/nb_to_script.py clean`, generated from the archived notebook): the 7 RAG chunking scripts, AIS_EDI_profiling, AIS_generator, MongoDB_loader keep their linear phase structure (the flow, with a reviewed validation after each phase) as `# %% <Phase title>` sections with the narrative as comments; Jupyter's implicit display of a last expression and `display()` become `print()`; `check` proves the AST equals the archived notebook's code under exactly those rules. Verification: `tools/run.py all --compare` on the owner's machine (same ✅ lines in order, new ones allowed for level A; `files changed: 0`).
+- **Decision:** Each notebook becomes `pipelines/scripts/<area>/<stem>.py` in percent format (`# %% cell N` = notebook cell N), generated by `dev/tools/nb_to_script.py`, never retyped. Code cells are byte-identical except three listed changes: `from IPython.display import display` in the header; a bare last expression wrapped in `_display_result(...)` (Jupyter showed it unless None); an IPython `%pip` line commented. Markdown cells stay in place as comments. The closing Final Checkpoint narrative moves unchanged to `dev/checkpoints/<area>/<stem>.md` (D1: a scripts folder and a checkpoints folder inside `pipelines/`). `dev/tools/nb_to_script.py check` proves the equality statically; `dev/tools/run.py --compare` runs a script, compares its ✅ lines with the notebook's saved outputs and reports every changed artifact by SHA-256. Paths written into outputs (e.g. the AIS / EDI manifests' `generator`, migration 010's header) keep the notebook path so the outputs stay byte-identical. Notebooks move to `dev/history/archive/notebooks/` after the owner's local run (D2); refactoring a script is allowed afterwards, one script at a time, each re-verified with the same check (D3).
+- **Consequences:** `dev/tools/run.py` replaces `dev/tools/nb.py run`; skill `script-dev-loop` replaces `notebook-dev-loop`. `ExtractPortsConnection.py`: its INSERT into `port_connections` (cell 21) is disabled at the owner's request (kept as `#! ` comments, restorable by the converter), so the script is safe to re-run. A bare tuple `a, b` ending a cell is wrapped in `_display_tuple(...)` (shows the tuple, as Jupyter did). New pipelines (RAG retrieval, the PDF ingestion agent) are scripts.
+- **Amendment (2026-10-01, refactor D3):** two levels. **Level A** (functions + `main()`, assertions instead of exploration prints, by hand): ExtractPortsAttributes, ExtractPortsConnection (its INSERT became `insert_port_connections()`, run only with `--insert` and refused on a non-empty table), SyntheticGenerator (the random-draw order is kept; vessels.csv and containers.csv regenerated identical in the cloud session), Documents_registry (migration 010 re-rendered byte-identical from the mirror), EDI_generator. **Level B** (`dev/tools/nb_to_script.py clean`, generated from the archived notebook): the 7 RAG chunking scripts, AIS_EDI_profiling, AIS_generator, MongoDB_loader keep their linear phase structure (the flow, with a reviewed validation after each phase) as `# %% <Phase title>` sections with the narrative as comments; Jupyter's implicit display of a last expression and `display()` become `print()`; `check` proves the AST equals the archived notebook's code under exactly those rules. Verification: `dev/tools/run.py all --compare` on the owner's machine (same ✅ lines in order, new ones allowed for level A; `files changed: 0`).
 
 ## ADR-037 — Embedding model: Gemini `gemini-embedding-2` (3,072 dimensions)
 - **Status:** Accepted (2026-10-05) for the model; **D5 decided 2026-10-08: the composed unit** (complete run,
@@ -253,7 +264,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
     reranker and Phase 6 context shaping, judged by the ADR-040 rule.
   - Voyage limits confirmed by its 429 text: 3 RPM / 10K TPM without a payment method.
 - **Amendment (2026-10-08, plan close, owner decision):** the bake-off vectors of every candidate (≈ 110 MB, the
-  plan had called them "scratch") live in `Data/embeddings/bakeoff/` (git-ignored), not in `Notebooks/_scratch/`:
+  plan had called them "scratch") live in `Data/embeddings/bakeoff/` (git-ignored), not in `dev/_scratch/`:
   `Embeddings.py` seeds from them, and `Retrieval.py`, `Lib_selftest.py` and `Search_index_benchmark.py` assert on them,
   so emptying `_scratch` would have made those scripts re-spend the free quota. Moved; the three scripts re-ran ✅ with
   `files changed: 0`.
@@ -275,7 +286,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 
 ## ADR-038 — Retrieval defaults: exact dense search + Jina reranker; no hybrid, no context shaping
 - **Status:** Accepted (2026-10-08). RAG plan Phase 7, decided by the ADR-040 rule (fixed before the run);
-  `pipelines/scripts/retrieval/Evaluation.py` → `Data/processed/rag/eval/results_2026-10-08.json`. Also records the
+  `dev/checks/retrieval/Evaluation.py` → `Data/processed/rag/eval/results_2026-10-08.json`. Also records the
   search-index and cache decisions taken with the owner the same day.
 - **Results** (64 golden queries through the real tool as the CEO; Gemini composed unit; balanced = mean of fact
   recall@10, nDCG@10, sufficiency@8, each EN / AR averaged):
@@ -328,7 +339,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   - `pipelines/lib/` (imported after putting the project root on `sys.path`): `common` (root, `.env`, redaction),
     `chunks` (the 16-column contract), `embeddings` (per-provider budgets, retries incl. Gemini's `retryDelay`, stop
     on a wait > 15 min, resumable cache keyed by id + text SHA-256), `qdrant_store` (collection spec, point identity,
-    version-safe upsert, verification). Verified by `pipelines/scripts/retrieval/Lib_selftest.py` (no API call; a
+    version-safe upsert, verification). Verified by `dev/checks/retrieval/Lib_selftest.py` (no API call; a
     throwaway Qdrant collection).
   - Point id = UUID5(`document_id` + "/" + `chunk_id`) in a project namespace: a reload overwrites (never
     duplicates); each version has its own points.
@@ -358,7 +369,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   Measured on the bake-off cache: q22 (three incidents) counted as found with two of them; only 13-15 % of the top-10
   chunks were labelled, so the rest could not be judged; near-duplicate restated recommendations took slots.
 - **Decision:**
-  - **Golden facts** (`pipelines/scripts/retrieval/Golden_facts.py` → `Data/processed/rag/eval/golden_facts.jsonl`,
+  - **Golden facts** (`dev/build/retrieval/Golden_facts.py` → `Data/processed/rag/eval/golden_facts.jsonl`,
     a separate file: the frozen golden set is untouched): 1-4 facts per English question (80), each a claim = groups
     of regex alternatives that must all match one chunk (a USCG fact is vessel AND claim, because every chunk of a
     report carries the vessel name). Validated: every fact stated by an expected chunk, the expected chunks together
@@ -397,7 +408,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
     title plus at most a label / number ("Table:", "17.") moves to `title`; a "<title>. " run-in heading is removed;
     anything else is content and stays (prose such as "Road infrastructure plays …" under the title "Road").
     Lossless (old text = new title + newline or ". " + new text, up to whitespace) and idempotent, both asserted.
-  - Applied in the **owning** chunking scripts as an appended last phase (`tools/nb_to_script.py` APPENDED, proven by
+  - Applied in the **owning** chunking scripts as an appended last phase (`dev/tools/nb_to_script.py` APPENDED, proven by
     `check`: notebook + patches + exactly this phase), after their own validations and coverage audits, which keep
     validating the chunking itself. Chunk boundaries, ids, order and the count (2,163) are unchanged: the frozen golden
     set, the golden facts and `documents.chunk_count` stay valid; no migration.
@@ -474,7 +485,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
     (ADR-018).
   - **Embedding (D16, ADR-037, Q1):** every session upload is embedded **locally with ONNX Runtime** — no upload text
     leaves the machine, no Gemini quota is spent, one vector space and one floor. Models are exported once by
-    `tools/export_onnx.py` (fp32 + weight-only int8 / int4, MatMulNBits; checked against PyTorch, min cosine fp32
+    `dev/tools/export_onnx.py` (fp32 + weight-only int8 / int4, MatMulNBits; checked against PyTorch, min cosine fp32
     1.0). Measured (32 chunks of 4 documents, 30 English + 30 Egyptian Arabic questions; rule: hit@3 >= 0.85 EN and
     >= 0.75 AR):
 
@@ -552,7 +563,7 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   (Was PROPOSED 2026-10-11; gemma's LITE finished after 15 runs: it ties the writer leaders but loses the tie-break
   on packs per day.)
 - **Context:** Agents plan D1 (free APIs only, main + fallback per role) and §7a; rules fixed before any call (owner,
-  2026-10-10). `pipelines/scripts/agents/LLM_bakeoff.py`, frozen tasks `Data/processed/agents/eval/bakeoff_tasks.json`
+  2026-10-10). `dev/build/agents/LLM_bakeoff.py`, frozen tasks `Data/processed/agents/eval/bakeoff_tasks.json`
   (sha256 `ed6723f5…`: T1 20 tool-calling questions, T2 10 weekly KPI tables, T3 10 invoice-exception tables, T4 the
   40 English golden questions with frozen top-8 passages; OpenRouter, `gemini-3.8-flash` and `gemma-4-31b-it` run
   the stratified LITE subset 8 / 4 / 4 / 8), results `llm_bakeoff_2026-10-12.json`. Deterministic scoring, no LLM
@@ -628,10 +639,35 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   serves alone**: when it is down the question fails and is asked again later, no bigger-context fallback is added
   (a bake-off for one was rejected). Smaller requests keep the Groq fallback. Measured in c1's two runs
   (`stage2_eval_2026-10-30_c1.json`): 0 fallbacks, the largest call 17,463 tokens.
+- **Note (2026-11-04, FastAPI plan P2) — the quota rules now hold across processes:** the daily count is reserved in
+  PostgreSQL before every attempt (`shared_quota.reserve_day`; `usage.json` its export) and the per-minute budget is a
+  shared sliding estimate (`SharedBudget`), so the API and the scheduled CLIs count together; the rules themselves
+  (limits, one retry, exhausted until the provider's day ends) are unchanged. The API also counts each Gemini query
+  embedding (`gemini/gemini-embedding-2`, no limit enforced). First real uses: the voyage watch's writer call of
+  2026-11-04 08:30Z and the API smoke the same day.
+- **Amendment 4 (2026-11-15, owner: Model flexibility plan, approved 2026-11-13 with M1–M7):** the model per role is
+  no longer code. `pipelines/agents/models.toml` (tracked) holds, per provider, the adapter (`gemini` | `groq` |
+  `openai_compatible` with any base URL | `langchain`), the key's `.env` name, the quota day and default limits; per
+  model, its limits (moved from the provider: rpm / tpm / rpd / scope), temperature (absent = not sent), timeout,
+  structured-output method and, for a paid model, a hand-entered price and `max_usd_per_day` (reached = stopped for
+  the day like a quota, the fallback answers; spend in `spend.json`, `cost_usd` per call); `[roles]` lists the main
+  and the fallbacks. `model_config.py` loads and validates it once; `roles.ROLES` / `llm.PROVIDERS` are built from
+  it. The models and pairs of this ADR and amendments 1–3 are **unchanged**. A 5xx now counts toward a cached
+  "repeated server failure" only if the model answered another request in the process within 30 min (M7: an outage
+  is not cached as failures). The share of calls a fallback answered is recorded (pack `run.json`, the API's pack
+  view and Reports, the evaluations). Evaluation scripts alone may read a candidate file (`EVAL_MODELS`, M4). A swap
+  follows `docs/model_swap.md` (`Model_probe.py` → fake-model checks → a small real run → ADR-052).
+  **Evidence:** `Models_config_check.py` 3 / 3 phases (48 cache keys byte-equal to the pre-file payload; adapters on a
+  stub server; outage / spend cap / fallback share); every fake-model check unchanged; `Model_probe.py` on the four
+  models, all lines pass (2026-11-15, ~28 calls); no-regression without a model call: cache-only replays of s9
+  (packs) and tl3qa (Q&A) — 0 fresh calls, primaries identical, ADR-052 "tie"; Stage 2 on tl3s2's caches — 0 fresh
+  calls in 300 requests, primaries identical to `stage2_eval_2026-11-14_tl3s2_rescored.json` (c1 stays the Stage 2
+  baseline). Results: `stage1_eval_2026-11-15_s9_rescored_mf.json`, `stage1_eval_2026-11-15_tl3qa_rescored_mf.json`,
+  `stage2_eval_2026-11-15_tl3s2.json`.
 
 ## ADR-046 — Synthetic finance data for the Weekly Finance Pack; `invoices.status` is a label
 - **Status:** Accepted (2026-10-13 rules approved, 2026-10-14 migration 012 applied and verified). Agents plan §4a
-  R1–R10 (D6, amended). `pipelines/scripts/synthetic/Finance_generator.py`, `db/migrations/012_finance_data.sql`.
+  R1–R10 (D6, amended). `dev/build/synthetic/Finance_generator.py`, `db/migrations/012_finance_data.sql`.
 - **Context:** the finance KPIs (AR aging, DSO, collections, customers, budget variance) need customers, terms,
   payments and a budget, which did not exist. The stored `invoices.status` turned out to be a random label (689 of
   1,000 not Paid, evenly over the four quarters): payments consistent with it would have shown DSO ≈ 250 days.
@@ -648,12 +684,12 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 - **Results:** top-10 customers 57.0 % of 2025 billing; DSO 55 days; 150 invoices (40.2 M SDR) open at 2025-12-31,
   6 unpaid at the horizon; paid on or before due 36 % (owner kept); budget 302.1 M vs actual 267.9 M (−11.3 %,
   explained by the laden assumption); label vs derived agree on 379 / 1,000. `verify_readonly.sql` §17 =
-  40 | 500 | 994 | 0 | 0 | 0 | 676 | 88 | 52, §14 / §15 clean (`db/audit/2026-10-14_after_012_report.txt`); a second
+  40 | 500 | 994 | 0 | 0 | 0 | 676 | 88 | 52, §14 / §15 clean (`dev/db_audit/postgres/2026-10-14_after_012_report.txt`); a second
   generator run with another hash seed changed 0 files.
 
 ## ADR-047 — Schema `finance`: plain star / KPI views, one definition per metric
 - **Status:** Accepted (2026-10-14). Agents plan Phase 2, owner decisions P2-1…P2-9; `db/migrations/013_finance_views.sql`,
-  `docs/finance_metrics.md`, `pipelines/scripts/finance/Finance_views_check.py`. Takes up ADR-018's star-schema
+  `docs/finance_metrics.md`, `dev/checks/finance/Finance_views_check.py`. Takes up ADR-018's star-schema
   trigger (Power BI phase) in its preferred shape.
 - **Context:** the Weekly Finance Pack needs the same numbers in Power BI (DirectQuery: complex DAX is limited) and in
   the agent tools (the Validator compares deck numbers exactly). Receivables "as of" a week must come from dates
@@ -678,6 +714,10 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 - **Amendment (2026-10-14, Phase 3, owner P3-4):** a 13th view `kpi_weekly_trend` (migration 014) gives each report
   week its 13 trend rows, so Power BI's single week slicer drives the trend chart with no DAX (rejected: a
   disconnected slicer table with DAX measures; a 52-week chart that ignores the slicer).
+- **Note (2026-11-16, web dashboards plan Phase 5):** the one-definition rule held across three readers on week 17:
+  Power BI's measures (DAX through Power BI Desktop's TMDL editing), the views read directly and the API's `finance_kpi`
+  rows agree on 249 values with 0 differences, and the web's tiles show those values only rounded
+  (`web/tests/stack/parity.stack.spec.ts`). W16 was matched the same way by the frontend plan (D-FE-7).
 
 ## ADR-048 — Power BI semantic model and report: DirectQuery, thin DAX, one week slicer
 - **Status:** Accepted (2026-10-15). Agents plan Phase 3, owner decisions P3-1…P3-14; `powerbi/NileGate_Finance.pbip`
@@ -687,8 +727,8 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   numbers exactly), with no paid Power BI Service account, no gateway and no copy of the data; the model must be
   reviewable in git.
 - **Decision:** (1) **Power BI Desktop + PBIP** (TMDL / PBIR in `powerbi/`; `.pbi/localSettings.json`, `cache.abf`
-  and `*.pbix` git-ignored); the model is edited through the official **Power BI Modeling MCP**
-  (`@microsoft/powerbi-modeling-mcp@1.0.0`, pinned in `.mcp.json`), report pages in Desktop. (2) **DirectQuery** on
+  and `*.pbix` git-ignored); the model is edited through Power BI Desktop's **TMDL** model files
+ , report pages in Desktop. (2) **DirectQuery** on
   the 12 `finance` views used (all but `dim_date`) through the login `ports_bi` (member of `finance_bi` only,
   `default_transaction_read_only`, password in `.env`). (3) **One week dimension** `Week` (`dim_week`) filters every
   table: 18 many-to-one, single-direction relationships named `<from> -> <to>`; **Assume referential integrity off**
@@ -702,11 +742,11 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   Exceptions = placeholder until the Auditor tool, P3-11) with one **single-select week slicer synced on all pages**
   (filter "is not (Blank)"); money `#,0.00` (the new Card visual abbreviates itself); where a visual sum of rounded
   SQL values would differ from the SQL KPI (customer shares), the visual shows the KPI and hides the total.
-  (7) Visuals are built on screen with the owner (computer use, explained per visual), not generated.
+  (7) Visuals are built on screen with the owner (explained per visual), not generated.
 - **Consequences:** every number of pages 1–4 equals `finance.kpi_weekly` read straight from PostgreSQL for weeks
   5 / 23 / 49 (and the revenue / AR / customer breakdowns each sum to the week's KPI); the dashboard is current when
   opened (no refresh) but **needs the database running** (an error otherwise — the containers restart with Docker,
-  P3-12); MCP edits reach disk only after Desktop's Save (clear the "refresh manually" banner first). Upgrade path
+  P3-12); model edits reach disk only after Desktop's Save (clear the "refresh manually" banner first). Upgrade path
   (D5): a work / school account → Power BI Service as an adapter; Import mode stays a fallback. Rejected: DAX KPI
   logic (would fork the definitions); a disconnected slicer table; a `.pbix` in git.
 - **Amendment 1 (2026-11-02, weekly-pack plan Phase F, owner: "نعملها النهارده"):** the migration 021 columns join the
@@ -719,12 +759,41 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   13w %" card next to the week's (W23: +45.6 % week vs −5.2 % period); Receivables — one card row (DSO best, DSO late
   days, overdue new, overdue paid, due collected %); Customers — the top-10 table gains Watchlist, AR / billed 13w and
   On-time 13w (the pack's slide 7 columns).
+- **Amendment 2 (2026-11-06, approver-additions plan Phase G, owner C3 — "a view that adapts when asked", free):**
+  (1) **Field parameters** `Trend Series` (Billed / Budget / Collected / Receivables / Overdue — the new `Trend
+  Overdue SDR` measure) and `Category Measure` (Billed / Budget / Billed − budget / Billed vs budget % / Change on last
+  week — new measures `Category Variance %`, `Category WoW Change SDR`): two small calculated tables in the
+  DirectQuery model (the spike of G1 passed: Desktop 2.158 accepted them; the KPI values stay DirectQuery). (2) **A
+  compare week:** table `Compare Week` (a second DirectQuery table on `finance.dim_week`, **no relationship**) and a
+  **fourth DAX pattern** — `IF(HASONEVALUE('Compare Week'[report_week]), CALCULATE([m], REMOVEFILTERS(Week),
+  TREATAS(VALUES('Compare Week'[report_week]), Week[report_week])))` for Billed SDR, Category Billed / Variance SDR /
+  Variance % and AR by Bucket SDR: the page's week swapped for the picked one, the value still the view's (no KPI
+  logic in DAX). This narrows the original "rejected: a disconnected slicer table" — rejected as the week filter;
+  accepted as the second week of a comparison, used only through these measures. (3) Checked against SQL: the 13
+  categories of weeks 23 and 22 (billed, variance %, WoW change) and the trend's overdue on weeks 5 / 23 / 49 (31
+  points) and week 22's aging buckets through the compare table — all equal. (4) Display folder "7 Smart view".
+  (5) **The page (built with the owner on screen, 2026-11-06):** a 7th page **Smart View** — the owner chose a new
+  page so the six reviewed pages stay as they are. Three panels in one place: *This week* (a measure by vessel
+  category), *13 weeks* (up to three series), *Compare* (billed by category and receivables by age, selected vs
+  compare week); bookmarks "This week" / "13 weeks" / "Compare" switch them and are **display only** (Data off), so
+  the reader's week and choices survive a switch; a bookmark navigator holds the buttons. Values = SQL on W23 / W22.
+  How it was built (a note for the next page): the slicers and charts as PBIR `visual.json` modelled on the existing
+  pages (Desktop closed, then reopened), the field parameters and bookmarks on screen.
+- **Amendment 3 (2026-11-07, approver-request plan R1, owner "الويب + Power BI"):** a page **Approved Pack** (8th) shows
+  what the Finance manager approved: tables `Approved Summary` / `Approved Trend` / `Approved Variance` (DirectQuery
+  on migration 024's `finance.pack_approved_summary` / `pack_trend_long` / `pack_variance_long`, each `-> Week`) and
+  two SUM measures. The charts are plain (no field parameter, no DAX switch): they follow the manager's choice because
+  the views return only the approved series / window / rows — the existing finance rows reshaped and filtered
+  (ADR-047). Checked on W14: = SQL = `GET /finance/pack` = the deck. Built as files with Desktop closed, saved on
+  screen. Note (D-AR-7): Desktop 2.158 saves bookmarks with `options.preserveNewVisualVisibility`, which the published
+  bookmark schema 2.1.0 does not allow, and then refuses to open them — the line is removed from the three Smart View
+  bookmarks (Continue also opens the report).
 
 ## ADR-049 — Stage 1 agent tools: one contract, the user and the dataset from the run context, SQL audit views
 - **Status:** Accepted (2026-10-18, owner decisions P4-1…P4-8, Agents plan §5a); migration 015 applied by the owner
-  (2026-10-19; `verify_readonly.sql` §19 as expected, `db/audit/2026-10-19_after_015_report.txt`), `Tools_check.py`
+  (2026-10-19; `verify_readonly.sql` §19 as expected, `dev/db_audit/postgres/2026-10-19_after_015_report.txt`), `Tools_check.py`
   8 / 8 ✅. `pipelines/agents/tools/`, `pipelines/agents/skill_loader.py`, `pipelines/agents/skills/`,
-  `db/migrations/015_invoice_audit_views.sql`, `pipelines/scripts/agents/Tools_check.py`.
+  `db/migrations/015_invoice_audit_views.sql`, `dev/checks/agents/Tools_check.py`.
 - **Context:** the Weekly Finance Pack's agents need governed tools whose numbers equal the dashboard (ADR-047 /
   048), that free models (small token budgets, varying JSON-schema support) can call reliably, and that cannot leak
   data or be talked into acting as another user.
@@ -814,12 +883,61 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
 - **Amendment 1 (2026-10-30, Stage 1 candidate c4):** a draft that fails its two rewrites no longer stops the pack:
   the code node `fallback` replaces its failing texts and the draft is validated again (ADR-051 amendment 3); the
   run stops `validation_failed` only on V8 or when the fallback fails too.
+- **Amendment 2 (2026-11-06, approver-additions plan, owner C1 / D1–D3):** the approval's decisions are `approve` /
+  `edit` (text edits, the approver's own bullets, chart variants — ADR-051 amendment 5, ADR-066) / **`revise`** /
+  `reject`, one kind per decision (D1). A **revise** changes the analysis: structured edits of the Insight notes (a
+  summary point or a driver's explanation reworded — the five points and code's three drivers keep their count;
+  context and caveats replaced, removed or added) and / or a **steer** — a sentence to the Insight agent, which looks
+  again with its tools (its own ≤ 4 rounds, counted from the request) and returns new notes the edits are applied
+  to; then the Writer drafts the deck again (D2: nothing of the earlier draft is carried — the approval log keeps
+  every change). Checked in code **before any model call**: every number of a note bound to its cited field (V1 / V2 /
+  V6 / V7, the human-edit path), the claim words (V9), no NileGate figure in external context, the text screened for
+  injection shapes (`tools/trust.py`, LLM01), at most **2 revises per pack** (D3: the shared free quota). The tools
+  still run as the run's identity (P5-5), never the approver's. **A revise never loses a waiting pack:** when the
+  re-draft cannot be shown (a twice-invalid model reply, the Validator + fallback failing), the code node
+  `revise_failed` restores the pack as it was and logs why (the validator redraws its preview, no model call). The
+  Insight / Writer prompts are unchanged when the approver changes nothing (the note travels in the existing
+  `[insight notes]` block and one optional message), so ADR-052 is not triggered; `Weekly_pack_check.py` Phase 9.
+- **Amendment 3 (2026-11-07, approver-request plan, ADR-067):** the approval also takes the manager's request in words
+  (`POST /packs/{thread}/request` → a proposal, `…/request/confirm` → the same decisions as `POST /decision`, a
+  revise first). On approve the publisher also writes `run.json` `summary` (slide 2 as the deck says it) + `approved`,
+  and — only for the live dataset published to the real `reports/` — the rows of migration 024
+  (`agent_state.pack_approved*`, login ports_agent) after the files; a failed write is a WARNING, never a lost deck.
+- **Amendment 4 (2026-11-09, external-context plan, `dev/history/archive/2026-11-09_Pack_external_context_plan.md`; owner
+  E1–E5, ec2 kept):** the week's external context is **fetched by code**, not left to the Insight model's choice. A
+  deterministic node `external_context` (`audit → external_context → insight_llm`) calls, as the run's user,
+  `suez_transits` (the week and the 4 weeks before) and `web_search` (a fixed query, the week's dates, 3 results),
+  and keeps every outcome as returned (`ok` / `no_data` / `context_unavailable` + reason). A tool exception becomes
+  `context_unavailable`, so the pack never stops for context. It runs once per pack (a revise does not fetch again;
+  the settled-window cache means one Tavily credit per week). The digest carries `context.suez`, with code's week
+  summary `transit_week` (D-EC-4), and `context.news` (labelled web_content, screened as before). The Insight keeps
+  its tools for drill-downs (E2). `run.json` records `external_context` (status + note per id). Fake models get
+  `no_context` (no network, D-EC-1). Acceptance (ADR-052, golden weeks × 2, packs scope): every gate held in both
+  runs; narrative recall 0.948 vs c5b's 0.931.
+- **Amendment 5 (2026-11-16, `dev/history/archive/2026-11-16_Targeted_revise_plan.md`, owner T1 / T2) — supersedes amendment 2's D2 ("the
+  Writer drafts the deck again, nothing of the earlier draft is carried"):** a revise re-drafts **only the related
+  slides**. Code picks them (`weekly_pack.revise_slides`): slide 2 always (the summary follows every change); the
+  changed note's own slide (a driver → 4, a context item → 9); and every slide whose current Writer texts (a bullet's
+  `evidence_ids`, a slot in a bullet or a title) cite an evidence id the changed notes cite or a steer's new
+  `insight.*` results (owner T1: "every slide that cites the same evidence"; caveats carry no ids → slide 2). The
+  Writer answers one `SlidesDraft` (titles + bullets of those slides; the prompt = the Writer prompt + a
+  `[redraft slides]` block with the slides that stay); code merges it (`merge_redraft`). Every other slide keeps its
+  texts **with the approver's earlier edits** (marked `edited`, never normalized or dropped by code), every addition
+  stays (also on a re-drafted slide, re-validated) and the chart variants stay — the revise's own chart choices
+  overlay them (owner T2). The Validator still checks the whole deck; a patch rewrite as before; a wrong shape in a
+  revise round re-drafts the same slides again (never the whole deck); the fallback and `revise_failed` unchanged.
+  State / API: `redrafted_slides` (the payload, `GET /packs/{thread}`, `Weekly_pack.py show`); `redrafted` kept.
+  The web marks the re-drafted slides in the filmstrip and on the slide; the page banner is gone. The first draft's
+  prompt and schema are unchanged. `Weekly_pack_check.py` Phase 10b, Phase 9 updated; `Api_check` /
+  `Approver_request_check` fakes answer `SlidesDraft`. The revise path is not in the golden-week evaluation (ADR-052:
+  proven by the fake-model phases). Not changed: the request interpreter's prompt (ADR-067) still says "the deck was
+  drafted again" (changing it would move its measured cache keys).
 
 ## ADR-051 — The weekly deck: number slots, code-drawn template, a Validator that binds every number to its field
 - **Status:** Accepted (2026-10-19, owner decisions P6-1…P6-8, Agents plan §5c; S6 decisions the same day).
   `pipelines/agents/deck/` (`slots.py`, `validator.py`, `style.py`, `render.py`, `readback.py`, `sample.py`),
   `pipelines/agents/graphs/` (`weekly_pack.py`, `models.py`: `DeckPatch`), the skills `deck-style-guide` and
-  `number-validation` (rewritten, owner-reviewed), `pipelines/scripts/agents/Deck_check.py` (4 / 4 ✅),
+  `number-validation` (rewritten, owner-reviewed), `dev/checks/agents/Deck_check.py` (4 / 4 ✅),
   `Weekly_pack_check.py` (7 / 7 ✅).
 - **Context:** Phase 5's real Writer failed on signs dropped next to direction words and on fields cited from the
   wrong dataset, and its Validator accepted a number equal to **any** numeric field of the cited evidence (a
@@ -908,6 +1026,153 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   week's finding must carry its week or a year-to-date word; (8) no unit written again after a slot. `Deck_check.py`
   Phase 5: 14 classes, 28 planted over-claims of W11 / W12, all caught by V9 alone; the 52 clean decks pass. The skills
   `deck-style-guide` / `weekly-variance-analysis` rewritten (owner review pending).
+- **Amendment 5 (2026-11-06, approver-additions plan, owner B1–B3 / C2):** (1) **The approver's own bullets:** an
+  `edit` may add up to 2 bullets per free-text slide (comments 3–8, context 9; never 1, 2 or 10), ≤ 300 characters,
+  placed by code after the slide's last bullet with `origin: "approver"` (a key outside the Writer's schema, so its
+  prompt is unchanged), citing the slide's answered evidence; their numbers are literals bound by the human-edit path
+  (V2), their words meet V9; V4 counts the Writer's and the approver's bullets apart. An addition is accepted only
+  while its slide has room by the renderer's own estimate (`render.comment_overflow`, D-B1: three long comments leave
+  none on slides 3–7, nor warm-up slide 7); drawn navy italic as `txt:approver:<i>` with the mark "Approver's
+  addition:", read back by V8; logged as `added`. The comment stays in the log, never in the deck (B1). (2) **Chart
+  variants (ADR-066):** the state keeps the approver's variants (non-default only); the renderer draws them with a
+  small caption naming the variant (the default deck is unchanged: its spec equals no choice on 52 weeks), one fixed
+  colour per measure (budget the dashed grey reference); `run.json` keeps them. (3) **V8 re-derives the variant
+  charts** apart from the renderer (`readback.chart_field_problems`, D-A2): V8 compared the file with the renderer's
+  own spec, so a variant drawing the wrong field would have matched itself; now each series name maps back to its
+  catalogue field, each category to its row, and the window and the row choice are recomputed from the evidence.
+  `Deck_check.py` Phases 7–8: additions on weeks 5 / 10 / 23 / 49 pass V1–V9 + V8, 16 / 16 planted faults caught;
+  132 chart variants read back with 0 problems, 20 / 20 planted chart faults caught.
+- **Amendment 6 (2026-11-07, approver-request plan):** the approver's changes may now arrive as one request in words,
+  read by ADR-067's interpreter into the existing kinds (B1–B3, C1–C2 unchanged); the Validator still binds every
+  number of an edit, an addition or a note, so the interpreter can propose a text but never a number the deck keeps.
+- **Amendment 7 (2026-11-09, external-context plan, with ADR-050 amendment 4):**
+  - (1) `SLIDE_EVIDENCE[9]` = `context.*` + `insight.*`; slide 2 also accepts `context.*`. A `context.*` id on any
+    other slide is refused.
+  - (2) Number slots accept `context.` ids (`slots.SLOT_RE`, the patch's id scan), so a Writer can bind a transit
+    figure instead of typing it (D-EC-4: ec1 typed "28 to 45" and V2 refused it).
+  - (3) **D-EC-5:** an evidence id with a trailing row (`kpi.category[LNG Carriers]`, the head of a row slot copied
+    into `evidence_ids`) is normalised to its result id (`models.norm_ids`) before the check. Any other malformed id
+    is still refused. The scheduled W16 pack had failed twice on it (`output_invalid`, the same cached reply).
+    Strictly widening: an input that passed before passes unchanged, so ADR-052 is not triggered. `Deck_check.py`
+    8 / 8 and `External_context_check.py` pass.
+  - (4) **D-EC-6:** the code draft (`deck/sample.py`, which the c4 fallback takes replacement texts from) no longer
+    writes "External context unavailable" on slide 9 when `context.suez` is ok. It states the week from code's
+    summary: the mean and the four weeks before as result slots, and the quietest / busiest day from their own rows
+    (`{context.suez[<date>]:n_total}`, as V7 requires). On W16's real evidence the whole code draft passes the
+    Validator. W16's first deck had both the real context and the "unavailable" line, because the Writer's transit
+    line failed and the fallback put the old line in its place. The planted-fault checks are unchanged, since their
+    evidence has no `context.suez`.
+- **Amendment 8 (2026-11-09, traffic-billing link plan Phases 4–5, `docs/plans/Traffic_billing_link_plan.md`; owner
+  L4, D-TL-7, the skill lines approved 2026-11-09):**
+  - (1) **`context.link`** (M17, `finance.kpi_traffic_link` / its test twin through `finance_kpi`'s new dataset
+    `traffic_link`) enters the evidence in the kpi node. It is NileGate data: V5 keeps it off slide 9's Writer
+    lines, and slide 2 may cite it.
+  - (2) **Slide 9's code-drawn link line** (`render.link_line`): a fixed label, r lag 0 / lag 1 / threshold as bound
+    values, and a fixed verdict ("Moves with traffic (not a cause)" / "No measurable link"; before week 13 a fixed
+    "too few weeks" sentence). V8 reads it back like any other element.
+  - (3) **V10** (`validator.link_problems`, on every slide and on the approver's notes) extends V9 rule 1. A sentence
+    that names NileGate billing (billing, revenue, invoices, …) together with Suez traffic or the news is refused
+    when it uses a cause word (because of, due to, driven by, reflects, explains, …). A "moves with" word (moved
+    with, tracked, in line with, correlated, …) is accepted only when the text cites `context.link` and its `link`
+    is `link`. News lines (no billing word) and figures side by side (no relation word) are not claims.
+    `Traffic_link_check` Phase 5: 8 / 8 planted sentences refused, 4 / 4 clean ones pass. On the 101 published texts
+    of W13–W15, V10 refuses none. `Deck_check`: V10 also refuses V9's two "external cause" classes.
+  - (4) `run.json` keeps `external_context` for the external sources and records M17 as `traffic_link`.
+
+- **Amendment 9 (2026-11-11, approved stabilization R5/R6):** V10 delegates to the shared
+  `pipelines/agents/traffic_claims.py` policy. Finance Q&A, supervisor Q&A, analysis edits and generated Insight
+  notes use that policy too. A claim needs cited successful `finance_kpi` evidence from a `kpi_traffic_link` view,
+  not a fixed evidence ID. Positive / negative / insufficient statements must match `link` / `no_link` / null.
+  M17 covers invoice counts versus transits, never monetary or news effects and never causation. Arabic
+  normalization, scoped negation, short referents and fixed EN/AR wording address the review's reproductions.
+  Ambiguous joint claims are refused. Invalid generated notes stop before the Writer; a failed revise restores
+  the prior reviewable pack. The new 66-case pinned regression suite passes on every surface; SQL and original
+  golden sets are unchanged. Real-model false refusals/paraphrases remain part of traffic acceptance.
+
+- **Amendment 10 (2026-11-11, approved stabilization R9):** Complete immutable pack versions live under
+  `reports/2025-W<week>/_publications/<id>/`; atomic `publication.json` selects the current version and records
+  hashes plus `db_sync` state. Files are staged, flushed and verified before selection. The existing approved-row
+  transaction runs after selection; an error preserves the deck and a durable pending-sync record. A per-week
+  file lock serializes publication/reconciliation on the shared local filesystem. `Weekly_pack.py reconcile`
+  allows a Finance manager/CEO to retry the selected saved approved payload without a model call or new approval;
+  repeat writes are idempotent. The API/web expose pending/unknown/superseded states. Legacy files remain readable
+  but are not silently migrated or declared synchronized. No new schema, queue or database ownership is added.
+  Five offline recovery phases and desktop/mobile notices verified; live DB/Power BI acceptance remains open.
+
+- **Amendment 11 (2026-11-14, traffic-billing link plan Phase 6, `dev/history/archive/2026-11-14_Traffic_billing_link_plan.md`;
+  owner D-TL-11 "fix the check in code", D-TL-12 "widen the scorer rules") — supersedes amendment 9's "invalid
+  generated notes stop before the Writer":**
+  - (1) **A refused traffic sentence in the Insight notes is repaired, not fatal.** The first real-model run of the
+    amendment-9 guard (`tl1`, 2026-11-12) stopped 7 of 11 golden packs at `insight_notes V10`, almost all on *true
+    denials* ("no statistical link", "is not claimed to move with", "not measurable yet"). `traffic_claims.classify`
+    now reads those denial and "too few weeks" forms (a fixed list of qualifiers), a threshold week is not the
+    claim's week, and in a "…, but …" sentence only the clause that states a relation carries both domains.
+    Caveats (plain strings without evidence ids) are judged against the run's own M17 results, found by provenance.
+    `repair_notes` replaces a still-refused sentence with the **fixed M17 wording of the run's own verdict** (code,
+    no model call, the M17 evidence id added) and records one line per repair in `normalized` (`run.json`). With no
+    single measured verdict in the run nothing is repaired and the run stops `output_invalid` as before. The deck
+    Validator's V10 and both Q&A checks are unchanged and stay the final gate.
+  - (2) Proof without a model: `Traffic_claims_check.py` 5 phases — the 66 pinned adversarial cases unchanged plus
+    `fixtures/traffic_claims_real.json` (53 sentences the real models wrote, labelled by hand, SHA-256 pinned);
+    a replay of the 37 cached real note sets: 34 pass as written, 3 repaired, 0 stop (before: 7 of 11 stopped).
+    On the real models: `tl2`, 22 / 22 packs published, no pack lost to V10, no unsafe traffic sentence published.
+  - (3) **Two scorer rules widened** (`Stage1_eval.py`, D-TL-12; both scored sentences were true by hand, the
+    family of D-C4-1): `claims` reads a direction word only inside the slot's own clause (the 40 characters before
+    a slot are cut at `,` `;` or a contrast word); `false_alarms` reads "a duplicate / copy of INV-X" as naming X
+    the original, only when X is the original of one of the week's flagged invoices. Each has a planted case that
+    must still count as wrong. **`EVAL_REPLAY=1`** scores a finished run again from its caches (a request in no
+    cache stops the replay; results go to `…_rescored.json`, the run's own file is never overwritten).
+  - (4) **Limit, stated:** the notes guard is a bounded pattern policy; a new paraphrase can be refused again, at
+    the cost of one sentence replaced by fixed wording. **Observed on the live pack W16:5 (not changed):** the
+    notes hand the Writer the "no measurable link" sentence, the Writer repeats it as a slide-9 bullet citing
+    `context.link`, and V5 (amendment 8 (1)) refuses it in every round — the verdict still reaches slide 9 through
+    the code-drawn line and the title, but the refused bullet costs rewrites. A brief / skill question for a later
+    plan. Rejected: reverting the notes-stage check (the Writer would again receive unsafe notes), an LLM judge.
+
+- **Amendment 12 (2026-11-14, `dev/history/archive/2026-11-14_Slide9_link_bullet_plan.md`; owner L1 "code drop only"):
+  a slide-9 Writer bullet built on `context.link` is dropped by code before the Validator.** The slide → evidence
+  table the Writer brief prints says slide 9 may cite `context.*`, so `context.link` looks allowed there; V5's
+  second check refuses it (PortPilot data on the context slide, amendment 8 (1)). The table cannot simply drop
+  `context.link`: the slide-9 title may name the verdict and V10 needs that citation. `weekly_pack.
+  drop_context_link_bullets` (end of `normalize_draft`) removes such a Writer bullet when another slide-9 Writer
+  line remains, one `normalized` line each; as the slide's only line it is kept and V5 decides (V4 needs one
+  context line). No prompt, V5, V10 or `traffic_claims.py` change. Measured: the Writer wrote the bullet in 20 of
+  23 `tl2` drafts and 23 of 27 `s9` drafts; patch fixes about it 11 of 340 (`tl2`) → 0 of 299 (`s9`). The rewrite
+  count is unchanged (two per pack: the patches' other problems); the case it removes is W16:5's, where the bullet
+  was one of the last four problems and a rewrite invented a field. `Weekly_pack_check` Phase 3 `link_bullet`.
+- **Amendment 13 (2026-11-16, the live W17 draft `weekly_pack:live:2025-W17:1`, owner: "fix it so the model does not
+  make it again"): three V9 claim rules, code only.** The draft passed V1–V10 with three wrong sentences: slide 4's
+  title "Billed revenue exceeded budget …" with the week −12.49 % and the period −6.85 % (rule 2b's direction words
+  had no budget comparatives), slide 6's title "declined by down 8.5 %" (a direction word before a `|dir` slot that
+  writes it), slide 3 "Collected 5.57 M SDR …, exceeding the weekly due amount of 5.00 M SDR" (every payment against
+  what fell due). (2b) a title's budget words — exceed / beat / ahead / outperform, miss / short / behind /
+  underperform — count as its direction when the clause names the budget; (9) a direction word (+ "by") right before
+  a `|dir` slot is refused; (10) a sentence binding `collected_sdr` and `due_week_sdr` with a comparative is refused
+  (compare `due_week_collected_sdr` with `due_week_sdr`). No prompt, model or slot change (no cache key moves); the
+  Writer sees the refusal through the existing rewrite / fallback loop. Evidence: the W17 draft re-validated → exactly
+  these 3 V9 problems, nothing else; `Deck_check` 8 / 8 (Phase 2: the 52 clean weeks still pass; Phase 5: + 3 planted
+  classes from W17 → 17 classes, 34 planted, all caught by V9 alone); `Weekly_pack_check` 9 / 10 (Phase 5 = real
+  models, skipped as always); lint ratchet 0 / 0. ADR-052: a Validator change can move the evaluation (more refusals
+  → more rewrites) — the real Stage 1 run (× 2 vs ec2) is the owner's call on quota, not run yet.
+
+- **Amendment 14 (2026-11-16, `dev/history/archive/2026-11-16_Targeted_revise_plan.md`, owner T3 "code only"): rare fallbacks, and what
+  code wrote shown on the text itself.** Measured first (a scratch replay of the `s9` caches, 0 requests, and the live
+  threads W16:5 / W17:1): **every pack reached the fallback** (22 / 22 in `s9`); of the 57 problems left after the two
+  rewrites in 16 replayed packs, 25 were V9 rule 5 (a comment repeating the slide's tiles; 13 / 16 packs, 11 on slide
+  8) and 8 + 3 one V7 false alarm (a result total read as the row of a date / invoice named in a **later clause**:
+  "averaged {week_mean_transits} daily calls, dipping to {…} on 2025-04-26"). (1) **B1:** a Writer comment on slides
+  3–8 that rule 5 refuses is dropped by code before the Validator (`drop_tile_comments`, the amendment 12 pattern; the
+  same test, `validator.repeats_tiles`); V4 allows 0–3 comments; the approver's texts are never dropped. (2) **B2:**
+  `_named_rows` puts a **result total** on a row only when the row is named right after it, in its own clause or
+  before it (row slots unchanged). (3) **B4, inline marks:** the fallback marks every text it writes `origin: "code"`
+  (a bullet, a slide title) and keeps each Writer text code took out in the draft's `removed` (`{slide, text, by:
+  code | fallback, why}`), filled by `render_draft`; the web shows a "Written by code" tag on the text and "Code
+  removed N texts from this slide" (with the texts and why) on its slide — the page banner is gone. `degraded` stays
+  for `run.json`, the dashboard row and the evaluation. The fallback itself and `MAX_REWRITES = 2` are unchanged; no
+  prompt, model or skill change (the V4 full rewrite's `[previous draft]` leaves `removed` out). Proof: `Deck_check`
+  9 / 9 (Phase 9: the W17 sentence passes; a total named right after, before or in its clause with a date, and a row
+  slot, still refused; the 52 clean decks and every planted class unchanged); `Weekly_pack_check` Phase 10a.
+  ADR-052: see its ninth use.
 
 ## ADR-052 — Acceptance rule for a change to the agents (prompt, model, skill)
 - **Status:** Accepted (2026-10-19, owner: §8a G6 "margin 0.03 + two runs", Agents plan §5d). Written in Phase 7
@@ -993,6 +1258,41 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   non-finance item (o16_ar → 0.0; without it the gap is 0.02); the 15 items that read `finance_kpi` had every finance
   number right. The owner closed without a re-run; the baselines stay (Stage 2 c1, Q&A dp127b); the partial file is
   `stage2_eval_2026-11-03_c5_partial.json`. The rule is not changed.
+- **Seventh use (2026-11-12 → 14, traffic-billing link plan Phase 6, D-TL-10 … D-TL-15) — three scopes on the tree
+  that added `context.link`, V10, the shared claim guard and the PortPilot rename.**
+  - **Packs, `tl2` vs ec2** (`stage1_eval_2026-11-13_tl2.json`, golden weeks × 2): scored "reject" on two gates from
+    one sentence each, both true by hand (a direction word of the neighbouring slot; "a duplicate of <the
+    original>"). The scorer rules were widened (ADR-051 amendment 11 (3)) and the run scored again from its caches
+    with 0 fresh calls (`…_tl2_rescored.json`; three values differ, every other metric identical): all five gates in
+    both runs, planted 6 / 6, narrative recall 0.9828 vs 0.9483 → **"keep (better)"**. A first run `tl1` was
+    incomplete and mostly on the fallback model (Gemini 503); it is a record of the guard's false refusals, not a
+    measurement of the candidate.
+  - **Finance Q&A, `tl3qa` vs dp127b** (`stage1_eval_2026-11-13_tl3qa.json`, 42 × 2, EN + AR): **"tie: keep"**,
+    EN / AR 1.0, every gate, 0 fallbacks. The run before it (`tl2qa`) was a true "reject" (EN 0.913): the rename
+    made the model read "NileGate" as a customer, and a cited page number was refused as a typed figure — both
+    fixed (ADR-068 note, D-TL-13), then measured again.
+  - **Stage 2, `tl3s2` vs c1** (`stage2_eval_2026-11-14_tl3s2.json`, 57 × 2): the done-when is **met** (every hard
+    gate in both runs); against c1 "reject" — EN 0.8861 as run; 0.9448 (−0.0368, limit 0.03) after two slot-form
+    rules for the supervisor (ADR-059 note) and a replay with 0 fresh calls. What remains are answers that leave
+    out one asked element, as c1's own run 2 had. **The owner closed on the done-when (D-TL-15); c1 stays the
+    Stage 2 baseline** and `…_tl3s2_rescored.json` is a record, not a baseline. Cause of the gap: uncertain (the
+    same family stopped the 2026-11-03 run, before the rename).
+  - Baselines after this use: packs **ec2** (tl2 is "keep", not promoted), Q&A **dp127b**, Stage 2 **c1**. The rule
+    is not changed. The three evaluations were replayed on the final tree on 2026-11-14 (0 fresh calls each).
+- **Eighth use (2026-11-14, slide-9 plan, ADR-051 amendment 12) — a code change the replay cannot score.** The
+  replay of `tl2` stopped at its first pack: the dropped bullet changes the patch request, which no cache holds.
+  `Stage1_eval.py` gained `EVAL_REPLAY_LABEL` and a guard (a replay never overwrites a results file). Real run
+  `stage1_eval_2026-11-14_s9.json` (packs, × 2) vs ec2: **"tie: keep"** — every gate in both runs, 22 / 22
+  published, planted 6 / 6, narrative recall 0.9655 vs 0.9483, 0 fallbacks. Baselines unchanged (packs ec2).
+- **Ninth use (2026-11-16, targeted-revise plan, ADR-050 amendment 5 / ADR-051 amendment 14) — code that changes
+  what reaches the patch rounds.** The tile-repeat drop before the Validator and the V7 later-clause total fix change
+  the patch requests, so the owner chose the real run at once (T4). Run `stage1_eval_2026-11-16_tr1.json` (packs, ×
+  2, flash-lite; the second repeat stopped once on a Gemini 503 and OpenRouter's 50-a-day limit and was resumed from
+  the caches): **"tie: keep"** vs ec2 — every gate in both runs, 22 / 22 published, planted 6 / 6, deck numbers /
+  claims / traceability 100 %, narrative recall 0.931 vs 0.9483 (−0.0173, limit 0.03). What the plan aimed at:
+  **degraded packs 6 / 22** (4 + 2; before: 22 / 22 in `stage1_eval_2026-11-15_s9_rescored_mf.json`, the first
+  file that records it), rewrites 37 vs 44 (s9 and ec2: 2 per pack). The revise path is not in the golden weeks; it is proven by `Weekly_pack_check` Phase 10 and `Api_check`.
+  Baselines unchanged (packs ec2, Q&A dp127b, Stage 2 c1); the rule is not changed.
 
 ## ADR-053 — Stage 1 evaluation: golden weeks, a finance Q&A agent, twin KPI views of the evaluation copy
 - **Status:** Accepted (2026-10-20, Agents plan Phase 7 closed by the owner with D7 not met: "close Phase 7 and keep
@@ -1138,12 +1438,20 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   waited for PostgreSQL, reached the approval. An edit while the preview was open in PowerPoint failed to rewrite it
   (D-P8-17) — fixed the same day by ADR-051 amendment 2; W12 then published after the owner's edits.
 
+- **Stabilization note (2026-11-11, approved R8):** Scheduled CLI exits now reflect the product result, not just
+  whether Python raised. A validated pending pack/completed product/idle schedule succeeds (0); stopped or
+  incomplete results fail (4); retained watch alerts without a valid brief or a deck with pending DB sync are
+  degraded (5). Existing exception/probe/identity exits 1/2/3 remain. JSONL records the classification; the pack
+  cron consumes that exit and watch failures/degradation emit warnings without adding a second monitor.
+  Replay selection and Windows retry policy are unchanged. Eighteen policy cases and 24 actual CLI cases pass
+  with recording transports; no live scheduler/Sentry firing was performed.
+
 ## ADR-055 — Stage 2 tools: the ADR-049 contract, the clock in the run context, sourced parameters in the database
 - **Status:** Accepted (2026-10-27, Agents plan Phase 9, §6a "Concrete design" approved by the owner as written;
   decisions P9-1…P9-8, deviations D-P9-1…D-P9-11). `pipelines/agents/tools/` `routes.py`, `vessels.py`,
   `voyages.py`, `weather.py`, `mongo.py`, `registry.STAGE2`; `db/migrations/020_vessel_performance.sql` (applied
-  2026-10-27, `db/audit/2026-10-27_after_020_report.txt` §24 as expected); `db/mongo/005_create_reader_user.js`;
-  `pipelines/scripts/agents/Stage2_tools_check.py` Phases 0–5 ✅; `Tools_check.py` 8 / 8 unchanged.
+  2026-10-27, `dev/db_audit/postgres/2026-10-27_after_020_report.txt` §24 as expected); `db/mongo/005_create_reader_user.js`;
+  `dev/checks/agents/Stage2_tools_check.py` Phases 0–5 ✅; `Tools_check.py` 8 / 8 unchanged.
 - **Context:** the Operations Desk (route advice, voyage watch, Phases 10–11) needs governed tools for routes, our
   vessels' voyages, fuel and weather, under the Stage 1 rules (no number without a tool, RBAC first, failures never
   guessed) — over a replayed world: the synthetic tracks end at 2026-09-13T00:00Z (ADR-032) and the ETA evaluation
@@ -1270,6 +1578,10 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   unknown) — designed degradation, the next run complete. Rejected: ML first, the schedule as the baseline (near
   exact here: no honest bar), news-driven alerts, a table by migration, every 6 h, a model per vessel.
 
+- **Note (2026-11-15, ADR-070 D-J3):** the watch also raises `rta_late` / `jit` alerts from the RTA known at the clock
+  (`port_call_messages`); the weather and Suez rules, the ETA rule R and the brief's contract are unchanged; the brief's
+  Validator also refuses a change slot after "save" (D-J8).
+
 ## ADR-059 — The supervisor: one agent over both products, a code router, partial answers, slots everywhere
 - **Status:** Accepted (2026-10-30, Agents plan Phase 12, §6d approved by the owner 2026-10-29 — P12-1…P12-5 as
   recommended; steps S1–S5 and candidate c1 each approved before their code; deviations / findings D-P12-1…D-P12-9 in
@@ -1324,13 +1636,43 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   quota), the supervisor calling the Stage 2 tools for route numbers (the route Validator bypassed), refusing a whole
   question for one refused part, changing the tools' own shapes for the model (three consumers), a separate join
   tool, a bigger-context fallback bake-off.
+- **Note (2026-11-14, traffic-billing link plan D-TL-13 / D-TL-14):** (a) the supervisor's code brief `SUP_TASK`
+  (and the finance Q&A's `QA_TASK`) gained one sentence, `finance_qa.FORMER_NAME`: the company was called NileGate
+  until November 2026, so a question that says NileGate means the company itself (ADR-068 note). No reviewed skill
+  changed. (b) `slots.normalize_text(…, answer_forms=True)` — **the supervisor's answers only** — also fixes a
+  format written with its kind (`|money sdr`, `|money_sdr` → the format alone) and a slot on a text field
+  (`{…:next_port}` → the field's own text); the number is never touched and each fix is listed in the run record.
+  Applied to every caller, the two rules changed the pack Writer's and the finance Q&A's cached patch requests, so
+  the pack Writer, the finance Q&A graph, route advice and the voyage watch keep D-P7-14's set; each would need
+  its own run to adopt them. (c) The `route_advice` product tool takes the next free thread number instead of
+  raising when the same route is asked twice on one saver. `Supervisor_check` 9 / 9 (+ 5 cases). Measured by
+  `tl3s2` (ADR-052 seventh use): the done-when met, c1 kept as the baseline.
+- **Note (2026-11-15, ADR-070):** a 13th router rule `arrival` (JIT words only; 0 of the 57 golden questions match)
+  routes to the product tool `arrival_advice` (`registry.ARRIVAL_ADVICE`, like `route_advice`); `SUP_TASK`,
+  `ANSWER_TASK` and `SLOT_RULES` unchanged; the answer check adds the sign / RTA-label rules only when that tool is
+  cited.
+- **Note (2026-11-16, the owner's web question, Frontend gate 2; owner's choice, clickable):** "Which vessels are
+  anchored waiting near their destination?" answered `not_in_data` although the voyage-watch run lists them (its
+  `etas` rows with status Anchored, the list behind the fleet row's `anchored` count): no tool returned that list
+  and "anchored" routed only to `voyage_status` (one vessel). `watch_alerts` gains `anchored: bool = False` →
+  instead of the alerts, one row `anchored/<vessel_id>` per anchored vessel of the same run (vessel, destination,
+  distance left, the requested berth time when known at the clock, its `customer_id`; the vessel / customer filters
+  apply) + the same `fleet` row; the router's `watch` rule also matches anchor words (EN + Arabic); `supervisor-qa`
+  names the argument (body within its 1,200 budget). Same access, same run-at-clock rule. `Supervisor_tools_check`
+  Phase 1 asserts the list = the run's anchored vessels = the fleet count (78 in the pinned run), the filters and the
+  refusal; `Supervisor_check` 9 / 9 (the largest request 7,457 → 7,567 est tokens, still fits); `Stage2_eval` 1–3
+  unchanged (no golden item asks for the list). The first real answer cited the count as
+  `{id:fleet[anchored]|none}` (row and field swapped) and was stopped; `slots.normalize_text(…, answer_forms=True)`
+  (the supervisor's answers only, as note (b) above) now rewrites `{id:row[field]}` → `{id[row]:field}` when that row
+  key and that field both exist (+ 2 cases). Real models, employee 6: "There are 78 vessels currently anchored…"
+  with seven names, answered, the 78 bound to the run (`ask:6:20260913T0000Z:21`).
 
 ## ADR-060 — The web frontend is React / Next.js, behind the FastAPI layer
 - **Status:** Accepted (2026-10-30, owner) — the framework only; the design (pages, auth flow, hosting, versions) is
   the frontend plan's, written after the API plan. Nothing is built yet.
 - **Context:** the products are reached today through CLIs (`Ask.py`, `Weekly_pack.py`, `Route_advice.py`,
   `Voyage_watch.py`) and Power BI Desktop; a web UI is planned after the FastAPI layer (ROADMAP). Free / open-source
-  tools only (owner rule). Node.js 24 is already installed (the Power BI Modeling MCP, ADR-048).
+  tools only (owner rule). Node.js 24 is already installed (Power BI Desktop's TMDL editing, ADR-048).
 - **Decision:** (1) **React / Next.js** (TypeScript) for the web UI. (2) **The browser never decides who asks:** the
   API maps the login to the employee id (today's `run_as`) and applies RBAC; the UI only shows what the API returns
   (partial answers marked as partial). (3) **Model text is untrusted in the browser too:** answers are rendered as
@@ -1350,30 +1692,69 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   running, a tool called / refused (name only, never its arguments for a refused one), approval needed, done /
   failed, the final answer with its slots filled — never the model's reasoning; the contract is written in the API
   plan and the UI only renders it. (c) Candidate libraries for the frontend plan: Tailwind + shadcn/ui, TanStack
-  Query + Orval (the OpenAPI client of (4)), React Flow (the graph view). (d) Claude Code tooling at the start of the
-  frontend phase, each reviewed before install like the langchain-skills (`.claude/skills/README_third_party.md`):
-  the Anthropic Frontend Design skill (aesthetic direction; already enabled as the owner's plugin 2026-10-30), **UI UX
-  Pro Max** (`nextlevelbuilder/ui-ux-pro-max-skill`, MIT open-source edition only — not its paid Premium tier: a
-  searchable design database — styles, palettes, font pairings, chart types for the finance views, UX /
-  accessibility rules — and a design system persisted as `MASTER.md`; its Python search scripts are said to make no
-  network calls and install nothing: the review checks that, the stdlib-only imports and a pinned version; it says
-  nothing about RTL, so the Arabic fonts and RTL rules stay ours; added 2026-10-30), the Vercel React skills (best
-  practices, composition patterns), the shadcn MCP and Context7 MCP in `.mcp.json`; a PostToolUse hook for ESLint / Prettier on `.ts` / `.tsx`. Not taken: the
-  Playwright MCP (the app's built-in browser drives the dev server; `@playwright/test` stays the E2E runner), three
-  frontend subagents (each starts cold: a `frontend-dev-loop` skill like `script-dev-loop` instead).
+  Query + Orval (the OpenAPI client of (4)), React Flow (the graph view). (d) The development tooling of the
+  frontend phase (design guidance, component registries, a format-on-save hook) is local configuration on the
+  owner's machine, reviewed before install, and not part of the repository (ADR-072).
+- **Amendment 2 (2026-11-04, owner, during the FastAPI plan)** — a local browser-debugging tool for what the
+  built-in browser does not give (performance traces, network request / response detail, network and CPU
+  emulation, memory snapshots): pinned, run on a throw-away profile, usage statistics and CrUX off, request headers
+  redacted (the API's bearer token never leaves), no `file://` pages; page text it reads is untrusted data (project
+  rule 5). Local configuration, not part of the repository (ADR-072); `@playwright/test` remains the E2E runner.
+- **Amendment 3 (2026-11-08, the frontend plan F0–F7, `dev/history/archive/2026-11-16_Frontend_plan.md`; owner decisions F1–F4,
+  D-FE-1 … D-FE-10) — what was built:** (a) **auth through a BFF:** the Next.js server holds the API's bearer token
+  in an httpOnly, `SameSite=Strict`, `Secure` cookie (`ng_session`); the browser gets `me` only; CSRF in three layers
+  (SameSite, an Origin / `Sec-Fetch-Site` check, a double-submit token compared in constant time); the BFF proxies
+  only the (method, path) pairs of the committed OpenAPI schema (`allowlist.generated.ts`), to one fixed upstream,
+  with header allow-lists both ways and the API's body limits; a CSP with a per-request nonce
+  (`script-src 'nonce-…' 'strict-dynamic'`, `frame-ancestors 'none'`; `style-src 'unsafe-inline'` an accepted risk
+  for Recharts / Radix style attributes); every page renders per request so the nonce reaches Next's scripts
+  (D-FE-4). (b) **The F0 contract:** every API response typed (`pipelines/api/schemas.py`), the run-event union,
+  number spans (`numbers`) in the answer / route / watch summaries (D-FE-1, re-rendered from the slots, no check
+  changed); the client generated by Orval 8.44.0 (fetch functions + zod; every SSE event validated, an unknown one
+  dropped). (c) **English interface, answers in the question's language** (D-FE-6; `next-intl` without locale
+  routing; model text in blocks with `dir="auto"`); model text rendered as **plain text only** (D-FE-8: no Markdown
+  renderer, no HTML); numbers as receipt chips from the API's spans — the browser formats, never computes.
+  (d) Libraries (exact pins, at least two weeks old): Next.js 16.4.2, React 19.3.1, Tailwind 4 + shadcn/ui
+  (radix-nova), TanStack Query 5, `@assistant-ui/react` 0.15.31 on an external-store runtime, **Recharts 3.10.1** (one
+  chart component; the deck's colours), `@xyflow/react` 12.12.0 only for a pack decision run (§6.8). (e) **Compose
+  scope:** `compose.yaml` has one service, `web` (multi-stage `web/Dockerfile`, `node:24.20.0-slim`, the standalone
+  output, user `node`, read-only root, all capabilities dropped, `127.0.0.1:3000`); the API stays on the host and the
+  container reaches it through `host.docker.internal` (tested 2026-11-08 on Docker Desktop: a host service bound to
+  127.0.0.1 is reachable, so no fallback was needed); the databases keep their own containers. (f) Tests: Playwright
+  on a production build against a mock API shaped from the OpenAPI models (database-free, the CI `web` job); a
+  hand-run smoke against the real API in `--fake-roles` mode (`web/scripts/real-api-smoke.mjs`).
+
+- **Stabilization note (2026-11-12, approved R7):** a bounded, per-tab `sessionStorage` list holds only accepted
+  run IDs and page paths, scoped to the employee from `/me`. The token remains exclusively in the BFF cookie;
+  no prompt, result, attachment or credential is cached. Recovery uses owner-authorized GET/SSE only, offers
+  an explicit Resume/Refresh action and links to persisted history. Sign-out/account changes clear identifiers.
+  API restart/expiry may remove a run; that is reported without re-submitting an action. Interpreted approval
+  requests are shown read-only and require fresh review before confirmation. This supplements stream reconnect
+  and does not introduce durable backend execution or automatic retries of POST requests.
+- **Closing note (2026-11-16, the frontend plan archived `dev/history/archive/2026-11-16_Frontend_plan.md`):** the done-when
+  met. The owner decided a real pack (W17) through the UI; EN and Egyptian Arabic questions with follow-ups on the
+  real models, after seven memory / language fixes (ADR-065 note 2026-11-16); Power BI parity for week 16; the
+  pushed CI `web` job green; and the **local-stack E2E** 15 / 15 with leakage 0. The stack suite
+  (`web/playwright.stack.config.ts`, `web/tests/stack/`, runner `dev/tests/run_web_stack.ps1`) replaces the hand-run
+  smoke of amendment 3 (f) as the real-API proof. It runs on the full-data clone, not the application database
+  (ADR-064 note 2026-11-16), and it stays outside CI, which keeps the mocked suite. "New conversation" on `/ask`
+  remounts the workspace, because the first question moves the address with `history.replaceState`.
+- **Note (2026-11-18, ADR-070 amendment 1):** Voyages also carries arrival advice: under a `jit` / `rta_late` alert, on
+  demand from the ETA board, and on its own page `/voyages/arrival/<thread>`. The page follows this ADR's rules: the
+  API computes every number, the browser computes none, and model text is rendered as plain text.
 
 ## ADR-061 — The executive financial-intelligence deck: code-built from the finance views, a DSO split (M12), period measures
-- **Status:** Accepted (2026-10-31, owner: R0–R5 of `docs/analysis/financial_intelligence/implementation_roadmap.md`,
+- **Status:** Accepted (2026-10-31, owner: R0–R5 of `dev/history/analysis/financial_intelligence/implementation_roadmap.md`,
   all as recommended). **Amendment 1 (2026-10-31, owner):** the request behind it was to improve the **weekly**
   pack; the annual deck came from a misread scope. The owner keeps it as a separate year-end product; the weekly-pack
-  improvement is a new plan (`docs/analysis/financial_intelligence/implementation_roadmap.md`, PROPOSED, after c4),
+  improvement is a new plan (`dev/history/analysis/financial_intelligence/implementation_roadmap.md`, PROPOSED, after c4),
   which will amend ADR-051. M12 and the Power BI fixes stay in use.
 - **Context:** the weekly pack (ADR-051) and the Power BI report (ADR-048) answer "what happened this week"; an
-  executive view of the year was missing. The investigation (`docs/analysis/financial_intelligence/`) found that
+  executive view of the year was missing. The investigation (`dev/history/analysis/financial_intelligence/`) found that
   weekly billing is noise in this data (uniform invoice dates), the budget gap is a pricing assumption (volume +0.45 M,
   ticket −34.66 M), and receivables risk sits with a few customers (largest customer 14.5 % of revenue, 21.2 % of AR;
   C-rated 63.3 % of overdue; 90+ mostly one customer).
-- **Decision:** (1) three read-only scripts in `pipelines/scripts/finance/` — `Executive_analysis.py` (every number
+- **Decision:** (1) three read-only scripts in `dev/build/finance/` — `Executive_analysis.py` (every number
   into `Data/processed/finance/executive_2025/numbers.json`, reconciled with `kpi_weekly`, as of 2025-12-28, reviewed
   snapshot), `Executive_charts.py` (13 PNG charts, dataviz-validated colours), `Executive_deck.py` (a 17-slide PPTX in
   `reports/executive/2025/`, every number written by a registering formatter and read back — the ADR-051 idea without
@@ -1416,8 +1797,8 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
     any other exit or an exception = error. The voyage watch (every 12 h on a laptop that sleeps) sends errors only.
   - **A Sentry failure never fails a run:** every call swallows its own errors (`sentry_sdk.flush` lets a transport
     error through from the log batcher → `monitoring.flush` catches it); the exit flush waits ≤ 5 s.
-  - **The Sentry MCP** (the owner's claude.ai connector): Claude reads issues, events and logs freely; resolving,
-    assigning or commenting needs the owner's yes per change.
+  - **Sentry access:** issues, events and logs are read freely; resolving, assigning or commenting needs the owner's
+    yes per change.
 - **Consequences:** a crashed or missed weekly pack reaches the owner by Sentry's email, not only a log line; LLM
   behaviour stays in LangSmith alone. Not covered on the free plan: a cron monitor for the voyage watch ($0.78 /
   month). `Monitoring_check.py` (Phases 1–5, 0 network; Phase 6 live with `MONITORING_LIVE=1`) is the contract.
@@ -1434,19 +1815,25 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   "NileGate: new, regressed or reappeared issue (any priority)" → email, beside the default high-priority alert; the
   cron monitor is connected to it after its first check-in.
   - **Done 2026-11-03 (D-S1-6, owner: "اربطه"):** the monitor's detector 10829356 (`nilegate-weekly-pack`,
-    `monitor_check_in_failure`) connected to alert 6273246 through the Sentry MCP; the alert's sources are the
+    `monitor_check_in_failure`) connected to alert 6273246 through the Sentry API; the alert's sources are the
     project issue stream + the monitor, so a missed or failed Monday check-in now sends the email.
+- **Amendment 2 (2026-11-04, FastAPI plan P7) — the API is the fifth entry:** `Serve.py`'s `main()` calls
+  `monitoring.init(entry="api", launched_by="api")` (same settings: no AI / web-framework integration, no tracing, no
+  PII); an unexpected exception of a request or a run is captured with its tags on **a scope of that event only**
+  (`monitoring.capture(exc, **tags)` — `request_id`, `route`, or `run_id` / `thread_id` / `run_kind`): many requests
+  share one process, so the process-wide `tag()` would mix them. The request id links Sentry, the access log
+  (`reports/_log/api.jsonl`) and `api.audit_log`; the thread id links Sentry and LangSmith as before. No cron monitor.
 
 ## ADR-063 — Engineering hygiene: a lint ratchet, a database-free CI, dependency audit and a threat model
 - **Status:** Accepted (2026-11-01, owner: "Engineering hygiene" + pyright, as recommended; plan
-  `docs/archive/2026-11-01_Engineering_hygiene_plan.md`). Free tools only.
+  `dev/history/archive/2026-11-01_Engineering_hygiene_plan.md`). Free tools only.
 - **Context:** the code base predates linting and type checking (490 ruff findings on bug rules, 278 pyright errors on
   `pipelines/agents` + `pipelines/lib`), the full checks need the owner's loaded databases, and the scheduled products
   run the code on disk — a mass fix would change their behaviour untested.
 - **Decision:** (1) `ruff==0.17.1` (rules E4 / E7 / E9 / F / B; the project's script idioms E402, E701, E702, E731,
   E741, B007, B905 ignored) and `pyright==1.1.414` (basic mode, `pipelines/agents` + `pipelines/lib`) as uv dev tools,
-  configured in `pyproject.toml`. (2) **A ratchet, not a clean slate:** `tools/lint_ratchet.py` compares the counts
-  per tool × rule × file with `tools/lint_baseline.json` (325 on 2026-11-01: ruff 49, pyright 276) and fails on any
+  configured in `pyproject.toml`. (2) **A ratchet, not a clean slate:** `dev/tools/lint_ratchet.py` compares the counts
+  per tool × rule × file with `dev/tools/lint_baseline.json` (325 on 2026-11-01: ruff 49, pyright 276) and fails on any
   increase; fixes are paid down file by file and locked with `--update`. (3) **CI** (`.github/workflows/ci.yml`,
   GitHub Actions free minutes, ubuntu, `uv sync --frozen`, `.env` from `.env.example`): the ratchet, `Monitoring_check.py`
   and the offline phase of `Langsmith_mirror.py`; every `*_check.py` that needs the databases stays on the owner's
@@ -1459,14 +1846,14 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   down. Open at acceptance: the 2026-11-01 audit lists 63 advisories in 8 packages (pillow, filelock, pyasn1, tornado,
   certifi, dnspython, langgraph-checkpoint-postgres, pymongo) — upgraded as one change with the full checks after the
   2026-11-02 scheduled firing. CI first runs when the owner pushes.
-- **Note (2026-11-02) — the dependency upgrade done** (`docs/archive/2026-11-02_Dependency_upgrade_plan.md`): the 8
+- **Note (2026-11-02) — the dependency upgrade done** (`dev/history/archive/2026-11-02_Dependency_upgrade_plan.md`): the 8
   packages moved to their lowest fixing releases through `uv add` with `==` pins, `uv.lock` 0 packages added / removed,
   9 versions changed (the 8 + `langgraph-checkpoint` 4.2.0 → 4.3.0, held below the six-day-old 4.3.1; same database
   migrations, `setup()` not called — D-U4); `pip-audit` 63 → 0; every check green with 0 files changed. Exception to
   the two-week rule, owner 2026-11-01: pyasn1 0.6.5 and tornado 6.6 taken while younger than two weeks, because they
   close advisories (D-U2). The rule otherwise stands.
 - **Amendment 2 (2026-11-03) — the lint baseline paid down to 0** (plan `docs/plans/Hygiene_followups_plan.md` F1,
-  owner: fix all 324 now): `tools/lint_baseline.json` is empty (ruff 48 → 0, pyright 276 → 0), so the ratchet now
+  owner: fix all 324 now): `dev/tools/lint_baseline.json` is empty (ruff 48 → 0, pyright 276 → 0), so the ratchet now
   fails on **any** finding. How each kind was fixed, without changing behaviour: (1) a lambda / nested function that
   reads a loop variable inside the same loop pass (ruff B023, 31 — none was a real late-binding bug) binds it as a
   default argument, or carries `# noqa: B023` with the reason where it is a nested `def`; (2) unused or doubled
@@ -1483,7 +1870,526 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   scripts write CRLF on Windows, so a re-run changes only line endings — restored to the committed LF). One slip
   caught by the checks before it ran anywhere: a comment that swallowed the rest of a `Field(` line in `routes.py`.
 
+- **Stabilization note (2026-11-12, approved R10):** add a separate disposable PostgreSQL CI job for real API
+  authentication/ownership, grants, SSE, advisory locks and approved-publication transactions. Dedicated fixture
+  identities replace the assumption that an employee has no login. The test target is explicit, guarded and
+  isolated from `.env`; API tables/grants are derived from migrations 023/024. Pure checks remain database-free.
+  The historical all-store API suite requires an isolated full-data clone. Database execution of the new suite
+  remains pending owner/CI proof; a passing target guard is not integration acceptance.
+- **Validation follow-up (2026-11-12):** the owner ran the disposable PostgreSQL suite; all five phases passed,
+  including bootstrap/grants, ownership/replay, independent advisory-lock connections and publication rollback/
+  retry. Saved validation log inspected; evidence `dev/db_audit/postgres/2026-11-12_api_integration_report.txt`. This closes
+  the local isolated-database proof, not the pending full-data application acceptance or pushed CI run.
+
+## ADR-064 — The NileGate API: FastAPI, one process on the loopback, runs outside the request, shared LLM state in PostgreSQL
+- **Status:** **Accepted (2026-11-05, the FastAPI plan's done-when met;** plan archived as
+  `dev/history/archive/2026-11-05_FastAPI_plan.md`, approved 2026-11-03 with owner answers A1 local login, A2 PostgreSQL only,
+  A3 conversation memory → ADR-065, A4 one commit at the end). Was PROPOSED 2026-11-03.
+- **Context:** the products are reached through four CLIs that trust `--as`; a web UI is planned behind an API
+  (ADR-060). Several requests at once break today's per-process state (the ROADMAP's nine concurrency requirements),
+  while the scheduled CLIs keep running beside the API.
+- **Decision (the plan's §2–§9):** (1) FastAPI under `/api/v1`, uvicorn on `127.0.0.1` only, **one process** (the
+  upload store, the bge-m3 lane and the run events are per process by design); (2) local login (email + scrypt
+  password → a hashed, revocable bearer token in schema `api`), the employee id → `context.load_user` at every request
+  → `RunContext`, RBAC unchanged inside the tools (ADR-006); (3) every graph run in a bounded executor (202 + run id,
+  SSE events, never model tokens, 429 / 503 + `Retry-After` under load); (4) the daily LLM counter, the per-minute
+  limiter, the cache appends and single-flight shared across processes in PostgreSQL / a file lock, so the CLIs and
+  the API count together; (5) Redis, a Dramatiq / Celery worker, OpenTelemetry / Prometheus / Grafana deferred with a
+  measured trigger (ADR-018); (6) one problem+json error body, 404 for another employee's resource.
+- **P0 (2026-11-03):** `fastapi==0.150.0` (its own SSE, `fastapi.sse.EventSourceResponse` — no `sse-starlette`),
+  `uvicorn==0.54.0`, `python-multipart==0.0.32`, `filelock==4.2.1` (now direct, version unchanged); transitive
+  `starlette` 1.9.0 and `opentelemetry-api` 1.45.1 held in the lock below their younger releases (1.10.0, 10 days;
+  1.45.2, 5 days) by the two-week rule; no existing pin changed. `opentelemetry-api` comes with FastAPI (API only, no
+  SDK, nothing exported).
+- **P1 (2026-11-03 / 04):** migration 023 (schema `api`, `api_writer` / `ports_api`, the two `agent_state.llm_*`
+  tables); `check_api_user.py` 21 / 21. **P2 (2026-11-04):** the shared LLM state — `pipelines/agents/shared_quota.py`
+  (the daily reservation and the per-minute sliding estimate in PostgreSQL, on the checkpointer login; files as before
+  when no login is configured) and `pipelines/lib/shared_files.py` (locked appends, incremental tails, striped
+  single-flight locks, locked JSON state) used by `llm.py`, the external tool cache and the query-vector cache; pool
+  sizes from `.env`. `Load_test.py` C1–C4 + C6 5 / 5; every agent check unchanged. The caches stay files under locks
+  (not PostgreSQL): replay determinism and the evaluation tooling read them as files.
+- **P3–P7 (2026-11-04):** auth, `/me`, problem+json errors, request ids, security headers, CORS, body limits,
+  `audit_log` (P3); the run executor, SSE events of the contract, conversations and questions (P4); uploads in a
+  conversation through `RunContext.session` (P5, injection set v3); the weekly pack's show / preview / decision /
+  deck, route advice, the watch's alerts and runs (P6); Sentry as the fifth entry, the access log, the query-embedding
+  count, the OpenAPI snapshot in the CI (P7). Proof: `Api_check.py` 10 / 10 (leakage 0; 50 questions at once → 24
+  accepted / 26 × 429 / 0 × 500), `Load_test.py` 5 / 5, `Api_smoke.py` 5 / 5 on the real models, every agent check
+  unchanged. **Open at acceptance:** the first real pack decided through `POST /packs/{thread}/decision` waits for
+  the pack of Monday 2026-11-09 (the owner decides it).
+- **Note (2026-11-06, approver-additions plan Phase E / F):** `POST /packs/{thread}/decision` takes `revise` and the
+  new changes (additions, chart variants, analysis edits, a steer; the graph's own shape rules answered as 422 before
+  a run starts); the pack view returns the notes, the variants, `redrafted`, `revision`; a pack decision's run may
+  last 300 s (a revise re-drafts) and its events name the revise's nodes. New: `GET /charts/catalogue`, `POST /views`
+  (run kind `view`, 30 an hour per employee, 60 s) — ADR-066; the `answer` event gains one field, `view`. OpenAPI
+  snapshot regenerated (28 paths).
+- **Note (2026-11-06, D-F2, a fix):** a run ends in one order — claim (its thread or the time limit, the first wins)
+  → `on_finish(state, result)` records → the conversation is freed → `done` / `failed` is published. The last event
+  is therefore a promise: what a client reads or asks after it sees the run's end stored (before, a follow-up asked at
+  once could meet 409 or a NULL turn status that dropped the turn from its memory, ADR-065). The time limit still
+  answers `failed` at once; the thread records "failed" when it ends.
+- **Note (2026-11-07, Frontend plan F0 / F0b / D-FE-1, ADR-060):** every 200 JSON response has a response model
+  (`schemas.py`: `PackView` with `allowed` — the approver's remaining moves from the graph's own limits — and
+  `charts_drawn` — the series `render.build_spec` draws; `QuestionDetail`, `RouteAdviceDetail`, `WatchRunDetail`,
+  `WatchAlerts`, `ChartCatalogue`, `ApprovalReport`, row models); the run events are a discriminated union
+  (`RunEvent`, `RunEventSchema` on the SSE route) and the `answer` data one typed shape (`AnswerData`, defaults filled
+  once in `runs.py`, so the event = `RunOut.result`); the bearer scheme is declared (`HTTPBearer(auto_error=False)`,
+  the API's own 401 body kept) on every route but sign-in and `health/live`. **Number receipts (D-FE-1):** answers,
+  route advice and watch briefs carry `numbers` — where each slot-bound number sits in the rendered text (UTF-16
+  offsets), from `slots.number_spans`, which renders the template again and returns nothing when the text differs; no
+  state or check changed. **Finance reads (D-FE-7, F0b):** `GET /finance/weeks`, `GET /finance/{dataset}?week=&limit=`
+  (wraps `finance_kpi`), `GET /finance/invoice-audit?week=&ytd=` (wraps `invoice_audit`) — the tools' RBAC and rows,
+  each read in `audit_log`, no KPI math. **Test mode:** `Serve.py --fake-roles` (needs `API_FAKE_ROLES=1`; a scripted
+  model, `pipelines/api/fake.py`) for the web's E2E on the real databases. `dev/tools/export_approval_cases.py` exports the
+  decision rules as the web's fixture (`--check` in the CI). Proof: `Api_check.py` **12 / 12** (new Phase 11: the
+  contract, the finance reads = the tools' rows, 3 number spans at their exact offsets, every event validates);
+  OpenAPI snapshot regenerated (31 paths); lint ratchet clean.
+- **Note (2026-11-07, approver-request plan, ADR-067):** `POST /packs/{thread}/request` (202 run, kind `pack_request`,
+  20 / h, 60 s; the proposal in the `answer` event — **no new SSE event**, `understood` stays the memory event) and
+  `POST /packs/{thread}/request/confirm` (stateless: the client sends the proposal back, each step re-checked as a
+  `DecisionIn` and by the graph, 409 `stale` on another draft; it runs as `pack_decision`); `GET /finance/pack?week=`
+  (the published pack for the dashboard, a `dashboard` router before `finance.router`). `Api_check.py` 12 / 12;
+  OpenAPI 34 paths.
+- **Note (2026-11-08, frontend plan D-FE-10, owner):** `GET /voyage-watch/runs` and `/runs/{thread}` now apply the
+  same identity check as the alerts and the CLI (`watch.can_read`, ADR-006: the runs are level-1 Operations data,
+  readable by every employee — the plan's "Operations + CEO" was narrower than the ADR and is not applied; a refusal
+  → 403 `not_allowed` + an audit row); `WatchRunDetail.etas` = the run's ETA table (rule R at the run's clock, never
+  the voyage file's `arrival_ts`, ADR-055) for the web's ETA board — a schedule ETA does not exist in a run, so no
+  "drift vs schedule" is shown. OpenAPI 34 paths (unchanged); `Api_check.py` Phase 8 asserts the ETA fields (its run
+  needs one employee without a login per profile — the owner's 11 test logins of 2026-11-07 took the only CEO, so the
+  check was verified on the running API instead: 297 ETA rows, 219 with an ETA = the vessels in transit).
+- **Note (2026-11-16, Frontend local-stack E2E):** the test mode now runs the web's stack suite on the full-data
+  clone, not the application database (`dev/tests/run_web_stack.ps1`, `Web_stack_fixture.py`, guide
+  `docs/api/integration_testing.md`); 15 / 15. It found `GET /packs/{thread}` answering **500** for the five packs
+  saved before migration 021 (W08, W10–W13 on the application database too): today's renderer draws
+  `budget_variance_13w_pct`, which their evidence lacks, so `charts_drawn` raised `SlotError`. `charts_drawn` now
+  returns `{}` for such a pack (the web draws no code chart for it; the draft, decisions and deck still show); all 15
+  live packs open. `Api_check.py` 12 / 12 on the clone.
+
+## ADR-065 — Conversation memory: a code-built entity frame, a guarded standalone rewrite, asking back instead of guessing
+- **Status:** Accepted (2026-11-05; FastAPI plan §6a, owner answer A3 "intelligent memory" 2026-11-03; the golden
+  set reviewed and frozen by the owner 2026-11-04). `pipelines/agents/memory.py`, `pipelines/api/routers/ask.py`
+  (`work`, `_save_turn`), `api.conversation_turns` (migration 023), `dev/build/agents/Memory_golden.py`
+  (`memory_golden.jsonl`, 22 dialogs, sha `212b1204…`), `Memory_check.py`.
+- **Context:** in a conversation an employee asks follow-ups ("and week 24?", "when will it arrive?", "وسفنه فين
+  دلوقتي؟"). The supervisor answers one standalone question per thread (ADR-059), and every guarantee — RBAC per
+  question, slots bound to this turn's evidence, the code checks — must hold for the follow-up too. A checkpoint is
+  not memory (the ROADMAP's rule): replaying a thread would hand the model earlier numbers.
+- **Decision:** (1) **What is remembered** (per turn, `api.conversation_turns`): the standalone question, how it was
+  resolved, and an **entity frame built by code** from the user's own words and the answer's **cited** rows (the rows
+  its slots bound, else the cited evidence) — vessel ids, report weeks, customer ids, the route (from a route
+  advice's source), the asker's upload; the answer stored **masked** (every slot → ⟨n⟩). Never document, upload or web
+  text, never an entity of a refused part (a refused tool leaves no rows; a `not_permitted` turn leaves no history).
+  (2) **Resolution, code first:** not a follow-up → as asked; an ellipsis ("And week 24?", "the week after",
+  "at 14 knots") → the previous standalone question with the value swapped or added; a pronoun / lead-in → the
+  follow-up + the carried entities in words (one value, "the first one", "the two"); several values for a
+  singular reference, "the other one" with one, or nothing to carry → **clarify** (the API asks back with the
+  options; no tool runs). (3) **One guarded model call** only when the rules find no reading (the `tools` role, a
+  short prompt of the earlier standalone questions and frames): accepted only if every entity it names is in the
+  frame or the follow-up and it adds no number; else clarify. (4) The standalone question then goes through the
+  unchanged path (`sv.route`, `sv.ask`, the slots, `check_supervisor_answer`); the user sees what was understood
+  (event `understood`). (5) Memory lives as long as the conversation (closing deletes the turns); long-term memory
+  across conversations is DEFERRED (its own ADR, with a trigger in the plan §6a.6).
+- **Result (`Memory_check.py`, 2026-11-05):** the rules alone resolve the 25 frozen follow-ups as expected (19 by
+  code, 5 ask back, 1 independent; the model rewrite was not needed by any); **two real runs through the API: every
+  gate held (leakage 0, invented entities 0, numbers from this turn 100 %, every clarify turn clarified, no failed
+  run), resolution EN 1.0 / AR 1.0 in both** (`memory_eval_2026-11-05.json`; answer statuses as expected 0.915 — the
+  rest are the supervisor's own `not_in_data` on two DSO questions and one `validation_failed`, not the memory's).
+  Found by the first real runs and fixed before the result (D-F6m-1 / 2): a route advice's route lives in its
+  source's filter, not in its rows; a refused question's own words (a week) were carried into "where are its vessels?"
+  — now a refused turn leaves no history and a follow-up with nothing before it asks back.
+- **Consequences:** follow-ups cost 0 extra calls when the rules resolve them; RBAC and the slots are untouched by
+  design. Limits: the rules know the shapes of the golden set's follow-ups (EN + Egyptian Arabic); a shape they miss
+  falls to the guarded rewrite or a question back, never to a guess. Rejected: one thread per conversation (earlier
+  tool rows and numbers in the model's context), the model rewriting every follow-up (quota, invented context),
+  memory built from the answer's prose (it could carry a number or an injected instruction).
+- **Note (2026-11-16, the owner's web dialogs, Frontend done-when gate 2):** seven defects found on real questions
+  and fixed in code (owner's choices, clickable: all of them + names when asking back; a reply completes the pending
+  question; a compare built from the previous question by code; the "no week" rule unchanged). (1) "How does that
+  compare with week 16?" carried only the weeks and lost the subject (routed to the documents, "not in data") → with
+  no subject of its own, the previous standalone over both weeks + "Compare the two weeks."; (2) "الأسبوع ده" made it
+  ask "which customer?" → a demonstrative bound to its noun carries that kind only, and "in general / كلهم" carries no
+  vessel / customer; (3) Arabic pronouns matched inside words ("قصدي" holds "دي") → whole words (an optional و / ف);
+  (4) a reply to the question asked back was a new question → the asked-back turn keeps `{"clarify": {kind, options,
+  labels, question}}` in its frame and the next message completes it (`memory.answer_clarify`: a chosen id / name /
+  ordinal, "all of them", or asked again; a reply that is a question of its own is resolved as new); (5) "Which
+  vessels … near their destination?" asked back → a possessive whose owner the question names is not a follow-up;
+  (6) "؟" made an English question Arabic → `detect_lang` reads Arabic letters only; (7) an asked-back turn's thread
+  id was handed out again (two turns shared `…:13`) → the next id counts the turns' ids too. Asking back names the
+  options from the answer's rows ("Belanor Tankers (15)") and offers "all of them". Proof: `Memory_check` Phase 2b
+  (the day's dialogs; the frozen 25 follow-ups unchanged), `Api_check` Phase 5 (the reply completes the question on
+  its own thread).
+
+## ADR-066 — One chart catalogue for the pack's approver and the reader's "smart" view; the model chooses, code draws
+- **Status:** Accepted (2026-11-06, approver-additions plan, owner decisions C2 / C3 / D5 / D6;
+  `dev/history/archive/2026-11-07_Pack_approver_additions_plan.md`). `pipelines/agents/deck/charts.py`, `pipelines/agents/views.py`,
+  `pipelines/api/routers/views.py`, `pipelines/scripts/agents/View.py`, `Views_eval.py`,
+  `Data/processed/agents/eval/views_golden.jsonl` (frozen) + `views_eval_2026-11-06.json`.
+- **Context:** the owner asked that the approver change the pack's charts (series, period, breakdown) and for a view
+  that adapts when a reader asks (another week, breakdown or comparison). Power BI stays Desktop on DirectQuery
+  (ADR-048); embedding and Copilot are paid, "publish to web" is public. Any chart must keep the slot rule: no number
+  the code did not fetch (ADR-051).
+- **Decision:** (1) **One catalogue in code** (`deck/charts.py`): the pack's `trend` (1–3 series of one unit from
+  billed / budget / collected / AR / overdue, or DSO alone; 4 / 8 / 13 / 26 weeks) and `variance` (billed − budget,
+  billed vs budget %, change on last week; all / top 5 / bottom 5); the reader's `trend` / `category` (+ a compare
+  week) / `aging` (+ a compare week) / `customers` (top 10). Every option is a field the finance views already return;
+  an N-week window needs report week ≥ N (2025 only); a 26-week window = `finance_kpi(trend, w)` + `(trend, w − 13)`.
+  (2) **The model chooses, code draws:** a question in words → **one structured call** (`tools` role) whose schema is
+  the catalogue (`ViewChoice`) — the model sees the question and the catalogue, never data; no week named → ask back
+  (D5). Code fetches through `finance_kpi` as **the asker** (RBAC in the tool) and returns a `ViewSpec` whose every
+  value is a view field (= Power BI = the pack). (3) **API:** `GET /api/v1/charts/catalogue`; `POST /api/v1/views`
+  with a `choice` (200, code only) or a `question` (202 run; the `answer` event gains a `view` field, ADR-064's event
+  contract widened by one field); `View.py` draws a view as a one-slide PPTX read back. (4) The web UI draws a
+  `ViewSpec` (the frontend plan); Power BI gets the same choices by click (ADR-048 amendment 2).
+- **Consequences:** `Views_eval.py` on the frozen 30-question set (15 EN + 15 Egyptian AR, frozen before the first
+  run): exact choice **0.9667** (EN 1.0, AR 0.9333; the one miss asked back instead of reading "week 52"), ask-back
+  recall 1.0, RBAC leakage 0 (every chosen view refused to an Operations employee), 30 model calls on flash-lite.
+  `Api_check.py` Phase 10: a view by choice = `finance_kpi`; 403 outside Finance; 422 shapes; a question → one fake
+  call → the same view. Run 1 found that Gemini's schema takes string enums only: `ViewChoice.weeks` is an int checked
+  by the catalogue (free providers' JSON-schema subsets, ADR-045). Rejected: a free chart spec (any view / field —
+  breaks the deck's shape and V8), the model writing values or captions, Power BI Q&A (uncertain on PostgreSQL
+  DirectQuery, moving to paid Copilot), embedding / publish to web (paid / public).
+
+- **Note (2026-11-07, approver-request plan):** `views.pack_views()` draws the pack's two charts as views (trend → trend,
+  variance → category, the approved variant or the default) for the dashboard's "this week's pack"; the approver's
+  request in words chooses from this same catalogue (ADR-067).
+
+- **Web navigation note (2026-11-12, owner requested):** Charts (`/views`) is the sole standalone chart-creation
+  workspace. Remove Finance's duplicate Smart View tab, which rendered exactly the same `ViewsWorkspace`.
+  Finance retains its six dashboard tabs; old `page=smart` links use the existing Overview fallback. This revises
+  Frontend plan D-FE-7's duplicate entry, without changing this ADR's catalogue/API or Power BI Smart View.
+
+## ADR-067 — The manager's request in words: one structured call proposes the pack's own decisions, code checks, he confirms
+- **Status:** Accepted (2026-11-07, approver-request plan `dev/history/archive/2026-11-07_Approver_request_plan.md`, owner decisions R1–R5;
+  evaluation `Data/processed/agents/eval/approver_request_eval_2026-11-07.json`).
+- **Context:** the owner (2026-11-07): "a trigger builds the weekly pack, it is shown to the manager before it is
+  published, he may dislike it and change the analysis, the charts or the text — as if you take a prompt from him —
+  and the same change shows on the dashboard". Every change kind existed (ADR-050 / 051 amendments, ADR-066) but only
+  as structured input (`--add "4: …"`, `--chart '{json}'`, analysis files): the manager could not just say it.
+- **Decision:** (1) **One structured call** (`tools` role, `pipelines/agents/approver_request.py`) reads the request,
+  the draft as the manager sees it (bullets and notes with their indexes, the charts, the evidence ids) and the
+  catalogue, and returns an `ApproverRequest` made **only of the existing kinds** (edits, additions, chart variants,
+  analysis edits, a steer, approve / reject) or an ask-back — never a free action, never a guess. (2) **Code checks
+  before the manager is asked:** every step passes `ApprovalDecision` (D1 shapes, D3 caps) and the catalogue's week
+  rule on this pack; a step the pack would refuse becomes an ask-back. **Approve / reject need the manager's own word
+  for it** (`APPROVE_WORDS` / `REJECT_WORDS`, EN + AR; D-AR-8) — the model alone never ends a review. (3) **Understood
+  first, applied on confirm (R2):** the proposal says what was understood; `apply` runs the steps as
+  `Command(resume=…)` on the waiting pack only after a confirm, refuses a proposal read on another draft (`draft_sha`)
+  and stops at the first refused step. (4) **A mixed request is split by code (R3):** the revise first (analysis,
+  steer, charts), then the wording on the new draft — additions carry over, text edits are read again on the new
+  draft (one more call, D-AR-1); one wait at the end. (5) **The dashboard shows what was approved (R1):** the
+  publisher writes the summary and the choices (`run.json`, migration 024's rows); `GET /finance/pack` and the Power
+  BI page Approved Pack draw them from the same finance rows (ADR-048 amendment 3, ADR-066 note). (6) Entry points:
+  `Weekly_pack.py resume --request "…" [--yes]`, `POST /packs/{thread}/request` + `/confirm` (ADR-064 note).
+- **Consequences:** `Approver_request_eval.py` on a frozen set (30 requests, 15 EN + 15 Egyptian AR, on W14's frozen
+  draft; frozen before the first run): exact **0.90** (EN 0.8667, AR 0.9333), ask-back recall 1.0, invented numbers 0,
+  37 calls — the R4 gates held at the edge. The misses: a steer with an unasked note edit (r07), two invalid replies on
+  a mixed request (r15, a safe fixed ask-back), and an Arabic "look again" read as approve (r22) → D-AR-8 above (now an
+  ask-back). `Approver_request_check.py` (fake, 0 calls) and `Api_check.py` 12 / 12 cover the shapes, the split, the
+  stale guard and the routes. **Same day, Phase E (live W15) and runs 2–3:** D-AR-9 (note edits pre-checked with the
+  pack's own `apply_analysis` before the confirm — the live request's unasked note with mis-cited numbers had been
+  refused only after it), D-AR-10 (one prompt line: "look again" → a steer only), D-AR-11 (an approve / reject that
+  carries changes is read as a change); the frozen set re-run: **exact 0.9667 (EN 1.0, AR 0.9333)**, ask-back 1.0,
+  invented numbers 0 (`approver_request_eval_2026-11-07.json`; runs 1 / 2 kept as `_run1` / `_run2`); the live request
+  ran as one revise, was approved by "تمام، اعتمده", and Power BI = the API = the deck on W15. A prompt change to the interpreter is measured by this set (ADR-052's two-run rule
+  applies to the pack's Insight / Writer, not to this call; its own gate is R4). Rejected: the model applying changes
+  directly (no confirm), a free chart or text spec outside the kinds, a new SSE event, a server-side proposal store
+  (the confirm is stateless and re-checked).
+
 ---
+
+## ADR-068 — PortPilot product name with compatible existing resource identities
+- **Status:** Accepted (2026-11-11, owner: rename the whole project to PortPilot and adjust the logo).
+- **Decision:** Current product/UI/API/report branding is PortPilot. Reusable SVG P/navigation mark, matching
+  browser icon and wordmark keep the accepted navy/blue palette. Python package `portpilot`, web package
+  `portpilot-web`, Power BI `PortPilot_Finance.pbip` with matching report/model folders. Preferred web settings
+  are `PORTPILOT_API_URL` / `PORTPILOT_WEB_ORIGIN`, with legacy key fallbacks; cookies remain compatible.
+  API problem types now use `urn:portpilot:problem:*` (clients should use HTTP status and current snapshot).
+- **Compatibility:** Existing database identities, employee addresses, Qdrant namespace/collection, monitoring
+  destinations, persisted metadata and approved historical artifacts retain their identity. No remote resource,
+  credential or database migration is implied. Scheduler registration uses the new name but refuses while its
+  legacy task is enabled; the owner disables the old task before registration and verifies the first new firing.
+  Uploads accept old/new metadata markers and footer brands, preserve existing NG document IDs, and allow PP
+  IDs for newly issued documents under the same validation/access rules. Original upload fixtures stay frozen.
+- **Evidence / limits:** Production browser 100 passed / 50 intentional skips, screenshots reviewed; upload and
+  Power BI/skill compatibility 4/4 phases. Runtime Power BI parity and scheduler migration remain owner tasks.
+  `docs/brand/README.md` is the ongoing compatibility inventory. Historical ADR text is not rewritten.
+- **Note (2026-11-14, traffic-billing link plan D-TL-10 / D-TL-13) — two effects of the rename found by the
+  first real-model runs after it:** (a) **frozen evaluation evidence** holds the old name in text values
+  ("not NileGate's invoices"), the tools now write the new one: `Stage1_eval.holds_frozen` reads the two product
+  names as equal in text; every other character and every number must still match, and the frozen files, their
+  hashes and the baselines are unchanged. (b) **Users still say NileGate** (older decks and reports carry it):
+  with no brief naming the former name, the finance Q&A answered "NileGate did not bill … or is not among the
+  top-10 customers". One sentence in the two Q&A briefs (`finance_qa.FORMER_NAME`) says the old name means the
+  company itself and the answer uses PortPilot; measured by `tl3qa` (q01 answered in both runs). Reviewed
+  snapshots that still counted the old name's length were corrected (`Finance_qa_check`, `Supervisor_check`).
+
+## ADR-069 — The web dashboard's week pages: a breakdown view, an Excel export, one decision for the whole pack
+- **Status:** Accepted (2026-11-15, owner: the web dashboards plan, clickable answers D-WD-1 "week pages only",
+  D-WD-2 Excel, D-WD-3 everyone who sees the dashboard, D-WD-4 "Break down by").
+- **Decision:** (1) **Data:** `finance.kpi_weekly_breakdown` (migration 029, M18) — the week's billing by one
+  dimension at a time (vessel category, toll band, route, laden / ballast, customer segment, country, rating), long
+  format, the same plain sums as Power BI's `Revenue SDR` / `Invoice Count` / `SCNT Tons` (ADR-047: written once, in
+  SQL). It is **not** a dataset of the agents' `finance_kpi` tool: the tool's argument list is in the schema sent to
+  the models, so a new value would change every tools-role cache key and make the next evaluation re-spend its
+  quota; the API reads it through `pipelines/api/finance_views.py` with the same RBAC predicate.
+  (2) **API:** `GET /finance/breakdown?week&dimension`; `GET /finance/export?week&page` → one `.xlsx` per dashboard
+  page (a sheet per visual, rows exactly as the views give them, an "About" sheet with week, exporter, time and each
+  sheet's source; `openpyxl==3.1.5`); allowed to whoever may read the dashboard (Finance, every manager, the CEO);
+  each export = one `audit_log` row, action `export`. (3) **Web:** the week pages (Overview, Revenue, Receivables,
+  Customers, Exceptions) gain Power BI's missing visuals; chart cards with a "Break down by" + measure + compare-week
+  choice kept in the URL; an "Export to Excel" button. (4) **Reports:** approve / reject sit in one "Decision for the
+  whole pack" bar with a confirmation naming the week and the slide count; the side panel only changes the shown
+  slide (the API never had a per-slide approval — the page made it look so). (5) The tabs read **Reports** and
+  **Dashboards**; the URLs stay `/packs` and `/finance` (`/reports`, `/dashboards` redirect).
+- **Not done (owner's choice):** the year-wide Executive visuals, an Explore (Smart View) tab, an Approved-pack tab.
+- **Evidence:** `Finance_views_check.py` Phase 8 (the view = a pandas reference from the base tables on 52 weeks × 7
+  dimensions, members = `kpi_weekly`); the export / breakdown / 403 smoke through the router on the live views;
+  `npm run check` all ✅ (Playwright EN + AR, desktop + phone, axe). Power BI parity on one week and the
+  full-data `Api_check` are owner steps.
+- **Amendment 1 (2026-11-15, owner comments on the Dashboards tab; plan §4a, D-WD-5 / D-WD-6):** (a) **form and
+  colour by the data's job** (dataviz skill): KPI tiles carry a coloured week-on-week change (arrow + sign; green when
+  the move is good for the business, orange when bad — a fixed direction per KPI) and a 13-week sparkline; billed
+  against budget is a bullet bar (bar + budget tick, under budget in orange); the 13-week trends are billed bars with
+  budget / collected lines, the report week in colour and the earlier weeks muted, DSO an area; receivables by age a
+  stacked bar on a validated one-hue ramp with 90+ in the marker orange; DSO split a two-part bar with the view's DSO;
+  ratios are meters; a breakdown of ≤ 4 members is a segmented share bar (the view's `share_pct`), more members are
+  ranked horizontal bars with the largest in colour and the rest muted, a compare week adds a light bar; top-10
+  customers flag the watchlist in orange; the findings' difference is a small diverging bar. Widths are geometry only
+  and the emphasised item is a choice among the view's rows — no new number is printed (ADR-047). New tokens
+  `chart-muted`, `chart-compare`, `ramp-1…4` (`web/design/MASTER.md`). (b) **per-figure export:** every card downloads
+  its own rows — `GET /finance/export/figure?week&figure&format=xlsx|csv[&page|dimension|compare|ytd|limit]`
+  (`figure_file` in `finance_views.py`): a one-sheet workbook + About, or UTF-8 CSV whose every row names its source
+  view and filter; a breakdown carries its dimension and the compare week's rows; same access rule, one `audit_log`
+  row (`export:<figure>`). The page workbook stays beside it as "Export whole page" (owner D-WD-6b). Evidence: the
+  live smoke of all 8 figures × 2 formats on W16 + the refusal outside Finance; `Api_check.py` Phase 11 gained the
+  figure assertions (owner gate, clone); `npm run check` all ✅ with two new dashboard tests.
+- **Note (2026-11-16, closing — the plan archived as `dev/history/archive/2026-11-16_Web_dashboards_and_reports_plan.md`):**
+  parity on week 17, the last published pack (owner: "we did W17"): Power BI (DAX on the open Desktop model) = the
+  `finance` views = the API on 249 values (KPI row, 13 categories, 4 age buckets, top 5 customers, 13 trend weeks,
+  overdue rows, audit findings), 0 differences; the Dashboards page over the real API on the full-data clone shows
+  them rounded only — new stack test `web/tests/stack/parity.stack.spec.ts`, the stack suite 16 / 16
+  (`dev/tests/run_web_stack.ps1`). Full-data `Api_check` 12 / 12 (2026-11-16). W17 decided and published through
+  the Reports bar.
+
+## ADR-070 — Just-in-Time arrival: the RTA as a port-call message, the `arrival_advice` graph, RTA alerts in the watch
+- **Status:** Accepted (2026-11-15, owner: the JIT arrival plan's J1–J7 in one round of clickable answers; J6 "also
+  inside the voyage watch" with the request that it "simulate reality, dynamic and real, so that real data needs no
+  change", the design left to the implementation (D-J1) and migration 030 approved; no CO₂ (owner)).
+  `dev/history/archive/2026-11-15_JIT_arrival_plan.md`. Files: `db/migrations/030_port_call_messages.sql`,
+  `dev/build/synthetic/Port_call_generator.py`, `pipelines/agents/tools/arrival.py`,
+  `pipelines/agents/graphs/arrival_advice.py`, `graphs/models.py` (`ArrivalRequest`, `ArrivalAdvice`,
+  `ArrivalAdviceResult`), `skills/arrival-advice/SKILL.md`, `tools/products.py` (`run_arrival_advice`,
+  `make_arrival_advice_tool`), `registry.ARRIVAL_ADVICE`, `graphs/supervisor.py` (rule `arrival`), `graphs/voyage_watch.py`
+  (D-J3), `deck/slots.py` (`arrival.` ids), `scheduling.py` (`describe_arrival_advice`, retention),
+  `pipelines/scripts/agents/Arrival_advice.py` (CLI), `Arrival_advice_check.py`, `Data/processed/agents/eval/arrival_cases.json`.
+- **Context:** JIT arrival = a vessel that would reach its berth before it is ready sails slower and arrives when the
+  port can take it, instead of racing and waiting at anchor; the port's time comes as a Requested Time of Arrival
+  (IMO *Just In Time Arrival Guide*). The project had no berth data (plan §0), and the synthetic voyages sail at a
+  constant speed (ADR-058 F2 / F7).
+- **Decision:** (1) **The RTA is a port-call message** (D-J1): `public.port_call_messages` (migration 030), one row
+  per message (vessel, voyage number, port, `RTA`, berth or pilot boarding place, the requested time, `sent_at`,
+  requested / cancelled, sender, real / synthetic, source); the RTA known at a clock = the latest message of the port
+  call with `sent_at <= as_of`, a cancelled latest message = none. Filled today by a seeded generator from each
+  voyage's **declared schedule** (never the true arrival, P9-7); real messages are new rows read by the same code. A
+  question may give its own RTA (J1), which wins and is said so. (2) **The arithmetic in code** (`tools/arrival.py`,
+  exact Decimal): target = RTA − 2 h (J3); options keep (then wait at anchor, auxiliaries only), jit, floor =
+  max(8 kn, 50 % of the band's IMO reference speed, never above the current speed) (J2), catch_up (≤ the service
+  speed), cape (J4: only when the floor still waits and the canal is ahead; the remaining route from the last fix with
+  Suez closed, the Suez dues of one transit on the Suez options); fuel by the cube law, money at the dated SDR price;
+  the rule's choice = the cheapest option at the berth by the RTA, else the least late. (3) **The graph** (ADR-057's
+  pattern, J5): inputs → options → context (the watch's weather rule on the next legs, Suez traffic with the canal
+  ahead) → one `writer` call with number slots ⇄ a code Validator (dates copied from the evidence only; the rule's
+  option unless the first reason cites a weather row or Suez traffic ≤ −20 %; one patch) → render with code-written
+  assumptions; one option only (on time, or late with no faster speed) → a code headline, no model call; one
+  PostgresSaver thread per question, the 30-day retention. (4) **Where it runs** (J6): the CLI `Arrival_advice.py`
+  (`ask` / `rta` / `show` / `list`); the supervisor's product tool `arrival_advice` (registered beside
+  `route_advice` as `registry.ARRIVAL_ADVICE`, not in `PRODUCTS`, because it needs the roles — D-J4), routed only by
+  JIT words (berth, RTA, just in time, slow down, "what speed should", Egyptian Arabic رصيف / يهدي / سرعة كام);
+  the voyage watch (D-J3): `rta_late` (high ≥ 12 h late) and `jit` (moderate: would wait ≥ 6 h and the rule's slower
+  speed saves fuel) alerts in code, the brief may cite them, anchored vessels show their RTA. (5) **No CO₂, no
+  port time, no charter-party terms** (owner; stated in the assumptions).
+- **Consequences (`Arrival_advice_check.py` Phases 1–8 ✅):** the table = the generator's CSV, 120 clock probes = the
+  independent rule, every first RTA inside its scenario's range around the schedule; 20 frozen cases
+  (`arrival_cases.json`) = an independent float computation (38 options; 20 / 20 planted result errors caught); 400
+  grid cases, 0 property violations; the Validator 60 / 60 planted text errors, 0 false alarms; the graph on fake
+  models on every path (incl. crash + resume with 0 HTTP repeated); the watch's 41 arrival alerts at the clock (24
+  jit, 17 rta_late, 4 high) = the independent computation; 0 of the 57 S2 golden questions re-routed; **the real
+  model: 8 / 8 advices pass the Validator, each = the rule** (flash-lite, 7 patches on the first run), two supervisor
+  questions (EN + AR) answered from the tool, the watch brief over arrival alerts passed. **D-J8:** the first real
+  texts passed but read wrong ("saving −123.0 t"; the JIT arrival called "the RTA") → two code rules
+  (`arrival.sign_problems`, `arrival.rta_label_problems`) in the arrival Validator, the watch brief's Validator (sign)
+  and the supervisor's check only when the arrival tool is cited. Regressions all ✅ (`Supervisor_check`,
+  `Supervisor_tools_check` union 15, `Stage2_eval` Phases 1–3, `Stage2_tools_check`, `Tools_check`,
+  `Scheduler_check`, `Voyage_watch_check` with its fixtures / live counts updated, `Route_advice_check`, lint 0).
+  Read honestly: the synthetic voyages sail at a constant speed and the RTAs are drawn from the schedule, so the
+  checks prove the arithmetic and the reading rule, not how often JIT pays at sea. Not built: an API route (the plan's
+  "later"), a CO₂ column (owner), the watch's brief skill text for the new alerts (owner-reviewed; unchanged).
+- **Rejected:** a berth schedule table per port call (the RTA message carries the same fact with its send time and
+  revisions — the way real data comes); IMF PortWatch congestion as the berth time (a signal, not a time); always
+  showing the Cape; a code template with no model (J5); a CO₂ factor table now (owner); widening the supervisor's
+  `SLOT_RULES` for the new rows (every question's prompt would change — the row keys travel in the tool's note).
+- **Amendment 1 (2026-11-17, Arrival advice web plan `dev/history/archive/2026-11-18_Arrival_advice_web_plan.md`).** The owner asked
+  whether arrival advice should merge with route advice or with the voyage watch, and chose the most accurate form
+  that adds real value. Model calls are not the constraint.
+  - **What merges, and what stays apart.** The graphs stay apart from route advice: a different question, inputs,
+    output and Validator. The advice joins the **voyage watch**: the same vessels at sea, the same clock, the same
+    RTA, and `arrival.options` is the arithmetic of both.
+  - **(a) The watch makes the advice.** A new node `arrival` (`voyage_watch.advise_arrivals`) runs between the alerts
+    and the brief, on when the CLI / scheduler builds the graph with models. It runs this graph once per vessel with
+    a `jit` / `rta_late` alert: as the watch's identity, at its clock, on the RTA known at the clock, with this ADR's
+    Validator. Its result summary (number spans included) is saved in the run file under `arrivals`, before the
+    brief, like the alerts (P11-5). One failed advice is recorded with its reason, and the watch goes on.
+  - **What the alert reader returns.** `watch.read_alerts`, and so `GET /voyage-watch/alerts`, attaches each
+    advice to its own alert (`WatchAlert.advice`). The level is the watch's: level 1 / Operations,
+    `port_call_messages` included.
+  - **(b) On demand.** `POST /arrival-advice` (a run + SSE, a thread per question, audit, a 403 up front when the
+    asker may not use the graph's tools), `GET /arrival-advice` and `GET /arrival-advice/{thread}` (the asker and the
+    CEO, else 404). `result_summary` gains number spans. `/me` gets `products.arrival_advice`, from the graph's tool
+    access.
+  - **(c) The web.** On Voyages, a `jit` / `rta_late` alert shows its advice inline: the chosen option with its
+    speed, arrival, wait / lateness and fuel change; the headline with receipts; when the rule's own option differs,
+    the reason. "Why, and every option" opens the reasons (Arabic right to left) and the options table. A Cape option
+    links to route advice, prefilled with the vessel and destination. Every vessel at sea on the ETA board can be
+    advised on demand; each advice has its own page, `/voyages/arrival/<thread>`.
+  - **Proof.** `Arrival_advice_check` Phase 6w (0 model calls): the watch advised its **41** alerted vessels, and on
+    all 41 the advice's computation equals the alert's option, speed, fuel change, lateness and RTA; a breaking
+    model fails its advice only. `Voyage_watch_check` 1–7 unchanged (the node is off in its fake-model phases).
+    `Api_check` 12 / 12 (Phase 8: vessel 5 → `late`, 0 model calls, the read rule, 422s). The mocked E2E (alert →
+    advice, receipts, RTL, on demand, the routes prefill) and `npm run check` ✅. The stack suite on the clone.
+    Lint 0.
+  - **Real run (2026-11-17).** The watch was re-run at the clock on the real models (`voyage_watch:20260913T0000Z:2`,
+    run on the owner's word): 53 alerts, 24 `jit` + 17 `rta_late`; 41 advices — 28 written and validated,
+    12 decided by code (`late`), 1 `validation_failed` (157: a slot on the text field `arrival_utc`). The supervisor's
+    answer forms already repair that (ADR-059 note (b)), but they are off for this graph. The brief was `ok`. One
+    on-demand advice (vessel 28): "Slow down to 9.5 kn … instead of waiting 56.6 h at anchor", `ok`.
+  - **The web (owner's review, same day).** Only the top 6 alerts show, with "Show N more alerts". An alert's reason
+    is clamped to two lines. The advice under an alert is one highlighted line (the choice, speed, arrival, fuel
+    change), and "Details" holds the rest.
+  - **Checks pinned (2026-11-17).** `watch.pin_runs(<thread>)` points the reader at a temporary copy of the runs up
+    to the frozen one; the folder is now read at call time. `Supervisor_tools_check`, `Stage2_eval` and
+    `Supervisor_check` pin `…T0000Z:1`, so a later run at the same clock never changes their frozen answers.
+  - **Closed by amendment 2.** On a run with the JIT alerts, a broad "alerts" question to the supervisor carried
+    80 rows (the largest request ≈ 15.7 k est tokens vs 7.5 k), so a fallback to Groq (8 k a minute) would refuse it.
+- **Amendment 2 (2026-11-18, owner: fix it before staging).** `supervisor.fold_arrival_rows`, in the model view only
+  (the tool, the API and the run files keep every row). A `watch_alerts` result with more than 4 arrival rows shows the
+  4 most urgent (high first, then the longest wait or delay) + one `arrival/jit` and one `arrival/rta_late` row with
+  totals computed in code over all of them and the ids of the vessels not shown; its customer rows are cut to the 5 with
+  the most vessels + `customer/others` (with the ids of the customers it holds that have high alerts). Asking by
+  `vessel_ids` or `customer_ids` returns any other row in full.
+  - **Proof.** The tool result on `voyage_watch:20260913T0000Z:2` falls from 80 rows (≈ 8.8 k est tokens) to 25 (≈ 3.2 k).
+    The frozen run has no arrival rows and is returned untouched (`Supervisor_check` Phase 2 block). Real models:
+    `stage2_eval_2026-11-18_fold1.json`, every gate met, leakage 0, completeness EN 0.9608 / AR 0.9375, ADR-052 against
+    `stage2_eval_2026-10-30_c1.json` = a tie (−0.0208 / −0.0125). Six questions through `Ask.py` on the JIT run: the
+    largest request of a broad question is **6,990 input tokens** (the provider's count), under Groq's 8 k.
+  - **The router (found by the same probe, owner: fix it).** The rule `arrival` sent berth / JIT words to
+    `arrival_advice` alone, so a fleet-wide question ("Which vessels will miss their requested berth time?", "How much
+    fuel would the JIT slowdowns save in total?") got `not_in_data` although the run holds the answer (17 vessels,
+    −2,385 t). The rule now also offers `watch_alerts`; 0 of the 57 golden questions match it. On the real models both
+    questions are answered from the watch (17 vessels; −2,385.0 t and −1.65 M SDR) and a one-vessel question still
+    uses the advice graph (vessel 28: 9.5 kn).
+  - **The sign rule (D-J8) on the watch's rows.** The first real answer read "fuel savings … −2,385.0 t", a double
+    negative. `arrival.sign_problems` now also applies when the evidence holds the watch's `jit` rows or totals; the
+    re-asked answer reads "change … by −2,385.0 t". The frozen run has no such rows.
+  - **Known limit.** A broad "which vessels" answer may give the count and not every name: the 4 most urgent rows are
+    shown, and the other ids are in the totals row for a follow-up call.
+
+## ADR-071 — Deployment: one Linux VM per environment running one Compose stack, Caddy TLS, the schedules in a container
+- **Status:** Accepted (2026-11-17, owner decisions S1–S8 in one round of clickable answers: "production هيبقى على
+  Azure ب free trial"; staging rehearsed locally now, a VM later; free models with a written paid path; staging = a
+  restore of today's stores; deploy from GitHub Actions; production gates). `dev/history/archive/2026-11-18_Staging_readiness_plan.md`.
+  Files: `deploy/compose.yaml`, `deploy/Caddyfile`, `deploy/env.example`, `ops/docker/api.Dockerfile` (+ `.dockerignore`),
+  `ops/deploy/{new_env.py,render_env.sh,deploy.sh}`, `.github/workflows/deploy.yml` (+ the CI `images` job),
+  `pipelines/lib/environment.py`, `pipelines/scripts/ops/{Scheduler_service,Backup,Migrate,Deploy_smoke,Deploy_check}.py`,
+  `db/migrations/031_schema_migrations.sql`, `dev/tools/secrets_scan.py`, `.gitleaks.toml`, `docs/deploy/RUNBOOK.md`.
+- **Context:** everything ran on the owner's Windows machine: the API on the loopback, the stores in local containers,
+  the schedules on Windows Task Scheduler, the secrets in `.env`. The API keeps per-process state by design (ADR-064:
+  one process, uploads in memory, run events), MongoDB holds a time-series collection (ADR-029), and the data is
+  synthetic or public (ADR-037 amendment 2).
+- **Decision:** (1) **One host per environment, one Compose stack** (staging, production; same file, an env file each):
+  PostgreSQL/PostGIS, MongoDB 8, Qdrant 1.19.1, the API (one process), a scheduler, the web, Caddy — the images pinned
+  as locally. Managed stores rejected for now: Azure Cosmos DB for MongoDB has no time-series collection; Azure
+  PostgreSQL Flexible Server (PostGIS allowed) is the upgrade path when a measured need appears (backups / HA beyond
+  one VM). (2) **Exposure:** only Caddy publishes ports (80/443, automatic Let's Encrypt; `tls internal` for the local
+  rehearsal; HSTS; 6 MB body limit; `/api/*`, `/docs`, `/openapi.json` answer 404). The browser talks to the web; the
+  BFF reaches the API on an internal network; the stores sit on an `internal` network; `api` / `scheduler` alone join
+  an egress network for the model and tool APIs; Qdrant's port is published on the host loopback only (backups).
+  (3) **`PORTPILOT_ENV`** = local | staging | production (an unknown name stops the process): `.env` optional outside
+  local, test modes (`--fake-roles`) refused, the non-loopback bind allowed, `/docs` off in production, Sentry's
+  environment and a LangSmith `env:` tag. (4) **Least privilege per container:** no `env_file`; each service lists its
+  variables; the database owner's password only in `postgres` and the operator-only `ops` service; read-only roots,
+  all capabilities dropped, non-root users, log rotation. (5) **Secrets:** a root-only env file per environment
+  rendered from **Azure Key Vault** by the VM's managed identity; a new environment gets fresh credentials
+  (`new_env.py`) — never the owner's local values; after a restore `Backup.py secure` re-keys the runtime logins,
+  re-creates the MongoDB users and disables every inherited API login. (6) **Schedules off Windows:**
+  `Scheduler_service.py` in its own container fires `Weekly_pack.py scheduled` (Monday 10:30) and `Voyage_watch.py
+  scheduled` (10:30 + 22:30), Africa/Cairo, one job at a time, a missed firing caught up inside 12 h / 6 h, nothing on
+  the first start. (7) **Backups:** nightly `Backup.py backup` from the host (pg_dumpall roles + pg_dump, mongodump, the
+  Qdrant snapshot, the durable files incl. `reports/`), manifest with hashes and facts, 7 daily + 4 weekly, an off-host
+  copy to Azure Blob; `restore` checks every count and digest. (8) **Deploy:** a manual GitHub workflow per environment
+  with the owner as required reviewer, Azure login by OIDC (no stored cloud secret), `az vm run-command` →
+  `deploy.sh`: build on the VM from the ref (no registry), backup, migrations (`Migrate.py`; applying needs a second
+  approval — ADR-016 amendment 1), up, `Deploy_smoke.py`, previous images back on a failed smoke (the database is
+  restored only by hand). (9) **Models:** the free tiers stay (ADR-045 note 2026-11-17). Redis, a queue, a second API
+  worker, MinIO and Kubernetes stay deferred (ADR-018 triggers unchanged).
+- **Consequences:** `Deploy_check.py` (CI) proves the rules without Docker; the CI `images` job builds both images;
+  the restore drill on local copies matched every table count, the KPI digest, every MongoDB count, the Qdrant points
+  and their digest; the staging rehearsal ran on Docker Desktop (plan §8). The Azure free trial is USD 200 for 30
+  days; afterwards the VM, its disks and the blob storage are paid (runbook §Costs). One VM is a single point of
+  failure: the recovery is the restore runbook (RPO = the last nightly backup + the off-host copy).
+- **Rejected:** Kubernetes / AKS (one process by design; cost); Azure Container Apps (in-memory uploads and SSE need
+  one sticky instance; MongoDB time-series and Qdrant still need a VM); the owner's machine behind a tunnel (no
+  separation, must stay on); a container registry (the VM builds the reviewed ref itself; a registry when a second
+  host appears); Windows Task Scheduler on a Windows VM (a Linux host is cheaper and the CLIs already run there).
+
+## ADR-016 amendment 1 (2026-11-17) — migrations recorded in the database; applied by the deploy on approval
+`public.schema_migrations` (migration 031) records every applied file with the hash of its text (CRLF read as LF).
+On the owner's machine migrations stay applied by the owner as before. In staging / production
+`pipelines/scripts/ops/Migrate.py apply --yes` runs the pending files in order from `deploy.sh`, only when the
+workflow's `apply_migrations` step was approved by the owner; `status` exits 4 when a recorded migration's file was
+edited, and the deploy stops.
+
+## ADR-045 note (2026-11-17) — production stays on the free tiers; the paid path is written
+Staging and production keep `models.toml` unchanged while the data is synthetic or public. Switching to paid (Gemini
+paid tier, the same model ids, a `max_usd_per_day` cap per ADR-045 amendment 4, then ADR-052) is required before any
+real or personal data, and recommended when the shared daily quota is exhausted on two days in a row
+(`/health/ready`'s `llm_requests_today`, the scheduled logs). Steps: `docs/deploy/RUNBOOK.md` §Paid models.
+
+## ADR-072 — Repository layout: the runtime in place, development and building under `dev/`; local tool files untracked
+
+Status: Accepted (2026-11-19, owner; Repository layout plan, `dev/history/archive/2026-11-19_Repo_layout_and_hygiene_plan.md`)
+
+**Context.** After the staging-readiness work (ADR-071) the repository mixed what production runs with what was made
+to build the data once or to test the system: 61 check, evaluation and builder scripts sat beside the runtime CLIs
+in `pipelines/scripts/<area>/` and were copied into the API image; the run tooling, the Final Checkpoint narratives,
+the saved database audits, the finished plans and the stack-test runners were spread over `tools/`,
+`pipelines/checkpoints/`, `db/audit/`, `docs/archive/` and `ops/tests/`. Local editor and tool configuration files
+were tracked beside the code.
+
+**Decision.**
+1. **Runtime stays where it is**: `pipelines/agents`, `pipelines/api`, `pipelines/lib`, the runtime CLIs in
+   `pipelines/scripts/<area>/` (agents: `Weekly_pack`, `Voyage_watch`, `Ask`, `Route_advice`, `Arrival_advice`, `View`,
+   `Checkpointer_setup`; api: `Serve`, `Api_admin`; ops: `Scheduler_service`, `Migrate`, `Backup`, `Deploy_smoke`;
+   retrieval: `Upload_promotion`), `db/`, `deploy/`, `ops/docker|deploy|scheduler`, `web/`, `powerbi/`, `Data/`. No
+   `pipelines.*` import, compose file, deploy script or scheduled task changes.
+2. **Everything made for development or building moves under `dev/`**: `checks/<area>/` (checks, evaluations, smoke
+   tests, probes, benchmarks, fixtures), `build/<area>/` (the one-time data builders), `checkpoints/`, `tools/`,
+   `tests/` (stack runners), `db_audit/`, `history/` (`archive/`, the four plain-language checkpoints, the financial
+   study), `_scratch/` (git-ignored). `dev/README.md` describes each folder; `dev/tools/layout_map.json` records every
+   old → new path.
+3. **Paths are guarded**: `dev/tools/path_refs_check.py` (a CI step) fails when a repository path written in a
+   tracked text file does not exist (outside `Data/` and the historical records in `dev/history/archive/` and
+   `dev/db_audit/`), when a relative Markdown link does not resolve, or when a local tool name appears in a tracked
+   file; the references that already pointed at deleted files are listed in `dev/tools/path_refs_allow.txt`.
+4. **Local tool and editor configuration is never tracked**: it is listed in `.git/info/exclude` (local, never
+   versioned), so the tracked `.gitignore` names only what the project itself generates.
+5. The API image no longer contains a check, evaluation or builder script, nor the run tool.
+
+**Consequences.** Checks run as `uv run python dev/tools/run.py dev/checks/<area>/<X>.py`. The files in
+`dev/history/archive/` keep the paths they were written with (they are a record); every live document, script,
+workflow and test uses the new ones. The web concept gate (sample-data pages of the Frontend plan, D-FE-3) left the
+production build; it stays in git history. Supersedes the folder conventions of ADR-036 (scripts in
+`pipelines/scripts/<area>/`, narratives in `pipelines/checkpoints/`) for the moved files; ADR-063's ratchet now also
+covers `dev/`; ADR-071's image rules are unchanged except that `tools/run.py` is no longer copied.
 
 ## Dropped (history)
 - Danish Maritime Authority AIS template (`ais_real_sample_template.csv`): dropped. AIS sources are `AISHub sample.json` (type/status diversity) and `NOAA AccessAIS.csv` (movement behaviour).

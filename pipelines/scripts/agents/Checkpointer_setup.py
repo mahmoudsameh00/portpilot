@@ -1,7 +1,7 @@
 """Deployment step: create (or migrate) the LangGraph checkpoint tables in schema agent_state (Agents plan §5b S4,
 P5-3, D3).
 
-Run:     uv run python tools/run.py pipelines/scripts/agents/Checkpointer_setup.py  (from the project root; after
+Run:     uv run python dev/tools/run.py pipelines/scripts/agents/Checkpointer_setup.py  (from the project root; after
          migration 016; again after an upgrade of langgraph-checkpoint-postgres)
 Reads:   .env (the owner account PGUSER / PGPASSWORD).
 Writes:  the tables of PostgresSaver.setup() in schema agent_state (owner postgres; its own migration table records

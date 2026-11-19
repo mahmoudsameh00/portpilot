@@ -1,5 +1,5 @@
 """The `weekly_pack` LangGraph workflow (Agents plan §3, §5b, §5c): one report week → a validated deck draft → the
-Finance manager's approval → the NileGate PPTX saved.
+Finance manager's approval → the PortPilot PPTX saved.
 
 Phase 6 (§5c): the Writer writes numbers as slots (`deck/slots.py`), code draws the fixed parts of the deck
 (`deck/render.py`), the Validator binds every number to its field (`deck/validator.py`, V1–V7) and reads the rendered
@@ -14,7 +14,7 @@ file back (`deck/readback.py`, V8); a rewrite is a patch of the failing texts on
   `insight_notes` and `writer` (one structured call each). Every LLM call goes through `roles` (ADR-045 over llm.py).
 - A node that is interrupted or crashes is re-run from its start on resume: `approval` does nothing before its
   `interrupt()`, and every node only returns state updates (the validator's preview and the publisher's files are
-  overwritten, never appended).
+  safely replaced; publications retain immutable versions selected by an atomic manifest).
 
 Evidence ids (`graphs/models.py`): `kpi.<dataset>`, `audit.week`, `audit.ytd` (weeks 1 … w, weekly-pack plan
 Phase C), `insight.<tool_call_id>`.
@@ -27,7 +27,7 @@ import json
 import operator
 import re
 import shutil
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Annotated, Any, cast, Literal, TypedDict
 
@@ -40,13 +40,14 @@ from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 from pydantic import ValidationError
 
-from pipelines.agents import skill_loader
+from pipelines.agents import checkpointer, publications, skill_loader, traffic_claims
+from pipelines.agents.deck import charts as charts_mod
 from pipelines.agents.deck import readback, render, sample, slots
 from pipelines.agents.deck import validator as v2
 from pipelines.agents.graphs import models as m
-from pipelines.agents.roles import StructuredError
+from pipelines.agents.roles import FakeRoles, StructuredError, fallback_share
 from pipelines.agents.tools import audit as audit_tool
-from pipelines.agents.tools import context, db, finance
+from pipelines.agents.tools import context, db, external, finance, trust
 from pipelines.agents.tools.context import RunContext
 from pipelines.agents.tools.registry import STAGE1_TOOLS
 from pipelines.lib.common import project_root
@@ -60,7 +61,7 @@ MAX_REWRITES = 2                       # Writer rewrites after a failed Validato
 SEARCH_K = 3                           # passages per search_documents call in the pack (P5-8: Groq 8K TPM)
 REPORT_YEAR = 2025                     # D12: replay of 2025's 52 ISO weeks
 DRAFT_LABEL, APPROVED_LABEL = v2.DRAFT_LABEL, "Approved"
-NUMERIC_TOOLS = slots.NUMERIC_TOOLS    # NileGate's structured tools (ADR-049) + public structured context
+NUMERIC_TOOLS = slots.NUMERIC_TOOLS    # PortPilot's structured tools (ADR-049) + public structured context
 
 
 class PackState(TypedDict, total=False):
@@ -72,14 +73,23 @@ class PackState(TypedDict, total=False):
     messages: Annotated[list[AnyMessage], add_messages]
     insight: dict
     draft: dict
-    draft_origin: Literal["writer", "edit", "fallback"]
-    degraded: dict                     # c4: what code replaced after the rewrites failed (shown to the approver)
+    draft_origin: Literal["writer", "edit", "fallback", "revision"]
+    degraded: dict                     # c4: what code replaced after the rewrites failed (the texts themselves carry
+    #                                    origin "code" / sit in draft["removed"], targeted-revise plan B4)
     verdict: dict
     rewrites: int
     approval_log: Annotated[list[dict], operator.add]
     published: dict
     preview: dict | None               # the draft PPTX the approver opens: {path, sha256} (Phase 6)
     normalized: Annotated[list[str], operator.add]   # slot-form fixes made by code on the Writer's text (D-P7-14)
+    charts: dict                       # approver-additions plan Phase C: chart → its variant (only non-default ones)
+    # approver-additions plan Phase D (a "revise": the analysis changed, its related slides drafted again)
+    redrafted: bool                    # the current draft comes from a revise
+    redrafted_slides: list[int]        # targeted-revise plan A5: the slides the last revise re-drafted
+    steer_from: int                    # index of the approver's request in `messages`: tool rounds count from it
+    pending_analysis: list[dict]       # the approver's note edits, applied to the notes a steered re-run returns
+    revision: dict                     # what the last revise did (edits, steer, skipped edits, why it failed)
+    before_revise: dict | None         # the pack before the revise: restored if the re-draft cannot be shown
     llm_usage: Annotated[list[dict], operator.add]
 
 
@@ -152,9 +162,18 @@ def kpi_evidence(user, report_week: int, dataset: str = "live") -> dict[str, dic
             for d in KPI_DATASETS}
 
 
+def link_evidence(user, report_week: int, dataset: str = "live") -> dict[str, dict]:
+    """`context.link` (traffic-billing link plan Phase 4, M17): whether the weekly invoice count moves with Suez transits
+    so far this year. PortPilot data (finance views, level 2), not an external source; its `context.` id puts it on
+    slide 9 next to the transits it is measured against. A link means "moves with", never a cause (Validator V10)."""
+    return {"context.link": finance.finance_kpi(user, source=dataset, report_week=report_week,
+                                                dataset="traffic_link").model_dump(mode="json")}
+
+
 def kpi(state: PackState, runtime: Runtime[RunContext]) -> dict:
     ctx = runtime.context
-    return {"evidence": {**state.get("evidence", {}), **kpi_evidence(ctx.user, state["report_week"], ctx.dataset)}}
+    return {"evidence": {**state.get("evidence", {}), **kpi_evidence(ctx.user, state["report_week"], ctx.dataset),
+                         **link_evidence(ctx.user, state["report_week"], ctx.dataset)}}
 
 
 # --- 3 Invoice Auditor ----------------------------------------------------------------------------------------------
@@ -170,6 +189,86 @@ def audit_evidence(user, report_week: int, dataset: str) -> dict[str, dict]:
 def audit(state: PackState, runtime: Runtime[RunContext]) -> dict:
     ctx = runtime.context
     return {"evidence": {**state["evidence"], **audit_evidence(ctx.user, state["report_week"], ctx.dataset)}}
+
+
+# --- 3b External context (external-context plan, owner E1 / E3: fetched by code every week) -----------------------
+
+NEWS_QUERY = "Suez Canal Red Sea shipping"   # E3: fixed, the week's dates; the same query + window = a cache hit
+NEWS_RESULTS = 3
+CONTEXT_WEEKS_BEFORE = 4                     # Suez transits: the report week and the four weeks before
+
+
+def _week_dates(evidence: dict) -> tuple[date, date] | None:
+    rows = (evidence.get("kpi.weekly") or {}).get("rows") or []
+    if not rows or not rows[0].get("week_start") or not rows[0].get("week_end"):
+        return None
+    return date.fromisoformat(str(rows[0]["week_start"])[:10]), date.fromisoformat(str(rows[0]["week_end"])[:10])
+
+
+def _unavailable(tool: str, why: str) -> dict:
+    return {"tool": tool, "status": "context_unavailable", "rows": [], "source": None, "note": why[:300]}
+
+
+def context_evidence(user, evidence: dict) -> dict[str, dict]:
+    """`context.suez` and `context.news` for the report week, whatever the Insight model later chooses (W14,
+    2026-11-07: it called no context tool and slide 9 said "External context unavailable"). Every outcome is kept as
+    the tool returned it (ok / no_data / context_unavailable + its note); an exception becomes context_unavailable —
+    the pack never stops for context. Public data (ADR-049: `PUBLIC_EXTERNAL`), so the evaluation copy fetches it too."""
+    wk = _week_dates(evidence)
+    if wk is None:
+        why = "the week's dates are not in kpi.weekly"
+        return {"context.suez": _unavailable("suez_transits", why), "context.news": _unavailable("web_search", why)}
+    start, end = wk
+    calls = {"context.suez": ("suez_transits", lambda: external.suez_transits(
+                 user, start=start - timedelta(weeks=CONTEXT_WEEKS_BEFORE), end=end)),
+             "context.news": ("web_search", lambda: external.web_search(
+                 user, query=NEWS_QUERY, start_date=start, end_date=end, max_results=NEWS_RESULTS))}
+    out = {}
+    for eid, (tool, call) in calls.items():
+        try:
+            out[eid] = call().model_dump(mode="json")
+        except Exception as exc:  # noqa: BLE001 — a source outage or a bad reply is context unavailable, stated
+            out[eid] = _unavailable(tool, f"{type(exc).__name__}: {exc}")
+    if out["context.suez"].get("status") == "ok":
+        out["context.suez"] = {**out["context.suez"], **transit_week(out["context.suez"]["rows"], start, end)}
+    return out
+
+
+SUEZ_TOTALS = ("week_mean_transits", "week_min_transits", "week_min_date", "week_max_transits", "week_max_date",
+               "prev4_mean_transits")
+
+
+def transit_week(rows: list[dict], start: date, end: date) -> dict:
+    """D-EC-4 (Phase C, 2026-11-08: the Writer summarised 35 daily rows itself — "between 28 and 45 a day" — and V2
+    refused the wrong range every time): code computes the report week's mean / min / max (with their dates) and the
+    mean of the four weeks before, as result-level fields the Writer cites as slots
+    ({context.suez:week_mean_transits})."""
+    def day(r):
+        return date.fromisoformat(str(r["date"])[:10])
+    week = [r for r in rows if start <= day(r) <= end and r.get("n_total") is not None]
+    before = [r for r in rows if day(r) < start and r.get("n_total") is not None]
+    if not week:
+        return {}
+    lo, hi = min(week, key=lambda r: r["n_total"]), max(week, key=lambda r: r["n_total"])
+    return {"week_mean_transits": round(sum(r["n_total"] for r in week) / len(week), 1),
+            "week_min_transits": lo["n_total"], "week_min_date": str(lo["date"])[:10],
+            "week_max_transits": hi["n_total"], "week_max_date": str(hi["date"])[:10],
+            "prev4_mean_transits": round(sum(r["n_total"] for r in before) / len(before), 1) if before else None}
+
+
+FAKE_CONTEXT_NOTE = "fake models (a check run): no external context is fetched"
+
+
+def no_context(user, evidence: dict) -> dict[str, dict]:
+    """The checks' fetch (graphs built with `FakeRoles`): no network, no Tavily credit; the same shape as an outage."""
+    return {"context.suez": _unavailable("suez_transits", FAKE_CONTEXT_NOTE),
+            "context.news": _unavailable("web_search", FAKE_CONTEXT_NOTE)}
+
+
+def make_external_context(fetch):
+    def external_context(state: PackState, runtime: Runtime[RunContext]) -> dict:
+        return {"evidence": {**state["evidence"], **fetch(runtime.context.user, state["evidence"])}}
+    return external_context
 
 
 # --- evidence digest (what the agents read) -------------------------------------------------------------------------
@@ -190,6 +289,12 @@ DIGEST_FIELDS = {
     "audit.week": ("invoice_number", "vessel_category", "check_code", "probable_cause", "billed_sdr", "expected_sdr",
                    "difference_sdr", "duplicate_of"),
     "audit.ytd": ("report_week", "invoice_number", "vessel_category", "check_code", "difference_sdr"),
+    # external-context plan §2b: fetched by code; news rows keep their trust label (untrusted-content skill)
+    "context.suez": ("date", "n_total"),
+    "context.news": ("title", "published_date", "url", "snippet", "trust"),
+    # traffic-billing link plan Phase 4: M17 of the report week (PortPilot data, computed in SQL)
+    "context.link": ("report_week", "invoices_billed", "suez_transits_week", "n_weeks", "r_lag0", "r_lag1",
+                     "r_threshold", "link", "link_lag"),
 }
 AUDIT_TOTALS = ("invoices_checked", "invoices_flagged", "amount_at_stake_sdr")
 
@@ -213,6 +318,8 @@ def digest(evidence: dict[str, dict], ids=None) -> str:
         lines = [head]
         if eid in ("audit.week", "audit.ytd") and res["status"] == "ok":
             lines.append(" | ".join(f"{k}={_cell(res.get(k))}" for k in AUDIT_TOTALS))
+        if eid == "context.suez" and res.get("week_mean_transits") is not None:    # D-EC-4: code's week summary
+            lines.append(" | ".join(f"{k}={_cell(res.get(k))}" for k in SUEZ_TOTALS))
         rows = res.get("rows") or []
         fields = DIGEST_FIELDS.get(eid) or (tuple(rows[0]) if rows else ())
         if rows:
@@ -227,10 +334,12 @@ def digest(evidence: dict[str, dict], ids=None) -> str:
 
 # --- 4 Insight (agent with tools) -----------------------------------------------------------------------------------
 
-INSIGHT_TASK = """You are the Insight agent of NileGate's Weekly Finance Pack (ISO week {week} of {year}).
-The KPI and invoice-audit results of the week are already fetched below, each with its evidence id. Use your tools
-only for what is not there: a drill-down, external context for the week (suez_transits for the week and the four
-weeks before, web_search for that week's news, search_documents for a tariff rule, at most {k} passages). The
+INSIGHT_TASK = """You are the Insight agent of PortPilot's Weekly Finance Pack (ISO week {week} of {year}).
+The KPI and invoice-audit results of the week are already fetched below, each with its evidence id, and so is the
+week's external context (context.suez: Suez transits for the week and the four weeks before; context.news: that
+week's news; context.link: whether billing has moved with those transits so far this year, computed in SQL — a
+link means "moves with", never a cause) — do not fetch the same window again. Use your tools only for what is not there: a drill-down (another
+window or query), or search_documents for a tariff rule (at most {k} passages). The
 user's identity and access are handled by the system; never ask for them. When you have enough, answer with a short
 plain-text summary of your findings and stop calling tools.
 
@@ -302,7 +411,9 @@ def _stop(node: str, exc: Exception) -> dict:
 
 def after_agent_step(nxt: str):
     def route(state: PackState) -> str:
-        return END if state.get("status") == "output_invalid" else nxt
+        if state.get("status") == "output_invalid":
+            return "revise_failed" if state.get("before_revise") else END   # a revise never loses a waiting pack
+        return nxt
     return route
 
 
@@ -316,7 +427,8 @@ def make_insight_llm(roles):
                                                      skills=skills)),
                    HumanMessage(digest(state["evidence"]))]
             msgs = new
-        tools = STAGE1_TOOLS if _tool_rounds(msgs) < MAX_TOOL_ROUNDS else None
+        # a revise's steer gets its own tool rounds (counted from the approver's request; 0 = the whole history)
+        tools = STAGE1_TOOLS if _tool_rounds(msgs[state.get("steer_from", 0):]) < MAX_TOOL_ROUNDS else None
         reply = roles.get("insight").invoke(msgs, tools=tools)
         ai = _cap_search(reply.message)
         return {"messages": [*new, ai], "llm_usage": _usage("insight_llm", reply),
@@ -338,14 +450,30 @@ def make_insight_notes(roles):
             reply = roles.get("insight").structured([*state["messages"], ask], m.InsightNotes)
         except StructuredError as exc:
             return {**_stop("insight_notes", exc), "evidence": evidence}
-        return {"insight": reply.parsed.model_dump(mode="json"), "evidence": evidence,
-                "llm_usage": _usage("insight_notes", reply)}
+        notes, extra = reply.parsed.model_dump(mode="json"), {}
+        if state.get("pending_analysis"):           # a steered revise: the approver's edits on the new notes
+            edited, why = apply_analysis(notes, state["pending_analysis"], evidence, state["report_week"])
+            notes = notes if why else edited
+            extra = {"pending_analysis": [], "revision": {**(state.get("revision") or {}),
+                                                          "edits_applied": not why, "edits_skipped": why[:6]}}
+        # D-TL-11: a refused traffic/billing sentence is replaced by the fixed M17 wording of the run's own verdict
+        # (code, no model call, recorded in `normalized`) — one wording slip no longer costs the week's pack.
+        notes, repaired = traffic_claims.repair_notes(notes, evidence)
+        if repaired:
+            extra = {**extra, "normalized": repaired}
+        claim_errors = traffic_claims.note_problems(notes, evidence)
+        if claim_errors:
+            # What could not be repaired (no single measured verdict) stops before unsafe analysis reaches the
+            # Writer or the review API. A revise uses its existing restore path; fresh runs stop explicitly.
+            return {"status": "output_invalid", "stop_reason": "insight_notes V10: " + "; ".join(claim_errors)[:350],
+                    "evidence": evidence, "llm_usage": _usage("insight_notes", reply), **extra}
+        return {"insight": notes, "evidence": evidence, "llm_usage": _usage("insight_notes", reply), **extra}
     return insight_notes
 
 
 # --- 5 Report Writer (Phase 6, §5c: slots, the code-drawn parts, the patch rewrite) ---------------------------------
 
-SLOT_RULES = """Numbers: never type a NileGate number. Write a slot; code fills it with the allowed rounding, the sign and
+SLOT_RULES = """Numbers: never type a PortPilot number. Write a slot; code fills it with the allowed rounding, the sign and
 the unit, from the field you name:
   {{<evidence id>:<field>|<format>}}          one-row results (kpi.weekly) and result totals (audit.week)
   {{<evidence id>[<row>]:<field>|<format>}}   lists: <row> = the row's key value (the key is named in the evidence list)
@@ -360,20 +488,20 @@ A null field (no WoW in week 1) cannot be a slot: write "not available". Say wha
 AR, overdue, DSO, budget, share) and name its category, customer or invoice before it. Counts of things you write
 yourself go in words ("three drivers"); the week and year may be digits."""
 
-WRITER_TASK = """You are the Report Writer of NileGate's Weekly Finance Pack. Write the deck for ISO week {week} of
+WRITER_TASK = """You are the Report Writer of PortPilot's Weekly Finance Pack. Write the deck for ISO week {week} of
 {year} as a DeckDraft. Code draws the title slide, the KPI tiles, every table and chart and the sources slide; you
 write only:
-- title: "NileGate Weekly Finance Pack — {label} — {draft}"
+- title: "PortPilot Weekly Finance Pack — {label} — {draft}"
 - slide_titles: one per slide 1 to 10, each stating the slide's finding (slide 1: the week's headline)
 - bullets, slides 2 to 9 only: slide 2 exactly five (the executive summary); slides 3 to 8 at most three comments
-  each; slide 9 the external context lines (or "External context unavailable"), never a NileGate figure.
+  each; slide 9 the external context lines (or "External context unavailable"), never a PortPilot figure.
 Evidence each slide may cite (the bullet's evidence_ids, and its slots): {slide_map}
 
 {slot_rules}
 
 {skills}"""
 
-PATCH_TASK = """You are the Report Writer of NileGate's Weekly Finance Pack (ISO week {week} of {year}). The Validator
+PATCH_TASK = """You are the Report Writer of PortPilot's Weekly Finance Pack (ISO week {week} of {year}). The Validator
 refused the texts below in your draft. Return a DeckPatch with one fix per text: the whole corrected text and, for a
 bullet, its evidence ids. Keep what was right; fix exactly the problems listed.
 Evidence each slide may cite: {slide_map}
@@ -425,7 +553,7 @@ def _fix_list(draft: dict, problems: list[dict]) -> tuple[str, list[str]]:
         lines += [f"    problem {msg}" for msg in msgs]
         # the evidence this fix needs: what the text cites or slots, and what the problems point to (the hints)
         ids |= set(cited) | {s.eid for s in slots.find_slots(text)}
-        ids |= set(re.findall(r"\b(?:kpi|audit|insight)\.[A-Za-z0-9_.:-]*[A-Za-z0-9_]", " ".join(msgs)))
+        ids |= set(re.findall(r"\b(?:kpi|audit|insight|context)\.[A-Za-z0-9_.:-]*[A-Za-z0-9_]", " ".join(msgs)))
     return "\n".join(lines), sorted(ids)
 
 
@@ -455,6 +583,38 @@ def make_writer(roles):
         index = "[evidence ids you may cite]\n" + evidence_index(ev, state.get("messages") or [])
         try:
             problems: list[dict] = cast(dict, verdict)["problems"] if rewrite else []   # rewrite => a failed verdict
+            if state.get("before_revise") and (state.get("draft_origin") == "revision"
+                                               or (rewrite and not _patchable(problems))):
+                # targeted-revise plan A2: a revise re-drafts only its related slides (and a wrong shape in its
+                # rounds re-drafts them again, never the whole deck the approver had)
+                before = cast(dict, state["before_revise"])
+                targets = list((state.get("redrafted_slides") if rewrite else revise_slides(
+                    before.get("insight") or {}, state["insight"], before["draft"],
+                    sorted(set(ev) - set((state.get("revision") or {}).get("evidence_before") or ev))))
+                    or [SUMMARY_SLIDE])
+                body = [digest(ev), digest(ev, [k for k in ev if k.startswith("insight.")]), index,
+                        "[insight notes]\n" + json.dumps(state["insight"], ensure_ascii=False),
+                        REDRAFT_NOTE.format(slides=", ".join(map(str, targets)),
+                                            kept=json.dumps(kept_slides(state["draft"], targets), ensure_ascii=False))]
+                if rewrite:
+                    body.append("[validator] your previous slides failed these checks; fix them:\n"
+                                + json.dumps(problems, ensure_ascii=False))
+                msgs = [SystemMessage(WRITER_TASK.format(week=week, year=REPORT_YEAR, label=label, draft=DRAFT_LABEL,
+                                                         slide_map=_slide_map(),
+                                                         slot_rules=SLOT_RULES.format(week=week),
+                                                         skills=_writer_skills(ev))),
+                        HumanMessage("\n\n".join(body))]
+                reply = roles.get("writer").structured(msgs, m.SlidesDraft)
+                part, fixed = normalize_draft({"title": state["draft"]["title"],
+                                               **reply.parsed.model_dump(mode="json")}, ev, week)
+                draft, off = merge_redraft(state["draft"], part, targets)
+                # a kept slide may still hold code's texts from an earlier fallback: the pack stays marked degraded
+                kept_code = any(x.get("origin") == CODE for x in [*draft["bullets"], *draft["slide_titles"]]) \
+                    or any(r.get("by") == "fallback" for r in draft.get("removed") or [])
+                return {"draft": draft, "draft_origin": "writer", "rewrites": state.get("rewrites", 0) + rewrite,
+                        "redrafted_slides": targets, "llm_usage": _usage("writer", reply), "normalized": fixed + off,
+                        "degraded": (before.get("degraded") or {"kept_from_earlier_draft": True}) if kept_code
+                        else None}
             if rewrite and _patchable(problems):
                 fixes, needed = _fix_list(state["draft"], problems)
                 msgs = [SystemMessage(PATCH_TASK.format(week=week, year=REPORT_YEAR, slide_map=_slide_map(),
@@ -469,7 +629,7 @@ def make_writer(roles):
                 if rewrite:      # a wrong deck shape: the whole deck again, with the problems and the draft
                     body.append("[validator] your previous draft failed these checks; fix them and return the whole "
                                 "deck:\n" + json.dumps(problems, ensure_ascii=False)
-                                + "\n[previous draft]\n" + json.dumps(state["draft"], ensure_ascii=False))
+                                + "\n[previous draft]\n" + json.dumps(_writer_view(state["draft"]), ensure_ascii=False))
                 msgs = [SystemMessage(WRITER_TASK.format(week=week, year=REPORT_YEAR, label=label, draft=DRAFT_LABEL,
                                                          slide_map=_slide_map(),
                                                          slot_rules=SLOT_RULES.format(week=week),
@@ -479,18 +639,121 @@ def make_writer(roles):
                 draft = reply.parsed.model_dump(mode="json")
         except StructuredError as exc:
             return _stop("writer", exc)
-        draft, fixed = normalize_draft(draft, ev)
+        draft, fixed = normalize_draft(draft, ev, week)
         return {"draft": draft, "draft_origin": "writer", "rewrites": state.get("rewrites", 0) + rewrite,
                 "llm_usage": _usage("writer", reply), "normalized": fixed}
     return writer
 
 
-def normalize_draft(draft: dict, evidence: dict) -> tuple[dict, list[str]]:
+# --- 5b A revise re-drafts only the related slides (targeted-revise plan, owner T1 / T2, 2026-11-16) ----------------
+# ADR-050 amendment 2's D2 re-drafted the whole deck and dropped the approver's edits, additions and chart variants.
+# Now code picks the slides a revise touches: slide 2 always (the summary follows every change); the changed note's
+# own slide (a driver -> 4, a context item -> 9); and every slide whose current Writer texts cite an evidence id the
+# changed notes cite or a steer's new results (owner T1: "every slide that cites the same evidence"). The Writer
+# writes those slides only (`SlidesDraft`); every other slide keeps its texts, the approver's edits included, and
+# every addition and chart variant stays (T2). The Validator still checks the whole deck.
+
+SUMMARY_SLIDE = 2
+NOTE_OWN_SLIDE = {"drivers": 4, "context": 9}
+REDRAFT_NOTE = ("[redraft slides] {slides}\nThe approver revised the analysis. Write again only these slides: one title "
+                "for each and their bullets (slide 2: exactly five; slides 3-8: at most three comments; slide 9: at "
+                "least one context line). Every other slide stays as it is, below: keep the new slides consistent with "
+                "them and do not repeat them.\n[the slides that stay]\n{kept}")
+
+
+def _note_ids(item) -> set[str]:
+    return set(item.get("evidence_ids") or []) if isinstance(item, dict) else set()
+
+
+def _note_key(item) -> str:
+    return json.dumps(item, sort_keys=True, ensure_ascii=False)
+
+
+def text_ids(text: str, cited=()) -> set[str]:
+    return set(cited) | {sl.eid for sl in slots.find_slots(text)}
+
+
+def revise_slides(before: dict, after: dict, draft: dict, new_ids: list[str]) -> list[int]:
+    """The slides a revise re-drafts: 2, the changed note's own slide, and every slide whose Writer texts cite the
+    evidence of a changed note or of a steer's new results (owner T1). Caveats carry no ids: slide 2 only."""
+    slides, ids = {SUMMARY_SLIDE}, set(new_ids)
+    for key in ("summary", "drivers", "context", "caveats"):
+        old, new = before.get(key) or [], after.get(key) or []
+        for i in range(max(len(old), len(new))):
+            a, b = (old[i] if i < len(old) else None), (new[i] if i < len(new) else None)
+            if a is None or b is None or _note_key(a) != _note_key(b):
+                ids |= _note_ids(a) | _note_ids(b)
+                if key in NOTE_OWN_SLIDE:
+                    slides.add(NOTE_OWN_SLIDE[key])
+    for b in draft["bullets"]:
+        if b.get("origin") != v2.APPROVER and text_ids(b["text"], b.get("evidence_ids") or []) & ids:
+            slides.add(b["slide"])
+    for t in draft["slide_titles"]:
+        if text_ids(t["title"]) & ids:
+            slides.add(t["slide"])
+    return sorted(s for s in slides if s != m.SLIDES)       # slide 10 (sources) has no Writer text
+
+
+def asked_slides(msgs: list) -> list[int]:
+    """The slides a partial re-draft request names (the `[redraft slides]` line): for fake Writers in the checks."""
+    hit = re.search(r"\[redraft slides\] ([\d, ]+)", " ".join(str(x.content) for x in msgs))
+    return [int(x) for x in hit[1].split(",")] if hit else []
+
+
+def slides_of(draft: dict, msgs: list) -> m.SlidesDraft:
+    """A whole draft cut to the slides `msgs` ask for: how the checks' fake Writers answer a partial re-draft."""
+    want = asked_slides(msgs)
+    return m.SlidesDraft(slide_titles=[t for t in draft["slide_titles"] if t["slide"] in want],
+                         bullets=[b for b in draft["bullets"] if b["slide"] in want])
+
+
+def kept_slides(draft: dict, targets: list[int]) -> dict:
+    """The slides that stay, as the Writer sees them (slots, no marks): the context of a partial re-draft."""
+    return {"slide_titles": [{"slide": t["slide"], "title": t["title"]} for t in draft["slide_titles"]
+                             if t["slide"] not in targets],
+            "bullets": [{"slide": b["slide"], "text": b["text"]} for b in draft["bullets"]
+                        if b["slide"] not in targets]}
+
+
+def merge_redraft(draft: dict, part: dict, targets: list[int]) -> tuple[dict, list[str]]:
+    """The deck with the target slides' titles and Writer bullets taken from `part`; the approver's additions stay
+    after their slide's bullets (T2), every other slide as it was. A text for another slide is not used."""
+    d = json.loads(json.dumps(draft))
+    off = [f"redraft: slide {b['slide']} bullet {b['text'][:40]!r} is not a slide to re-draft {targets}; not used"
+           for b in part["bullets"] if b["slide"] not in targets]
+    new_titles = {t["slide"]: t for t in part["slide_titles"] if t["slide"] in targets}
+    d["slide_titles"] = [new_titles.get(t["slide"], {"slide": t["slide"], "title": t["title"]})
+                         if t["slide"] in targets else t for t in d["slide_titles"]]
+    out = []
+    for s in range(1, m.SLIDES + 1):
+        if s in targets:
+            out += [b for b in part["bullets"] if b["slide"] == s]
+            out += [b for b in d["bullets"] if b["slide"] == s and b.get("origin") == v2.APPROVER]
+        else:
+            out += [b for b in d["bullets"] if b["slide"] == s]
+    d["bullets"] = out
+    removed = [r for r in d.get("removed") or [] if r["slide"] not in targets] + \
+        [r for r in part.get("removed") or [] if r["slide"] in targets]
+    d.pop("removed", None)
+    if removed:
+        d["removed"] = removed
+    return d, off
+
+
+def _writer_view(draft: dict) -> dict:
+    """The draft as the Writer wrote it: without the texts code took out (plan B4's `removed`)."""
+    return {k: v for k, v in draft.items() if k != "removed"}
+
+
+def normalize_draft(draft: dict, evidence: dict, week: int | None = None) -> tuple[dict, list[str]]:
     """The slot-form fixes of `slots.normalize_text` on every Writer text (Phase 7, D-P7-14): a format the field
     does not allow, a key on a one-row result, a unit or direction word written twice. Numbers are untouched (code
-    writes them); a human edit is not normalized (it is checked as written)."""
+    writes them); a human edit is not normalized (it is checked as written). With the week, a comment that only
+    repeats its slide's tiles is dropped too (targeted-revise plan B1)."""
     d, fixed = json.loads(json.dumps(draft)), []
     for b in d["bullets"]:
+        if not _writer_text(b):
+            continue                     # a human edit / addition is checked as written; code's text is code's
         b["text"], f = slots.normalize_text(b["text"], evidence)
         fixed += f
         # a slot names its evidence: list it among the bullet's citations when the Writer left it out (c3, D-P7-15)
@@ -501,7 +764,63 @@ def normalize_draft(draft: dict, evidence: dict) -> tuple[dict, list[str]]:
     for t in d["slide_titles"]:
         t["title"], f = slots.normalize_text(t["title"], evidence)
         fixed += f
+    fixed += drop_context_link_bullets(d)
+    if week is not None:
+        fixed += drop_tile_comments(d, evidence, week)
     return d, fixed
+
+
+def _removed(draft: dict, bullet: dict, by: str, why: str) -> None:
+    """A Writer text code took out of the deck, kept with the draft so the approver can read it on its slide
+    (targeted-revise plan B4: shown inline, not as a page banner)."""
+    draft.setdefault("removed", []).append({"slide": bullet["slide"], "text": bullet["text"], "by": by, "why": why})
+
+
+def _writer_text(b: dict) -> bool:
+    """The Writer's own text as it wrote it: not the approver's addition or edit, not code's fallback text."""
+    return b.get("origin") not in (v2.APPROVER, CODE) and not b.get("edited")
+
+
+def drop_tile_comments(draft: dict, evidence: dict, week: int) -> list[str]:
+    """Targeted-revise plan B1 (owner T3 "code only", 2026-11-16): a Writer comment on slides 3–8 that only repeats
+    the slide's tiles (V9 rule 5: every number a slot of a tile field, no row named) is dropped by code before the
+    Validator, as the fallback dropped it after two spent rewrites (25 of the 57 problems left at the fallback in
+    the s9 replay, 13 of 16 packs). V4 allows 0–3 comments; the approver's texts are never dropped. Changes `draft`
+    in place; returns one line per comment dropped."""
+    out, keep = [], []
+    for b in draft["bullets"]:
+        if b["slide"] in v2.COMMENT_SLIDES and _writer_text(b)                 and v2.repeats_tiles(b["text"], evidence, list(b.get("evidence_ids") or []), b["slide"], week):
+            _removed(draft, b, "code", "it repeated what the slide's tiles show")
+            out.append(f"slide {b['slide']} comment {b['text'][:40]!r}: repeats the slide's tiles (V9 rule 5); "
+                       "comment dropped")
+        else:
+            keep.append(b)
+    draft["bullets"] = keep
+    return out
+
+
+LINK_EVIDENCE = "context.link"
+CODE = "code"            # origin of a text the fallback wrote (targeted-revise plan B4); the approver's is v2.APPROVER
+
+
+def drop_context_link_bullets(draft: dict) -> list[str]:
+    """Slide-9 follow-up of the traffic-billing link plan (live pack W16:5, ADR-051 amendment 12): the M17 verdict is
+    drawn by code on slide 9 (the link line), and a Writer bullet built on `context.link` is PortPilot data, which V5
+    refuses on slide 9 in every round — W16:5 spent both rewrites on one such bullet. Code drops it here, before the
+    Validator, unless it is the slide's only Writer context line (V4 needs one; V5 then decides as before). The
+    slide title may still name the verdict. Changes `draft` in place; returns one line per bullet dropped."""
+    bullets = draft["bullets"]
+    ctx = [i for i, b in enumerate(bullets) if b["slide"] == v2.CONTEXT_SLIDE and b.get("origin") != v2.APPROVER]
+    link = [i for i in ctx if LINK_EVIDENCE in (bullets[i].get("evidence_ids") or []) and _writer_text(bullets[i])]
+    if not link or len(link) == len(ctx):
+        return []
+    out = []
+    for i in reversed(link):
+        b = bullets.pop(i)
+        _removed(draft, b, "code", "slide 9's link line, drawn by code, states it")
+        out.insert(0, f"slide 9 bullet {b['text'][:40]!r}: cites {LINK_EVIDENCE}, which code draws on slide 9 (the "
+                      "link line); bullet dropped")
+    return out
 
 
 # --- 6 Validator (Phase 6, §5c: V1–V7 on the draft, V8 on the rendered file) --------------------------------------
@@ -540,8 +859,9 @@ def make_validator(reports_dir: Path):
         v = v2.validate(state["draft"], ev, week)
         out: dict[str, Any] = {"preview": None}          # a failing draft has no preview
         if v.passed:
-            data = render.render(state["draft"], ev, state["readiness"], DRAFT_LABEL)
-            problems = readback.validate_pptx(data, state["draft"], ev, state["readiness"], DRAFT_LABEL)
+            ch = state.get("charts")
+            data = render.render(state["draft"], ev, state["readiness"], DRAFT_LABEL, ch)
+            problems = readback.validate_pptx(data, state["draft"], ev, state["readiness"], DRAFT_LABEL, ch)
             if problems:
                 v = m.Verdict(passed=False, problems=problems)
             else:
@@ -559,12 +879,13 @@ def make_validator(reports_dir: Path):
 
 def after_validator(state: PackState) -> str:
     problems = state["verdict"]["problems"]
+    stop = "revise_failed" if state.get("before_revise") else "stop_failed"   # a revise restores the pack before it
     if any(p["rule"] == "V8" for p in problems):
-        return "stop_failed"                   # the renderer and its own read-back disagree: never shown or saved
+        return stop                            # the renderer and its own read-back disagree: never shown or saved
     if state["verdict"]["passed"] or state.get("draft_origin") == "edit":
         return "approval"                      # a failed human edit goes back to the human, with the problems
     if state.get("draft_origin") == "fallback":
-        return "stop_failed"                   # code's own replacement failed too: nothing is shown or saved
+        return stop                            # code's own replacement failed too: nothing is shown or saved
     return "writer" if state.get("rewrites", 0) < MAX_REWRITES else "fallback"
 
 
@@ -579,8 +900,14 @@ def stop_failed(state: PackState) -> dict:
 # a failing title by code's; the Writer's passing bullets stay. The result goes through the same Validator + V8.
 
 def fallback_draft(draft: dict, problems: list[dict], week: int, evidence: dict) -> tuple[dict, dict]:
-    """(the draft with code's texts in place of the failing ones, what was replaced / dropped)."""
+    """(the draft with code's texts in place of the failing ones, what was replaced / dropped). Targeted-revise plan
+    B4: every text code puts in carries `origin: "code"` (a bullet, a slide title) and every dropped Writer text is
+    kept in the draft's `removed` with the rules it failed, so the approver sees both on their slide."""
     code = sample.slot_draft(week, evidence)
+    for b in code["bullets"]:
+        b["origin"] = CODE
+    for t in code["slide_titles"]:
+        t["origin"] = CODE
     code_by_slide: dict[int, list[dict]] = {}
     for b in code["bullets"]:
         code_by_slide.setdefault(b["slide"], []).append(b)
@@ -588,11 +915,23 @@ def fallback_draft(draft: dict, problems: list[dict], week: int, evidence: dict)
     bad_slides = {p["slide"] for p in problems if p.get("bullet") is None and p.get("slide") is not None}
     shape = {p["slide"] for p in problems if p["rule"] == "V4" and p.get("slide") is not None}
     replaced, dropped, out = [], [], []
+    removed = [dict(r) for r in draft.get("removed") or []]
+    rules_of: dict[int, list[str]] = {}
+    for p in problems:
+        if p.get("bullet") is not None:
+            rules_of.setdefault(p["bullet"], []).append(p["rule"])
+
+    def lost(i: int, b: dict, why: str) -> None:
+        if _writer_text(b):
+            removed.append({"slide": b["slide"], "text": b["text"], "by": "fallback", "why": why})
+
     position: dict[int, int] = {}
     for i, b in enumerate(draft["bullets"]):
         pos = position[b["slide"]] = position.get(b["slide"], -1) + 1
         if b["slide"] in shape:
+            lost(i, b, "its slide's shape failed V4 after the rewrites: code wrote the slide")
             continue                                     # a wrong slide shape: that slide is code's below
+        failed = "failed " + ", ".join(dict.fromkeys(rules_of.get(i, []))) + " after the rewrites"
         if i not in bad_bullets:
             out.append(b)
         elif b["slide"] in (2, 9) and pos < len(code_by_slide.get(b["slide"], [])):
@@ -600,6 +939,7 @@ def fallback_draft(draft: dict, problems: list[dict], week: int, evidence: dict)
             replaced.append(i)
         else:
             dropped.append(i)
+            lost(i, b, failed)
     for s in sorted(shape | ({9} if not any(b["slide"] == 9 for b in out) else set())):
         out = [b for b in out if b["slide"] != s] + code_by_slide.get(s, [])
     if len([b for b in out if b["slide"] == 2]) != len(code_by_slide[2]):
@@ -610,7 +950,7 @@ def fallback_draft(draft: dict, problems: list[dict], week: int, evidence: dict)
     new_titles = [code_titles[s] if (s in bad_slides or s not in titles) else titles[s] for s in sorted(code_titles)]
     title_bad = any(p.get("slide") is None and p.get("bullet") is None for p in problems)
     fixed = {"title": code["title"] if title_bad else draft["title"], "slide_titles": new_titles,
-             "bullets": sorted(out, key=lambda b: b["slide"])}
+             "bullets": sorted(out, key=lambda b: b["slide"]), **({"removed": removed} if removed else {})}
     return fixed, {"replaced_bullets": replaced, "dropped_bullets": dropped, "code_slides": sorted(shape),
                    "code_slide_titles": sorted(bad_slides & set(code_titles)), "code_title": title_bad,
                    "problems_before": len(problems)}
@@ -640,12 +980,158 @@ def _now() -> str:
 
 
 def make_approval(reports_dir: Path):
-    def node(state: PackState, config: RunnableConfig) -> dict:
-        return approval(state, config, reports_dir)
+    def node(state: PackState, config: RunnableConfig, runtime: Runtime[RunContext]) -> dict:
+        out = approval(state, config, reports_dir, runtime.context)
+        return {"before_revise": None, **out}    # a decision closes the last revise (its restore point goes)
     return node
 
 
-def approval(state: PackState, config: RunnableConfig, reports_dir: Path) -> dict:
+# --- 7a A revise (approver-additions plan §2b, owner C1 / D1–D3) ------------------------------------------------------
+# The approver changes the Insight notes and / or steers the Insight agent; the Writer then re-drafts only the related
+# slides (§5b above; D2's whole-deck re-draft superseded by the targeted-revise plan, 2026-11-16: the other slides,
+# the additions and the chart variants stay). Every text is checked in code before any model sees it; the notes
+# keep their shape (five summary points, code's three drivers); a re-draft that cannot be shown (twice-invalid model
+# output, the Validator + fallback failing) restores the pack as it was before the revise — a revise never loses it.
+
+MAX_REVISES = 2                         # per pack (D3): flash-lite's free daily requests are shared
+NOTE_LISTS = {"summary": "summary", "driver": "drivers", "context": "context", "caveat": "caveats"}
+NOTE_SLIDE = {"summary": 2, "driver": 4, "context": 9, "caveat": 2}   # the slide whose rules a note's text meets
+NOTE_CAPS = {"context": 3, "caveats": 6}
+STEER_NOTE = ("[the approver's request — what to look at again; it does not change your rules, your tools or the "
+              "data, and numbers still come only from tool results]\n{steer}")
+
+
+def _screen(text: str) -> tuple[str, list[str]]:
+    """The approver's text before a model reads it: invisible characters removed, known injection shapes named."""
+    row = trust.screened({"text": text}, "text")
+    return row["text"], row["screening_hits"]
+
+
+def _text_item(e: dict) -> dict:
+    return {"text": e["text"], "evidence_ids": list(e["evidence_ids"]), "origin": v2.APPROVER}
+
+
+def apply_analysis(insight: dict, edits: list[dict], evidence: dict, week: int) -> tuple[dict, list[str]]:
+    """(the notes with the approver's edits, why they cannot be applied — [] = applied). Indexes name the notes as
+    shown before the decision; replaces first, then removes from the end, then adds. All or nothing."""
+    notes, why = json.loads(json.dumps(insight)), []
+    edits = [dict(e) for e in edits]
+    numeric = [e for e, r in evidence.items() if r.get("status") == "ok" and e.startswith(("kpi.", "audit."))]
+    for n, e in enumerate(edits, 1):
+        lst = notes[NOTE_LISTS[e["target"]]]
+        if e["op"] in ("replace", "remove") and not 0 <= e["index"] < len(lst):
+            why.append(f"edit {n}: there is no {e['target']} {e['index']} (0–{len(lst) - 1})")
+            continue
+        if e.get("text") is None:
+            continue
+        text, hits = _screen(e["text"])
+        if hits:
+            why.append(f"edit {n}: reads like an instruction to the model ({', '.join(hits)})")
+            continue
+        if e["target"] in ("summary", "context"):
+            cited = list(e["evidence_ids"])
+        elif e["target"] == "driver":
+            cited = list(dict.fromkeys([*lst[e["index"]].get("evidence_ids", []), "kpi.category"]))
+        else:
+            cited = numeric
+        why += [f"edit {n}: {p}" for p in v2.note_problems(text, evidence, cited, week, NOTE_SLIDE[e["target"]])]
+        e["text"] = text
+    if why:
+        return insight, why
+    for e in edits:
+        if e["op"] != "replace":
+            continue
+        lst = notes[NOTE_LISTS[e["target"]]]
+        if e["target"] in ("summary", "context"):
+            lst[e["index"]] = _text_item(e)
+        elif e["target"] == "driver":
+            lst[e["index"]] = {**lst[e["index"]], "explanation": e["text"], "origin": v2.APPROVER}
+        else:
+            lst[e["index"]] = e["text"]
+    for e in sorted((e for e in edits if e["op"] == "remove"), key=lambda e: -e["index"]):
+        del notes[NOTE_LISTS[e["target"]]][e["index"]]
+    for e in edits:
+        if e["op"] == "add":
+            notes[NOTE_LISTS[e["target"]]].append(_text_item(e) if e["target"] == "context" else e["text"])
+    for key, cap in NOTE_CAPS.items():
+        if len(notes[key]) > cap:
+            return insight, [f"at most {cap} {key} items, the edits make {len(notes[key])}"]
+    return notes, []
+
+
+def revise_failed(state: PackState) -> dict:
+    """The re-draft of a revise could not be shown: the pack goes back to what the approver had (then the
+    validator redraws its preview, no model call) with the reason."""
+    why = state.get("stop_reason") or "the new draft failed the Validator after its rewrites and the code fallback"
+    before = cast(dict, state.get("before_revise"))
+    return {**before, "before_revise": None, "stop_reason": "", "status": "awaiting_approval",
+            "revision": {**(state.get("revision") or {}), "failed": why[:300]},
+            "approval_log": [{"at": _now(), "outcome": "revise_failed", "reason": why[:300]}]}
+
+
+def revise(state: PackState, d: m.ApprovalDecision, entry: dict, ctx: RunContext, refused) -> dict:
+    done = sum(1 for e in state.get("approval_log") or [] if e.get("outcome") == "revised")
+    if done >= MAX_REVISES:
+        return refused(f"at most {MAX_REVISES} revisions per pack (the free model quota is shared): edit, approve "
+                       "or reject")
+    edits = [e.model_dump() for e in d.analysis_edits]
+    notes, why = apply_analysis(state["insight"], edits, state["evidence"], state["report_week"])
+    if why:
+        return refused("the analysis edits: " + "; ".join(why[:4]))
+    steer = None
+    if d.steer:
+        steer, hits = _screen(d.steer)
+        if hits:
+            return refused(f"the steer reads like an instruction to the model ({', '.join(hits)}): say what to look "
+                           "at, e.g. 'collections by customer'")
+    new_charts, fetched, chart_log, why_c = chart_changes(state, d.charts, ctx)
+    if why_c:                          # targeted-revise plan A3: the approver's chart variants stay (D2 superseded)
+        return refused(why_c)
+    before = {k: state.get(k) for k in ("draft", "insight", "charts", "draft_origin", "degraded", "rewrites",
+                                        "redrafted", "redrafted_slides", "verdict")}
+    logged = {"analysis_edits": edits, **({"steer": steer} if steer else {}),
+              **({"charts": chart_log} if chart_log else {})}
+    out: dict[str, Any] = {
+        "approval_log": [{**entry, "outcome": "revised", **logged}], "charts": new_charts, "redrafted": True,
+        "draft_origin": "revision", "rewrites": 0, "degraded": None, "before_revise": before, "status": "running",
+        "redrafted_slides": [],
+        "revision": {"edits": len(edits), "steer": bool(steer), "evidence_before": sorted(state["evidence"])}}
+    if fetched:
+        out["evidence"] = {**state["evidence"], **fetched}
+    if steer:                          # the Insight agent looks again; the edits wait for its new notes
+        out.update(messages=[HumanMessage(STEER_NOTE.format(steer=steer))], steer_from=len(state["messages"]),
+                   pending_analysis=edits)
+    else:
+        out["insight"] = notes
+    return out
+
+
+def chart_changes(state: PackState, changes: list[m.ChartChoice], ctx: RunContext) -> tuple[dict, dict, list, str]:
+    """Owner C2: (the charts after the changes — non-default only, the evidence fetched for them, the log, the reason
+    of a refusal or ""). A change overlays the chart's current variant; a window longer than 13 weeks makes code call
+    `finance_kpi(trend, week − 13)` **as the run's user** (ADR-050 P5-5: never the approver's identity)."""
+    week, out, fetched, log = state["report_week"], dict(state.get("charts") or {}), {}, []
+    for c in changes:
+        choice = {**(out.get(c.chart) or charts_mod.DEFAULTS[c.chart]), **c.model_dump(exclude_none=True)}
+        why = charts_mod.problems(choice, week)
+        if why:
+            return {}, {}, [], f"the {c.chart} chart: {'; '.join(why)}"
+        if charts_mod.needs_previous_trend(choice) and "kpi.trend_prev" not in state["evidence"]:
+            res = finance.finance_kpi(ctx.user, source=ctx.dataset, report_week=week - 13, dataset="trend")
+            if res.status != "ok":
+                return {}, {}, [], f"the {c.chart} chart: the weeks before week {week - 12} are not available ({res.status})"
+            fetched["kpi.trend_prev"] = res.model_dump(mode="json")
+        full = charts_mod.resolve(choice)
+        if charts_mod.is_default(full):
+            out.pop(c.chart, None)
+        else:
+            out[c.chart] = full
+        log.append(full)
+    return out, fetched, log, ""
+
+
+def approval(state: PackState, config: RunnableConfig, reports_dir: Path, ctx: RunContext) -> dict:
+    ctx.check_active()
     audit_res = state["evidence"].get("audit.week", {})
     raw = interrupt({
         "thread_id": config["configurable"].get("thread_id"), "report_week": state["report_week"],
@@ -654,6 +1140,11 @@ def approval(state: PackState, config: RunnableConfig, reports_dir: Path) -> dic
         "draft_rendered": v2.render_draft(state["draft"], state["evidence"]), "preview": state.get("preview"),
         "audit": {k: audit_res.get(k) for k in AUDIT_TOTALS},
         "degraded": state.get("degraded"),       # c4: the texts code put in place of the Writer's failing ones
+        "charts": state.get("charts") or {},     # the approver's chart variants so far (plan Phase C)
+        # plan Phase D: the analysis behind the deck (what a revise changes) and whether the deck was drafted again
+        "insight": state.get("insight"), "redrafted": bool(state.get("redrafted")),
+        "redrafted_slides": state.get("redrafted_slides") or [],
+        "revision": state.get("revision"),
         "decisions": ["approve", "edit", "reject"] if state["verdict"]["passed"] else ["edit", "reject"]})
     entry = {"at": _now(), "decision": None, "approver_employee_id": None}
 
@@ -669,6 +1160,10 @@ def approval(state: PackState, config: RunnableConfig, reports_dir: Path) -> dic
     if not ok:
         return refused(who)
     entry["approver"] = who
+    # approver-additions plan: the models accept the new kinds since Phase A; each is enabled with its phase (B
+    # additions, C charts, D revise) — until then a clear refusal, never a half-applied decision
+    if d.decision == "revise":
+        return revise(state, d, entry, ctx, refused)
     if d.decision == "approve":
         if not state["verdict"]["passed"]:
             return refused("the draft fails the Validator: edit or reject it")
@@ -686,22 +1181,87 @@ def approval(state: PackState, config: RunnableConfig, reports_dir: Path) -> dic
         diff.append({"bullet": e.bullet, "slide": new[e.bullet]["slide"], "before": new[e.bullet]["text"],
                      "after": e.text})
         new[e.bullet]["text"] = e.text
-    return {"approval_log": [{**entry, "outcome": "edited", "diff": diff}],
+        new[e.bullet]["edited"] = True
+    # owner B2: the approver's new bullets — placed by code after the slide's last bullet, checked like an edit
+    have = {s: sum(1 for b in new if b["slide"] == s and b.get("origin") == v2.APPROVER) for s in v2.ADDITION_SLIDES}
+    for a in d.additions:
+        if a.slide not in v2.ADDITION_SLIDES:
+            return refused(f"an addition goes on slides {v2.ADDITION_SLIDES[0]}–{v2.ADDITION_SLIDES[-1]} (comments "
+                           f"and context), not on slide {a.slide}: slide 2 keeps its five points, 1 and 10 are code's")
+        have[a.slide] += 1
+        if have[a.slide] > v2.MAX_ADDITIONS:
+            return refused(f"at most {v2.MAX_ADDITIONS} additions on slide {a.slide}")
+    new_charts, fetched, chart_log, why = chart_changes(state, d.charts, ctx)
+    if why:
+        return refused(why)
+    evidence = {**state["evidence"], **fetched}
+    added = []
+    for a in d.additions:
+        at = max((i + 1 for i, b in enumerate(new) if b["slide"] <= a.slide), default=0)
+        new.insert(at, {"slide": a.slide, "text": a.text, "origin": v2.APPROVER,
+                        "evidence_ids": v2.addition_evidence(evidence, a.slide)})
+        added.append({"slide": a.slide, "text": a.text})
+    # D-B1: an addition must fit on its slide (the renderer's own estimate); else the approver shortens it or a
+    # Writer comment (an edit in the same decision)
+    if d.additions:
+        full = sorted(set(render.comment_overflow({**state["draft"], "bullets": new}, evidence, state["readiness"],
+                                                  DRAFT_LABEL, new_charts)) & {a.slide for a in d.additions})
+        if full:
+            return refused(f"no room on slide {', '.join(map(str, full))} for the addition: shorten it, or shorten "
+                           "a comment of the slide with an edit in the same decision")
+    logged = {"diff": diff, **({"added": added} if added else {}), **({"charts": chart_log} if chart_log else {})}
+    return {"approval_log": [{**entry, "outcome": "edited", **logged}], "charts": new_charts,
+            **({"evidence": evidence} if fetched else {}),
             "draft": {**state["draft"], "bullets": new}, "draft_origin": "edit", "status": "awaiting_approval"}
 
 
 def after_approval(state: PackState) -> str:
     outcome = state["approval_log"][-1]["outcome"]
+    if outcome == "revised":           # a steer → the Insight agent looks again; note edits only → the Writer
+        return "insight_llm" if state["approval_log"][-1].get("steer") else "writer"
     return {"approved": "publisher", "rejected": END, "edited": "validator", "refused": "approval"}[outcome]
 
 
 # --- 8 Publisher (save only, D9) ------------------------------------------------------------------------------------
 
+def store_approved(week: int, thread_id: str, charts: dict | None, summary: list[str], approved: dict | None,
+                   degraded: bool) -> None:
+    """Migration 024 (approver-request plan §2c, owner R1): the approved pack's chart choices (defaults filled in)
+    and summary lines, for the Power BI "Approved pack" page; a re-published week replaces its rows (the summary
+    goes with them: ON DELETE CASCADE). Login ports_agent (agent_writer, 016's default privileges)."""
+    t = charts_mod.resolve((charts or {}).get("trend") or charts_mod.DEFAULTS["trend"])
+    v = charts_mod.resolve((charts or {}).get("variance") or charts_mod.DEFAULTS["variance"])
+    with checkpointer.pool().connection() as conn, conn.transaction():
+        conn.execute("DELETE FROM agent_state.pack_approved WHERE report_week = %s", (week,))
+        conn.execute(
+            "INSERT INTO agent_state.pack_approved (report_week, thread_id, approved_at, approver_employee_id, "
+            "trend_series, trend_weeks, variance_measure, variance_rows, degraded) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (week, thread_id, (approved or {}).get("at") or _now(), (approved or {}).get("approver_employee_id"),
+             list(t["series"]), t["weeks"], v["measure"], v["rows"], degraded))
+        for i, text in enumerate(summary):
+            conn.execute("INSERT INTO agent_state.pack_approved_summary (report_week, idx, text) VALUES (%s, %s, %s)",
+                         (week, i, text))
+
+
+def is_live_reports(reports_dir: Path) -> bool:
+    """Only a pack published to the real `reports/` folder goes to the database: the checks publish to temp folders."""
+    return reports_dir.resolve() == (project_root() / "reports").resolve()
+
+
+def store_publication(run: dict) -> None:
+    """Reconcile only the approved payload captured in the immutable publication, never current graph state."""
+    if run.get("dataset") != "live":
+        raise ValueError("only a live publication may synchronize approved finance rows")
+    store_approved(run["report_week"], run["thread_id"], run.get("charts"), run["summary"], run.get("approved"),
+                   bool(run.get("degraded")))
+
+
 def make_publisher(reports_dir: Path):
     def publisher(state: PackState, config: RunnableConfig, runtime: Runtime[RunContext]) -> dict:
+        runtime.context.check_active()
         week = state["report_week"]
         folder = reports_dir / f"{REPORT_YEAR}-W{week:02d}"
-        folder.mkdir(parents=True, exist_ok=True)
         draft = {**state["draft"], "title": state["draft"]["title"].replace(DRAFT_LABEL, APPROVED_LABEL)}
         u, usage = runtime.context.user, state.get("llm_usage") or []
         run = {"thread_id": config["configurable"].get("thread_id"), "report_week": week,
@@ -712,38 +1272,71 @@ def make_publisher(reports_dir: Path):
                "llm_calls": len(usage), "llm_cached": sum(c["cached"] for c in usage),
                "max_total_tokens": max((c["total_tokens"] or 0 for c in usage), default=0),
                "models": sorted({c["model"] for c in usage if c["outcome"] == "ok"}),
+               # Model flexibility plan W10: a degraded day is seen, not inferred
+               "fallback_share": fallback_share(usage),
+               "cost_usd": round(sum(c.get("cost_usd") or 0 for c in usage), 6),
                # D-P7-14: every slot-form fix code made on the Writer's text stays visible (report: form_fixes)
                "normalized": state.get("normalized") or [],
-               "degraded": state.get("degraded")}
+               "degraded": state.get("degraded"),
+               # external-context plan §2c: what the code fetched for slide 9, so an "unavailable" has its reason
+               "external_context": {eid: {"status": res.get("status"), "note": res.get("note")}
+                                    for eid, res in sorted(state["evidence"].items())
+                                    if eid.startswith("context.") and eid != "context.link"},
+               # traffic-billing link plan Phase 4: M17 is PortPilot data, recorded on its own
+               "traffic_link": next(iter((state["evidence"].get("context.link") or {}).get("rows") or []), None)}
         # the approved deck: rendered with "Approved", read back (V8) before it is saved — never a file that differs
-        data = render.render(draft, state["evidence"], state["readiness"], APPROVED_LABEL)
-        problems = readback.validate_pptx(data, draft, state["evidence"], state["readiness"], APPROVED_LABEL)
+        ch = state.get("charts")
+        if ch:
+            run["charts"] = ch                     # what the approver chose to draw (plan Phase C)
+        # approver-request plan §2c: the approved executive summary as the deck says it (slots filled) and who
+        # approved — the dashboard's "this week's pack" reads the files, which outlive the 30-day thread retention
+        shown = v2.render_draft(draft, state["evidence"])
+        run["summary"] = [b["text"] for b in shown["bullets"] if b["slide"] == 2]
+        run["approved"] = next(({"at": e["at"], "approver_employee_id": e.get("approver_employee_id")}
+                                for e in reversed(state.get("approval_log") or []) if e.get("outcome") == "approved"),
+                               None)
+        data = render.render(draft, state["evidence"], state["readiness"], APPROVED_LABEL, ch)
+        problems = readback.validate_pptx(data, draft, state["evidence"], state["readiness"], APPROVED_LABEL, ch)
         if problems:
             raise RuntimeError(f"the approved deck fails its read-back (V8): {problems[:3]}")
         run["deck_sha256"] = hashlib.sha256(data).hexdigest()
+        runtime.context.check_active()
         files = {"deck_draft.json": draft, "approval.json": state["approval_log"], "run.json": run}
-        for name, obj in files.items():
-            (folder / name).write_text(json.dumps(obj, indent=1, ensure_ascii=False, sort_keys=True, default=str),
-                                       encoding="utf-8", newline="\n")
-        (folder / "deck.pptx").write_bytes(data)
+        payload = {name: publications.encoded(obj) for name, obj in files.items()} | {"deck.pptx": data}
+        key = publications.digest(publications.encoded({"draft": draft, "approval": state["approval_log"],
+                                  "evidence": state["evidence"], "run": {k: v for k, v in run.items() if k != "deck_sha256"}}))
+        manifest, version_folder = publications.publish(folder, payload, key,
+            store_publication if runtime.context.dataset == "live" and is_live_reports(reports_dir) else None,
+            runtime.context.check_active)
+        sync = manifest["db_sync"]["status"]
+        db_rows = {"synced": "stored", "pending": "pending reconciliation",
+                   "not_required": "skipped (not the live reports folder)"}[sync]
         _drop_previews(reports_dir, config["configurable"].get("thread_id"))
         drafts = reports_dir / "_drafts"
         if drafts.is_dir() and not any(drafts.iterdir()):
             shutil.rmtree(drafts)
         return {"status": "published", "draft": draft, "preview": None,
-                "published": {"folder": folder.as_posix(), "files": sorted([*files, "deck.pptx"]), "at": _now()}}
+                "published": {"folder": version_folder.as_posix(), "week_folder": folder.as_posix(),
+                              "publication_id": manifest["publication_id"], "files": sorted(payload), "at": manifest["at"],
+                              "db_rows": db_rows, "db_sync": sync}}
     return publisher
 
 
 # --- graph ----------------------------------------------------------------------------------------------------------
 
-def build_graph(roles: Any, checkpointer=None, reports_dir: Path | None = None, use_fallback: bool = True):
+def build_graph(roles: Any, checkpointer=None, reports_dir: Path | None = None, use_fallback: bool = True,
+                context_fetch=None):
     """The compiled workflow; `roles` = `roles.Roles()` (real models) or `roles.FakeRoles(script)` (checks).
-    `use_fallback=False` (the evaluation's before-c4 side only) stops a draft that fails its rewrites, as before c4."""
+    `use_fallback=False` (the evaluation's before-c4 side only) stops a draft that fails its rewrites, as before c4.
+    `context_fetch(user, evidence)` = the external context's source: `context_evidence` (default), `no_context` by
+    default for `FakeRoles` (a check never spends a Tavily credit), or a check's own stub."""
+    if context_fetch is None:
+        context_fetch = no_context if isinstance(roles, FakeRoles) else context_evidence
     g = StateGraph(PackState, context_schema=RunContext)
     g.add_node("readiness", readiness)
     g.add_node("kpi", kpi)
     g.add_node("audit", audit)
+    g.add_node("external_context", make_external_context(context_fetch))
     g.add_node("insight_llm", make_insight_llm(roles))
     g.add_node("insight_tools", ToolNode(STAGE1_TOOLS))
     g.add_node("insight_notes", make_insight_notes(roles))
@@ -751,20 +1344,25 @@ def build_graph(roles: Any, checkpointer=None, reports_dir: Path | None = None, 
     reports_dir = reports_dir or project_root() / "reports"
     g.add_node("validator", make_validator(reports_dir))
     g.add_node("stop_failed", stop_failed)
+    g.add_node("revise_failed", revise_failed)
     g.add_node("fallback", fallback if use_fallback else stop_failed)   # False: the evaluation's before-c4 side
-    g.add_node("approval", make_approval(reports_dir))
+    g.add_node("approval", cast(Any, make_approval(reports_dir)))   # (state, config, runtime): as the publisher
     g.add_node("publisher", cast(Any, make_publisher(reports_dir)))
     g.add_edge(START, "readiness")
     g.add_conditional_edges("readiness", after_readiness, ["kpi", END])
     g.add_edge("kpi", "audit")
-    g.add_edge("audit", "insight_llm")
+    g.add_edge("audit", "external_context")
+    g.add_edge("external_context", "insight_llm")
     g.add_conditional_edges("insight_llm", after_insight_llm, ["insight_tools", "insight_notes"])
     g.add_edge("insight_tools", "insight_llm")
-    g.add_conditional_edges("insight_notes", after_agent_step("writer"), ["writer", END])
-    g.add_conditional_edges("writer", after_agent_step("validator"), ["validator", END])
-    g.add_conditional_edges("validator", after_validator, ["approval", "writer", "fallback", "stop_failed"])
+    g.add_conditional_edges("insight_notes", after_agent_step("writer"), ["writer", "revise_failed", END])
+    g.add_conditional_edges("writer", after_agent_step("validator"), ["validator", "revise_failed", END])
+    g.add_conditional_edges("validator", after_validator,
+                            ["approval", "writer", "fallback", "stop_failed", "revise_failed"])
+    g.add_edge("revise_failed", "validator")
     g.add_edge("fallback", "validator" if use_fallback else END)
     g.add_edge("stop_failed", END)
-    g.add_conditional_edges("approval", after_approval, ["publisher", "validator", "approval", END])
+    g.add_conditional_edges("approval", after_approval,
+                            ["publisher", "validator", "approval", "writer", "insight_llm", END])
     g.add_edge("publisher", END)
     return g.compile(checkpointer=checkpointer)

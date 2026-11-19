@@ -8,7 +8,8 @@ every shape with the renderer's spec rebuilt from the same draft and evidence:
 - `bind:` text = its field in its format, re-read from the evidence through the binding in the shape's name
   (independent of the spec), `txt:` = the Writer's text with its slots filled;
 - table cells = the spec; a bound cell is also re-read from its field;
-- chart categories, series names and values = the tool's exact values;
+- chart categories, series names and values = the tool's exact values; the charts with variants (trend, variance)
+  are also re-derived from the evidence apart from the renderer (`chart_field_problems`, approver-additions plan);
 - `deco:` shapes hold no text.
 """
 import io
@@ -17,6 +18,7 @@ from typing import Any, cast
 
 from pptx import Presentation
 
+from pipelines.agents.deck import charts as C
 from pipelines.agents.deck import render, slots
 from pipelines.agents.graphs import models as m
 
@@ -54,13 +56,66 @@ def _num(v):
     return None if v is None else float(v)
 
 
-def validate_pptx(data: bytes | Path, draft: dict, evidence: dict, readiness: dict, label: str) -> list[m.Problem]:
+def chart_field_problems(spec: list[list], evidence: dict, charts: dict | None = None) -> list[tuple[int, str, str]]:
+    """The pack's charts with variants re-derived from the evidence apart from the renderer (approver-additions plan
+    D-A2): V8 compares the file with the spec, and the spec is the renderer's — a variant drawing the wrong field, row
+    or window would match itself. Here each series name is mapped back to its catalogue field, each category to its
+    row, and every point, the window and the row choice are recomputed from the evidence alone."""
+    charts, out = charts or {}, []
+    found = {e.name: (s, e) for s, els in enumerate(spec, 1) for e in els if e.kind == "chart"}
+    if "chart:trend" in found:
+        s, e = found["chart:trend"]
+        tc = C.resolve({**charts.get("trend", {}), "chart": "trend"})
+        field_of = {name: f for f, (name, _) in C.TREND_SERIES.items()}
+        drawn = [field_of.get(n) for n, _ in e.chart["series"]]
+        if drawn != list(tc["series"]):
+            out.append((s, e.name, f"draws {[n for n, _ in e.chart['series']]}, the choice is {list(tc['series'])}"))
+        by_label = {}
+        for eid in ("kpi.trend_prev", "kpi.trend"):          # the report week's own rows last: they win
+            for r in (evidence.get(eid) or {}).get("rows") or []:
+                by_label[r["trend_week_label"]] = r
+        labels = [r["trend_week_label"] for r in sorted(by_label.values(), key=lambda r: r["trend_week"])]
+        want = labels[-tc["weeks"]:]
+        if [str(c) for c in e.chart["categories"]] != want:
+            out.append((s, e.name, f"shows weeks {e.chart['categories'][:1]}…{e.chart['categories'][-1:]}, the "
+                                   f"{tc['weeks']}-week window is {want[:1]}…{want[-1:]}"))
+        for (n, vals), f in zip(e.chart["series"], drawn):
+            for c, v in zip(e.chart["categories"], vals):
+                row = by_label.get(str(c))
+                if f is None or row is None or _num(row.get(f)) != _num(v):
+                    out.append((s, e.name, f"{n} at {c} is {v}, its field {f} holds "
+                                           f"{None if row is None or f is None else row.get(f)}"))
+                    break
+    if "chart:variance" in found:
+        s, e = found["chart:variance"]
+        vc = C.resolve({**charts.get("variance", {}), "chart": "variance"})
+        f = vc["measure"]
+        field_of = {name: k for k, (name, _) in C.VARIANCE_MEASURES.items()}
+        if [field_of.get(n) for n, _ in e.chart["series"]] != [f]:
+            out.append((s, e.name, f"draws {[n for n, _ in e.chart['series']]}, the choice is {f}"))
+        rows = (evidence.get("kpi.category") or {}).get("rows") or []
+        order = sorted(rows, key=lambda r: ((r.get(f) or 0), r["vessel_category"]))
+        n = len(order) if vc["rows"] == "all" else 5
+        chosen = order[-n:] if vc["rows"] == "top5" else order[:n]
+        want = [render.SHORT.get(r["vessel_category"], r["vessel_category"]) for r in chosen]
+        if [str(c) for c in e.chart["categories"]] != want:
+            out.append((s, e.name, f"shows {len(e.chart['categories'])} categories in another order or choice than "
+                                   f"{vc['rows']} by {f}"))
+        elif e.chart["series"] and [_num(v) for v in e.chart["series"][0][1]] != [_num(r.get(f)) for r in chosen]:
+            out.append((s, e.name, f"a bar differs from its field {f}"))
+    return out
+
+
+def validate_pptx(data: bytes | Path, draft: dict, evidence: dict, readiness: dict, label: str,
+                  charts: dict | None = None) -> list[m.Problem]:
     problems: list[m.Problem] = []
 
     def bad(slide, name, message):
         problems.append(m.Problem(rule="V8", slide=slide, token=name, message=message))
 
-    spec = render.build_spec(draft, evidence, readiness, label)
+    spec = render.build_spec(draft, evidence, readiness, label, charts)
+    for s, name, message in chart_field_problems(spec, evidence, charts):
+        bad(s, name, message)
     try:
         got = read(data)
     except Exception as exc:                                    # a file that does not open is a failed deck

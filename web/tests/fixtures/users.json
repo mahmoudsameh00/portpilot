@@ -1,0 +1,63 @@
+{
+  "_note": "Test logins for the mock API only (tests/mock-api.mjs). Not real accounts; the real API never sees these.",
+  "users": [
+    {
+      "email": "finance.manager@portpilot.test",
+      "password": "mock-pass-finance",
+      "me": {
+        "employee_id": 13,
+        "role": "manager",
+        "department": "Finance",
+        "ceiling": 2,
+        "tools": ["finance_kpi", "invoice_audit", "search_documents"],
+        "products": {
+          "ask": true,
+          "packs_read": true,
+          "packs_decide": true,
+          "route_advice": false,
+          "voyage_watch": false,
+          "uploads": true
+        }
+      }
+    },
+    {
+      "email": "ops.employee@portpilot.test",
+      "password": "mock-pass-ops",
+      "me": {
+        "employee_id": 41,
+        "role": "employee",
+        "department": "Operations",
+        "ceiling": 1,
+        "tools": ["voyage_status", "sea_route", "search_documents"],
+        "products": {
+          "ask": true,
+          "packs_read": false,
+          "packs_decide": false,
+          "route_advice": true,
+          "voyage_watch": true,
+          "arrival_advice": true,
+          "uploads": false
+        }
+      }
+    },
+    {
+      "email": "finance.employee@portpilot.test",
+      "password": "mock-pass-finance-employee",
+      "me": {
+        "employee_id": 24,
+        "role": "employee",
+        "department": "Finance",
+        "ceiling": 2,
+        "tools": ["finance_kpi", "invoice_audit", "search_documents"],
+        "products": {
+          "ask": true,
+          "packs_read": true,
+          "packs_decide": false,
+          "route_advice": false,
+          "voyage_watch": true,
+          "uploads": true
+        }
+      }
+    }
+  ]
+}

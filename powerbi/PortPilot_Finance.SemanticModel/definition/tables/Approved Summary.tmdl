@@ -1,0 +1,60 @@
+/// finance.pack_approved_summary (migration 024): the approved pack's executive summary, one row per line; filter Week.
+table 'Approved Summary'
+	lineageTag: b7c4358e-443f-450a-a5b1-d45f8b4de6e8
+
+	column report_week
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 64dae031-a522-4cc7-813c-102f65d41ad1
+		summarizeBy: none
+		sourceColumn: report_week
+
+	column iso_week_label
+		dataType: string
+		lineageTag: ba1d6299-3969-4173-8bd2-8cb54922691e
+		summarizeBy: none
+		sourceColumn: iso_week_label
+
+	column line_no
+		dataType: int64
+		formatString: 0
+		lineageTag: 24ad279e-d3ad-42e5-8c71-0d9840460379
+		summarizeBy: none
+		sourceColumn: line_no
+
+	column text
+		dataType: string
+		lineageTag: dd04b6fb-27dd-4f7a-80e5-371932ed4b4c
+		summarizeBy: none
+		sourceColumn: text
+
+	column approved_at
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 569cd97f-8b62-4250-947d-a46f03e727a9
+		summarizeBy: none
+		sourceColumn: approved_at
+
+	column approver_employee_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 723873b9-1707-4c27-94ee-4cc22f5e0f19
+		summarizeBy: none
+		sourceColumn: approver_employee_id
+
+	column degraded
+		dataType: boolean
+		lineageTag: 2de147ae-a041-4a36-a0dd-dbd8179d9679
+		summarizeBy: none
+		sourceColumn: degraded
+
+	partition 'finance pack_approved_summary' = m
+		mode: directQuery
+		source =
+				let
+				  Source = PostgreSQL.Database("127.0.0.1:5432", "ports_logistics"),
+				  #"Navigation 1" = Source{[Schema = "finance", Item = "pack_approved_summary"]}[Data]
+				in
+				  #"Navigation 1"
+

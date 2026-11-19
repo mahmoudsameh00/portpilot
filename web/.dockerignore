@@ -1,0 +1,12 @@
+# Never in the image: secrets, local builds, test output
+.env*
+node_modules/
+.next/
+out/
+playwright-report/
+test-results/
+blob-report/
+*.tsbuildinfo
+next-env.d.ts
+Dockerfile
+.dockerignore

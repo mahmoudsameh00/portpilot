@@ -26,6 +26,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import cast
 
 from pipelines.agents.deck import slots
+from pipelines.agents import traffic_claims
 from pipelines.agents.graphs import models as m
 
 REPORT_YEAR = 2025                                    # D12: replay of 2025's 52 ISO weeks
@@ -34,13 +35,18 @@ SUMMARY_BULLETS, MAX_COMMENTS = 5, 3
 CODE_SLIDES = (1, 10)                                  # rendered by code only (P6-2)
 COMMENT_SLIDES = range(3, 9)
 CONTEXT_SLIDE = 9
-NILEGATE_TOOLS = {"finance_kpi", "invoice_audit", "compute_toll"}   # NileGate's own data (ADR-049), never context
+NILEGATE_TOOLS = {"finance_kpi", "invoice_audit", "compute_toll"}   # PortPilot's own data (ADR-049), never context
+# approver-additions plan (owner B2, Phase B): the approver's own bullets, appended after the Writer's on a free-text
+# slide (comments 3–8, context 9); counted apart from the Writer's (V4); marked in the deck (`txt:approver:<i>`)
+APPROVER = "approver"
+ADDITION_SLIDES = range(3, 10)
+MAX_ADDITIONS = 2
 # evidence a slide may cite (§5c table); "x.*" = every id with that prefix
-SLIDE_EVIDENCE = {1: ("kpi.weekly",), 2: ("kpi.*", "audit.*", "insight.*"), 3: ("kpi.weekly",),
+SLIDE_EVIDENCE = {1: ("kpi.weekly",), 2: ("kpi.*", "audit.*", "insight.*", "context.*"), 3: ("kpi.weekly",),
                   4: ("kpi.trend", "kpi.category", "kpi.weekly", "audit.week"), 5: ("kpi.category",),
                   6: ("kpi.weekly", "kpi.overdue", "kpi.trend"), 7: ("kpi.customers", "kpi.weekly"),
                   8: ("audit.week", "audit.ytd"),
-                  9: ("insight.*",), 10: ()}
+                  9: ("context.*", "insight.*"), 10: ()}   # context.*: fetched by code
 
 # --- number tokens (the Phase 5 rules, kept) -------------------------------------------------------------------------
 NUM_RE = re.compile(r"(?<![\w.])([+\-−])?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(?:\s?(%|k\b|M\b))?")
@@ -337,10 +343,12 @@ class _Text:
         nxt = CLAUSE_AFTER_RE.search(self.text, it.end, hi)
         return lo, (nxt.start() if nxt else hi)
 
-    def _named_rows(self, eid: str, start: int, s0: int) -> list[int] | None:
+    def _named_rows(self, eid: str, start: int, s0: int, total: bool = False) -> list[int] | None:
         """Rows of a list result the sentence names for the number at `start`: a name in its own clause first (S6
         run 3: "{…} on 2025-03-03 and {…} on 2025-03-09" names each row after its number), else the nearest before,
-        else the first after; None = a one-row result."""
+        else the first after; None = a one-row result. `total` (a result-total slot, targeted-revise plan B2): a name
+        only in a later clause is that clause's row, not the total's ("averaged {mean}, dipping to {…} on
+        2025-04-26" — s9 / live W17), so it names no row here."""
         res = self.evidence[eid]
         keys = slots.row_keys(res)
         rows = res.get("rows") or []
@@ -375,6 +383,8 @@ class _Text:
         if own:
             name = min(own, key=lambda h: abs(h[0] - start))[2]
         else:
+            if total and not before:
+                return []
             name = max(before)[2] if before else min(hits)[2]
         return [i for i, r in enumerate(rows) if str(r.get(keys[0])) == name]
 
@@ -477,7 +487,7 @@ class _Text:
         if not self._family_ok(field, before, after, s0, it.start, eid):
             self.problems.append(("V7", it.token, self._family_message(it.token, field, s0)
                                   + ": name it, or cite the field it means"))
-        named = self._named_rows(eid, it.start, s0)
+        named = self._named_rows(eid, it.start, s0, total=it.row is None)
         if named and it.row not in named:
             row_name = self._key(it.eid, named[0]).strip("[]")
             res = self.evidence[it.eid]
@@ -557,6 +567,13 @@ BUDGET_DIR_RE = re.compile(r"(?i)\b(?:(?P<pos>above|ahead|outperform\w*|beat|exc
                            r"|(?P<neg>below|short\w*|behind|miss\w*|underperform\w*))\b")
 EARLIER_RE = re.compile(r"(?i)\b(?:year[- ]to[- ]date|YTD|so far this year|this year|earlier|prior|previous|past"
                         r"|historical|still open|before)\b")
+# rule 2b also reads the budget comparatives a title uses (live W17 slide 4, 2026-11-16: "Billed revenue exceeded
+# budget variance …" with the week −12.49 % and the period −6.85 %: DIR_RE had no "exceeded")
+BUDGET_WORD_RE = re.compile(r"(?i)\b(?:(?P<pos>ahead|outperform\w*|beat|exceed\w*)"
+                            r"|(?P<neg>short(?:fall)?|behind|miss\w*|underperform\w*))\b")
+# rule 9: a direction word right before a |dir slot that writes the direction itself (live W17 slide 6: "declined by
+# down 8.5 %")
+DIR_BEFORE_RE = re.compile(rf"\b(?:{NEG_WORDS}|{POS_WORDS})\s+(?:by\s+)?$", re.I)
 UNIT_AGAIN_RE = re.compile(r"(?:\s*SDR)?\s+(?:thousand|million|billion)\b|\s*SDR\s+SDR\b", re.I)
 WOW_OF = {"billed": "billed_wow_pct", "collected": "collected_wow_pct", "ar": "ar_wow_pct",
           "overdue": "overdue_wow_pct", "dso": "dso_wow_days"}
@@ -596,15 +613,46 @@ def _num(v):
     return None if v is None else float(v)
 
 
+# Backwards-compatible V10 entry point; the same policy checks Q&A and analysis notes.
+link_problems = traffic_claims.problems
+
+
+TILE_REPEAT = ("repeats what the slide's tiles already show: add a fact they do not (a driver, a customer, a finding, "
+               "a comparison with the period)")
+
+
+def _repeats_tiles(t: _Text, slide: int, evidence: dict) -> bool:
+    """V9 rule 5: a comment whose every number is a slot of one of the slide's tile fields and that names no row."""
+    if slide not in TILE_FIELDS:
+        return False
+    bound = [(i.eid, i.field, i.row) for i in t.items if i.field]
+    # a comment that names a row (an invoice, a customer, a category) adds what a tile cannot show
+    names_row = any(str(r.get(keys[0])) in t.text for e in t._ok(t.cited)
+                    if (keys := slots.row_keys(evidence[e])) for r in evidence[e].get("rows") or [])
+    # slot-written values only: a typed number binds by value and may match a tile by chance ("15 payments" =
+    # a 15.0 % swing), so the literal form (a human edit) is left to V1–V8
+    return bool(bound) and not names_row and all((e, f) in TILE_FIELDS[slide] for e, f, _ in bound) \
+        and len(bound) == len(t.items) and all(i.origin == "slot" for i in t.items)
+
+
+def repeats_tiles(text: str, evidence: dict, cited: list[str], slide: int, report_week: int) -> bool:
+    """Rule 5 on one Writer comment, for the code drop before the Validator (targeted-revise plan B1): the same test
+    V9 applies, so a comment dropped here is one V9 would have refused."""
+    used = list(dict.fromkeys(cited + [s.eid for s in slots.find_slots(text)]))
+    t = _Text(text, evidence, used, report_week)
+    t.check()
+    return _repeats_tiles(t, slide, evidence)
+
+
 def claim_problems(t: _Text, slide: int, title: bool, evidence: dict) -> list[tuple[str | None, str]]:
     """V9 on one text of slides 1–8 (after `t.check()`): (token, message) per refused claim."""
     out: list[tuple[str | None, str]] = []
     text = t.text
     k = ((evidence.get("kpi.weekly") or {}).get("rows") or [{}])[0]
-    # 1 no external cause on a NileGate slide (context is slide 9's, never a cause)
+    # 1 no external cause on a PortPilot slide (context is slide 9's, never a cause)
     for mt in EXTERNAL_RE.finditer(text):
         out.append((mt.group(0), f"'{mt.group(0)}' is external context: it belongs on slide 9 and never explains a "
-                                 "NileGate figure — drop it here"))
+                                 "PortPilot figure — drop it here"))
         break
     # 2 a stability word must agree with the family's week-on-week change
     for mt in STABLE_RE.finditer(text):
@@ -620,15 +668,16 @@ def claim_problems(t: _Text, slide: int, title: bool, evidence: dict) -> list[tu
         rows_named = [str(r.get(keys[0])) for e in ("kpi.category", "kpi.customers")
                       if (keys := slots.row_keys(evidence.get(e) or {})) for r in (evidence.get(e) or {}).get("rows")
                       or []]
-        for mt in DIR_RE.finditer(text):
+        words = sorted([*DIR_RE.finditer(text), *BUDGET_WORD_RE.finditer(text)], key=lambda m: m.start())
+        for mt in words:
             clause = _clause_of(text, mt.start())
             if any(i.start <= mt.start() < i.end for i in t.items):
                 continue                         # the word a |dir slot writes itself
             if any(text[i.start:i.end] in clause for i in t.items) or any(n in clause for n in rows_named):
                 continue                         # a number in the clause: V6 judges the direction word
             fams = [f for f in _clause_families(text, mt.start()) if f in WOW_OF or f == "budget"]
-            if not fams:
-                continue
+            if not fams or (mt.re is BUDGET_WORD_RE and "budget" not in fams):
+                continue                         # "exceeded" / "missed" speak of a budget only
             fam = "budget" if "budget" in fams else fams[0]
             field = "budget_variance_pct" if fam == "budget" else WOW_OF[fam]
             v, said = _num(k.get(field)), (-1 if mt["neg"] else 1)
@@ -667,17 +716,8 @@ def claim_problems(t: _Text, slide: int, title: bool, evidence: dict) -> list[tu
                     out.append((mt.group(0), f"'{mt.group(0)}' for a move inside the typical swing ({WOW_OF[fam]} "
                                              f"{v:+} vs ±{typ}): say it is within its normal weekly swing"))
     # 5 a comment must add something the slide's tiles do not already show
-    if not title and slide in TILE_FIELDS:
-        bound = [(i.eid, i.field, i.row) for i in t.items if i.field]
-        # a comment that names a row (an invoice, a customer, a category) adds what a tile cannot show
-        names_row = any(str(r.get(keys[0])) in text for e in t._ok(t.cited)
-                        if (keys := slots.row_keys(evidence[e])) for r in evidence[e].get("rows") or [])
-        # slot-written values only: a typed number binds by value and may match a tile by chance ("15 payments" =
-        # a 15.0 % swing), so the literal form (a human edit) is left to V1–V8
-        if bound and not names_row and all((e, f) in TILE_FIELDS[slide] for e, f, _ in bound) \
-                and len(bound) == len(t.items) and all(i.origin == "slot" for i in t.items):
-            out.append((None, "repeats what the slide's tiles already show: add a fact they do not (a driver, a "
-                              "customer, a finding, a comparison with the period)"))
+    if not title and _repeats_tiles(t, slide, evidence):
+        out.append((None, TILE_REPEAT))
     # 6 a category's position against budget must agree with its own variance (c5: "Crude Oil Tankers missed budget
     #   by +0.42 M SDR" for a category billed 0.84 M against 0.41 M)
     variance = {str(r["vessel_category"]): _num(r.get("budget_variance_sdr"))
@@ -711,6 +751,20 @@ def claim_problems(t: _Text, slide: int, title: bool, evidence: dict) -> list[tu
         if text[i.start:i.end].endswith(("SDR", "k", "M")) and (mt := UNIT_AGAIN_RE.match(text, i.end)):
             out.append((mt.group(0).strip(), f"'{text[i.start:i.end]}{mt.group(0)}' repeats the unit: the slot "
                                               "already writes it"))
+    # 9 a direction word before a |dir slot doubles it (live W17 slide 6: "declined by down 8.5 %")
+    for i in t.items:
+        if i.origin == "slot" and i.dir_sign is not None and (mt := DIR_BEFORE_RE.search(text, 0, i.start)):
+            out.append((mt.group(0).strip(), f"'{mt.group(0)}{text[i.start:i.end]}' says the direction twice: the "
+                                              "|dir slot already writes it — drop the word before it"))
+    # 10 every payment of the week compared with what fell due this week (live W17 slide 3: "Collected 5.57 M SDR,
+    #    exceeding the weekly due amount of 5.00 M SDR") — the due amount is matched by due_week_collected_sdr
+    for b0, b1 in zip(t.bounds, [*t.bounds[1:], len(text)]):
+        fields = {i.field for i in t.items if b0 <= i.start < b1 and i.eid == "kpi.weekly"}
+        if {"collected_sdr", "due_week_sdr"} <= fields and BUDGET_DIR_RE.search(text[b0:b1]):
+            out.append((None, "compares collected_sdr (every payment of the week, any due date) with due_week_sdr "
+                              "(what fell due this week): compare {kpi.weekly:due_week_collected_sdr|M} with "
+                              "{kpi.weekly:due_week_sdr|M}, or state them apart"))
+            break
     return out
 
 
@@ -733,7 +787,7 @@ def validate(draft: dict, evidence: dict, report_week: int) -> m.Verdict:
     if DRAFT_LABEL not in d.title:
         add("V3", f'the title must say "{DRAFT_LABEL}"')
     for st in d.slide_titles:     # S6 run 4: slide 1's title copied the deck title, so the approved deck said "Draft"
-        if DRAFT_LABEL in st.title or "NileGate Weekly Finance Pack" in st.title:
+        if DRAFT_LABEL in st.title or "PortPilot Weekly Finance Pack" in st.title:
             add("V3", f"slide {st.slide}'s title repeats the deck title or its label (code draws them): state the "
                       "slide's finding", st.slide)
     # (text, slide whose evidence applies, slide reported — None for the deck title, bullet index)
@@ -751,25 +805,37 @@ def validate(draft: dict, evidence: dict, report_week: int) -> m.Verdict:
             allowed = ", ".join(SLIDE_EVIDENCE[slide]) or "none (code renders this slide)"
             add("V5", f"slide {slide} may cite only {allowed}, not {off}", where, bullet)
         if slide == CONTEXT_SLIDE:
-            # S6 week 10: a NileGate figure slotted on the context slide could not be fixed by two patches, because
+            # S6 week 10: a PortPilot figure slotted on the context slide could not be fixed by two patches, because
             # the hint named kpi.weekly, which slide 9 may not cite — say what the fix is
             # what the text itself uses: its slots, and a bullet's own citations (a title "cites" the whole slide)
             own = [s.eid for s in slots.find_slots(text)] + (cited if bullet is not None else [])
             nilegate = sorted({s.field for s in slots.find_slots(text) if field_families(s.field)}
                               | {e for e in own if (evidence.get(e) or {}).get("tool") in NILEGATE_TOOLS})
             if nilegate:
-                add("V5", f"slide 9 is external context only: no NileGate figure or result here ({nilegate}); drop "
+                add("V5", f"slide 9 is external context only: no PortPilot figure or result here ({nilegate}); drop "
                           "it and keep the line about Suez transits, news or tariff rules", where, bullet)
         t = _Text(text, evidence, used, report_week)
         for rule, token, message in t.check():
             add(rule, message, where, bullet, token)
-        if slide < CONTEXT_SLIDE:                    # V9 on the NileGate slides (1–8) and the deck title
+        if slide < CONTEXT_SLIDE:                    # V9 on the PortPilot slides (1–8) and the deck title
             for token, message in claim_problems(t, slide, bullet is None, evidence):
                 add("V9", message, where, bullet, token)
+        for token, message in link_problems(text, used, evidence):   # V10 on every slide (traffic-billing link)
+            add("V10", message, where, bullet, token)
     titles = sorted(st.slide for st in d.slide_titles)
     if titles != list(range(1, m.SLIDES + 1)):
         add("V4", f"one title per slide 1–{m.SLIDES} needed, got {titles}")
-    per = {s: sum(1 for b in d.bullets if b.slide == s) for s in range(1, m.SLIDES + 1)}
+    # the Writer's shape (V4) counts the Writer's bullets; the approver's additions have their own slides and cap
+    mine = [b.get("origin") == APPROVER for b in draft["bullets"]]
+    per = {s: sum(1 for b, a in zip(d.bullets, mine) if b.slide == s and not a) for s in range(1, m.SLIDES + 1)}
+    added = {s: [i for i, (b, a) in enumerate(zip(d.bullets, mine)) if b.slide == s and a]
+             for s in range(1, m.SLIDES + 1)}
+    for s, idx in added.items():
+        if idx and s not in ADDITION_SLIDES:
+            add("V4", f"the approver may add bullets on slides {ADDITION_SLIDES[0]}–{ADDITION_SLIDES[-1]} only, "
+                      f"not on slide {s}", s, idx[0])
+        elif len(idx) > MAX_ADDITIONS:
+            add("V4", f"at most {MAX_ADDITIONS} approver additions on slide {s}, got {len(idx)}", s, idx[-1])
     if per[2] != SUMMARY_BULLETS:
         add("V4", f"the executive summary needs five bullets, got {per[2]}", 2)
     for s in COMMENT_SLIDES:
@@ -783,6 +849,33 @@ def validate(draft: dict, evidence: dict, report_week: int) -> m.Verdict:
     return m.Verdict(passed=not problems, problems=problems)
 
 
+def note_problems(text: str, evidence: dict, cited: list[str], report_week: int, slide: int) -> list[str]:
+    """The approver's text for the Insight notes (approver-additions plan §2b), checked before any model sees it, by
+    the rules a deck text of `slide` meets: cited ids answered, every number bound to a cited field (V1 / V2 / V6 /
+    V7, the human-edit path), the claim words (V9) on PortPilot slides, and no PortPilot figure in external context
+    (V5 on slide 9). Messages for the approver; [] = the note may go to the Writer."""
+    out = [f"cites evidence that does not exist or has no data: {e}" for e in cited
+           if (evidence.get(e) or {}).get("status") != "ok"]
+    used = list(dict.fromkeys(cited + [s.eid for s in slots.find_slots(text)]))
+    if slide == CONTEXT_SLIDE and any((evidence.get(e) or {}).get("tool") in NILEGATE_TOOLS for e in used):
+        out.append("external context cites a PortPilot result: keep PortPilot figures in the summary or a driver")
+    t = _Text(text, evidence, used, report_week)
+    out += [f"{rule} {token or ''}: {message}".replace("  ", " ") for rule, token, message in t.check()]
+    if slide < CONTEXT_SLIDE:
+        out += [f"V9 {token or ''}: {message}".replace("  ", " ") for token, message in
+                claim_problems(t, slide, False, evidence)]
+    out += [f"V10 {token or ''}: {message}".replace("  ", " ") for token, message in link_problems(text, used, evidence)]
+    return out
+
+
+def addition_evidence(evidence: dict, slide: int) -> list[str]:
+    """The ids an approver's addition on `slide` cites: every answered result the slide may cite — its literals are
+    bound by search among their rows (V2's human-edit path); on the context slide only external results (V5)."""
+    return [eid for eid, res in sorted(evidence.items())
+            if res.get("status") == "ok" and allowed_on(eid, slide)
+            and not (slide == CONTEXT_SLIDE and res.get("tool") in NILEGATE_TOOLS)]
+
+
 def render_draft(draft: dict, evidence: dict) -> dict:
     """The draft with every slot filled (a failed slot stays as written): what the approver reads and the renderer
     lays out."""
@@ -790,4 +883,6 @@ def render_draft(draft: dict, evidence: dict) -> dict:
         return slots.render_text(t, evidence)[0]
     return {**draft, "title": fill(draft["title"]),
             "slide_titles": [{**st, "title": fill(st["title"])} for st in draft["slide_titles"]],
-            "bullets": [{**b, "text": fill(b["text"])} for b in draft["bullets"]]}
+            "bullets": [{**b, "text": fill(b["text"])} for b in draft["bullets"]],
+            # targeted-revise plan B4: the Writer texts code took out, shown on their slide
+            **({"removed": [{**r, "text": fill(r["text"])} for r in draft["removed"]]} if draft.get("removed") else {})}

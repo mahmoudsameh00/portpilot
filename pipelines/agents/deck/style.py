@@ -1,4 +1,4 @@
-"""The NileGate deck template, as code (Agents plan §5c, P6-5): page size, colours, fonts, the slide grid.
+"""The PortPilot deck template, as code (Agents plan §5c, P6-5): page size, colours, fonts, the slide grid.
 
 One place for every presentation constant, so the renderer holds no magic numbers and a designed `.pptx` template
 can replace this module later without touching the data path. Colours follow the dataviz method: a single series
@@ -21,7 +21,7 @@ def rgb(hex6: str) -> RGBColor:
 
 
 # brand + neutrals
-NAVY = rgb("0B2545")                   # NileGate brand: title slide, slide titles
+NAVY = rgb("0B2545")                   # PortPilot brand: title slide, slide titles
 NILE = rgb("13A89E")                   # brand accent: rules, tile edges
 INK = rgb("0B0B0B")                    # primary text
 INK_2 = rgb("52514E")                  # secondary text
@@ -35,6 +35,11 @@ APPROVED_BG = rgb("1BAF7A")            # the "Approved" badge
 SERIES_1 = rgb("2A78D6")               # dataviz categorical slot 1: billed
 COMPARISON = rgb("A3A29C")             # budget (a reference, not a category)
 HIGHLIGHT = rgb("EB6834")              # the report week's marker (slot 2)
+# trend variants (approver-additions plan Phase C): one fixed colour per measure, so a series keeps its colour in
+# every variant; budget stays the dashed grey reference
+SERIES_OF = {"Billed": SERIES_1, "Budget": COMPARISON, "Collected": NILE, "Receivables": NAVY,
+             "Overdue": rgb("B4462A"), "DSO": SERIES_1}
+DASHED = {"Budget"}
 
 # type sizes
 TITLE_PT, BODY_PT, SMALL_PT, TILE_VALUE_PT, TILE_LABEL_PT, FOOT_PT = Pt(26), Pt(16), Pt(12), Pt(26), Pt(12), Pt(10)
@@ -52,3 +57,5 @@ BADGE_W = Inches(1.6)
 # number formats inside the native charts (the values stay the tool's exact SDR; the axis shows millions)
 AXIS_M = '#,##0.0,," M"'
 AXIS_K = '#,##0,"k"'
+AXIS_DAYS = '#,##0'                  # approver chart variants (plan Phase C): DSO days on the trend
+AXIS_PCT = '#,##0.0" %"'             # a percent field as returned (12.5 = 12.5 %), e.g. budget_variance_pct

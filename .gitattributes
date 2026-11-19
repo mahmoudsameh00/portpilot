@@ -3,6 +3,11 @@
 *.json    text eol=lf
 *.jsonl   text eol=lf
 *.csv     text eol=lf
+# Files run on the Linux deployment hosts (ADR-071): a CRLF checkout would break bash and Caddy
+*.sh      text eol=lf
+deploy/Caddyfile text eol=lf
+*.Dockerfile text eol=lf
+Dockerfile text eol=lf
 *.parquet binary
 *.npz     binary
 *.onnx    binary

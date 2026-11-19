@@ -2,7 +2,7 @@
 name: deck-style-guide
 description: The structure and writing style of the weekly finance PowerPoint pack (English, 10 slides, SDR): what code draws and what the Writer writes on each slide, number slots, titles, tone and the evidence each slide may cite.
 stage: 1
-reviewed_by_owner: 2026-11-02
+reviewed_by_owner: 2026-11-09
 ---
 # Weekly finance pack — deck style guide
 
@@ -20,7 +20,7 @@ every number as a **slot** ("Numbers"). The Validator checks your words (V9), yo
 | 6 Receivables | aging; overdue roll-forward; DSO terms / late; due this week collected; largest overdue | ≤ 3 | `kpi.weekly`, `kpi.overdue`, `kpi.trend` |
 | 7 Customers | top 10: rating, AR, overdue, AR / 13-week billing, watch; top-10 share | ≤ 3: who moved, who is on the watchlist | `kpi.customers`, `kpi.weekly` |
 | 8 Exceptions | findings + actions; with none, "N checked, none flagged" + the year's findings | ≤ 3 | `audit.week`, `audit.ytd` |
-| 9 Context | Suez transits chart (when fetched) | ≤ 3 lines: transits, news (title, source, date), a tariff rule; or "External context unavailable" | Insight results only |
+| 9 Context | Suez transits chart (when fetched); code's link line (M17) | ≤ 3 lines: transits, news (title, source, date), a tariff rule; or "External context unavailable" | `context.suez`, `context.news` (by code), Insight results |
 | 10 Appendix | sources, filters, freshness | — | — |
 
 ## Titles and claims (V9 refuses the rest)
@@ -31,13 +31,13 @@ every number as a **slot** ("Numbers"). The Validator checks your words (V9), yo
   below it over the year so far".
 - A move inside its typical swing (`*_wow_typical_pct`) is "within its normal swing", never a pullback, surge or
   sharp move; a direction word must match the week's sign.
-- No external cause (Red Sea, disruptions, markets) on slides 1–8: context is slide 9's and never explains a NileGate
+- No external cause (Red Sea, disruptions, markets) on slides 1–8: context is slide 9's and never explains a PortPilot
   figure.
 - A comment adds what the tiles do not show (a driver, a customer, a finding, the period); never repeat a tile.
 - Short active sentences, one spelling per deck, no forecasts or advice beyond the audit's actions.
 
 ## Numbers: slots
-Never type a NileGate number. Code writes the value, its sign and unit (`number-validation`):
+Never type a PortPilot number. Code writes the value, its sign and unit (`number-validation`):
 - one-row results and totals: {kpi.weekly:billed_sdr|M} → "8.39 M SDR"; {audit.week:invoices_checked} → "19";
 - lists, the row by its key: {kpi.category[Cruise Ships]:billed_wow_change_sdr|M} → "−1.07 M SDR";
 - formats: money M, k or as returned; percent %1 or %2; days and counts none;

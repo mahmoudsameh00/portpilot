@@ -1,0 +1,227 @@
+# PortPilot — the deployment stack (Staging readiness plan P4, ADR-071): one host, every service a container.
+# The same file serves the local staging rehearsal (Docker Desktop) and the Azure VMs of staging / production; what
+# differs lives in the environment's env file (deploy/env/<env>.env, git-ignored; template deploy/env.example):
+#   docker compose -f deploy/compose.yaml --env-file deploy/env/staging.env up -d --build
+#   docker compose -f deploy/compose.yaml --env-file deploy/env/staging.env --profile ops run --rm ops <command>
+# Exposure: only `proxy` publishes ports (80 / 443, or one loopback port in the rehearsal). The API, the web's port
+# and the stores sit on the internal `backend` network; `api` and `scheduler` also join `egress` for the model and
+# tool APIs. Qdrant's port is published on the host's LOOPBACK only (Backup.py's snapshot calls), like ADR-034.
+# Each service gets only the variables it needs (no env_file: a store never sees a model key, the web sees no
+# secret at all, only `ops` holds the database owner's password).
+name: ${PORTPILOT_STACK:?set PORTPILOT_STACK in the env file}
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+x-hardening: &hardening
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+  logging: *logging
+
+x-app-env: &app-env
+  PORTPILOT_ENV: ${PORTPILOT_ENV:?}
+  TZ: UTC
+  PGHOST: postgres
+  PGPORT: "5432"
+  PGDATABASE: ports_logistics
+  PG_RO_USER: ${PG_RO_USER:?}
+  PG_RO_PASSWORD: ${PG_RO_PASSWORD:?}
+  PG_AGENT_USER: ${PG_AGENT_USER:?}
+  PG_AGENT_PASSWORD: ${PG_AGENT_PASSWORD:?}
+  PG_API_USER: ${PG_API_USER:?}
+  PG_API_PASSWORD: ${PG_API_PASSWORD:?}
+  PG_AGENT_POOL_MAX: ${PG_AGENT_POOL_MAX:-}
+  PG_RO_POOL_MAX: ${PG_RO_POOL_MAX:-}
+  PG_API_POOL_MAX: ${PG_API_POOL_MAX:-}
+  MONGO_HOST: mongo
+  MONGO_PORT: "27017"
+  MONGO_DB: ports_logistics
+  MONGO_AUTH_SOURCE: admin
+  MONGO_RO_USER: ${MONGO_RO_USER:?}
+  MONGO_RO_PASSWORD: ${MONGO_RO_PASSWORD:?}
+  QDRANT_URL: http://qdrant:6333
+  QDRANT_API_KEY: ${QDRANT_API_KEY:?}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  GEMINI_TIER: ${GEMINI_TIER:-paid}
+  JINA_API_KEY: ${JINA_API_KEY:-}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
+  OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+  TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+  LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+  LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
+  API_CORS_ORIGINS: ${PORTPILOT_WEB_ORIGIN:?}
+
+x-app-volumes: &app-volumes
+  - reports:/app/reports
+  - llm_cache:/app/Data/processed/agents/eval/llm_cache
+  - tool_cache:/app/Data/processed/agents/tool_cache
+  - query_cache:/app/Data/embeddings/gemini-embedding-2/cache_queries
+  - incoming:/app/Data/incoming
+  - synthetic:/app/Data/processed/semi-structured/synthetic
+  - models:/app/models:ro
+
+services:
+  postgres:
+    <<: *hardening
+    image: postgis/postgis:16-3.5
+    container_name: ${PORTPILOT_STACK}-postgres
+    environment:
+      POSTGRES_USER: ${PGUSER:-postgres}
+      POSTGRES_PASSWORD: ${PGPASSWORD:?}
+      POSTGRES_DB: postgres
+    volumes: [pg_data:/var/lib/postgresql/data]
+    networks: [backend]
+    shm_size: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  mongo:
+    <<: *hardening
+    image: mongo:8.0.32
+    container_name: ${PORTPILOT_STACK}-mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:?}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?}
+    volumes: [mongo_data:/data/db]
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ping: 1}).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  qdrant:
+    <<: *hardening
+    image: qdrant/qdrant:v1.19.1
+    container_name: ${PORTPILOT_STACK}-qdrant
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?}
+      QDRANT__TELEMETRY_DISABLED: "true"
+    volumes: [qdrant_data:/qdrant/storage, qdrant_snapshots:/qdrant/snapshots]
+    networks: [backend, hostlink]
+    ports: ["127.0.0.1:${QDRANT_HOST_PORT:-6333}:6333"]
+
+  api:
+    <<: *hardening
+    image: portpilot-api:${PORTPILOT_TAG:-local}
+    build: { context: .., dockerfile: ops/docker/api.Dockerfile }
+    container_name: ${PORTPILOT_STACK}-api
+    environment:
+      <<: *app-env
+      API_BIND_HOST: 0.0.0.0
+    volumes: *app-volumes
+    networks: [backend, egress]
+    read_only: true
+    tmpfs: ["/tmp:size=512m"]
+    cap_drop: [ALL]
+    depends_on:
+      postgres: { condition: service_healthy }
+      mongo: { condition: service_healthy }
+      qdrant: { condition: service_started }
+
+  scheduler:
+    <<: *hardening
+    image: portpilot-api:${PORTPILOT_TAG:-local}
+    container_name: ${PORTPILOT_STACK}-scheduler
+    command: ["python", "pipelines/scripts/ops/Scheduler_service.py"]
+    environment:
+      <<: *app-env
+      PACK_RUN_AS: ${PACK_RUN_AS:?}
+      WATCH_RUN_AS: ${WATCH_RUN_AS:?}
+    volumes: *app-volumes
+    networks: [backend, egress]
+    read_only: true
+    tmpfs: ["/tmp:size=512m"]
+    cap_drop: [ALL]
+    healthcheck: { disable: true }
+    depends_on:
+      api: { condition: service_started }
+
+  web:
+    <<: *hardening
+    image: portpilot-web:${PORTPILOT_TAG:-local}
+    build: { context: ../web }
+    container_name: ${PORTPILOT_STACK}-web
+    environment:
+      PORTPILOT_API_URL: http://api:8000
+      PORTPILOT_WEB_ORIGIN: ${PORTPILOT_WEB_ORIGIN:?}
+      PORTPILOT_TRUST_PROXY: "1"
+    networks: [backend, frontend]
+    read_only: true
+    tmpfs: ["/tmp", "/app/.next/cache"]
+    cap_drop: [ALL]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      api: { condition: service_healthy }
+
+  proxy:
+    <<: *hardening
+    image: caddy:2.10.2-alpine
+    container_name: ${PORTPILOT_STACK}-proxy
+    environment:
+      PORTPILOT_SITE: ${PORTPILOT_SITE:?}
+      CADDY_TLS: ${CADDY_TLS:?}
+    ports:
+      - "${PROXY_HTTP_BIND:-80}:80"
+      - "${PROXY_HTTPS_BIND:-443}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [frontend]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    depends_on:
+      web: { condition: service_started }
+
+  # Operator one-offs (profile `ops`, never started by `up`): migrations, model seeding, logins. The only service
+  # with the database owner's password.
+  ops:
+    image: portpilot-api:${PORTPILOT_TAG:-local}
+    profiles: [ops]
+    environment:
+      <<: *app-env
+      PGUSER: ${PGUSER:-postgres}
+      PGPASSWORD: ${PGPASSWORD:?}
+    volumes:
+      - reports:/app/reports
+      - models:/app/models
+      - synthetic:/app/Data/processed/semi-structured/synthetic
+    networks: [backend]
+    read_only: true
+    tmpfs: ["/tmp:size=256m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck: { disable: true }
+    logging: *logging
+
+networks:
+  backend: { internal: true }
+  egress: {}
+  frontend: {}
+  hostlink: {}
+
+volumes:
+  pg_data: {}
+  mongo_data: {}
+  qdrant_data: {}
+  qdrant_snapshots: {}
+  reports: {}
+  llm_cache: {}
+  tool_cache: {}
+  query_cache: {}
+  incoming: {}
+  synthetic: {}
+  models: {}
+  caddy_data: {}
+  caddy_config: {}

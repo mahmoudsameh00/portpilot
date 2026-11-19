@@ -1,50 +1,50 @@
-# Virtual environment
+# Python environment and caches
 .venv/
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.pytest_cache/
+.ipynb_checkpoints/
 
-# Environment variables / secrets
+# Secrets: every .env file except the templates
 .env
 .env.*
 !.env.example
 
-# Jupyter
-.ipynb_checkpoints/
+# Editor settings (personal)
+.vscode/
+.idea/
 
-# Python cache
-__pycache__/
-*.py[cod]
-
-# Raw / large datasets
-Data/raw/
-
-# Temporary files
+# Temporary files and run logs
 *.tmp
 *.log
+dev/_scratch/
 
-Notebooks/_scratch/
+# Raw downloads: never modified, never committed
+Data/raw/
+
+# Generated data that is rebuilt on demand
 Data/processed/semi-structured/synthetic/*.parquet
-
-# Embedding vectors (ADR-037, owner 2026-10-05): only manifest.json is committed; it carries the hashes that prove
-# a local dense.parquet matches. The working cache of the embedding script is local too.
+# embedding vectors: only manifest.json is committed (its hashes prove a local dense.parquet matches, ADR-037)
 Data/embeddings/*/dense*.parquet
 Data/embeddings/*/cache_*/
-# Embedding bake-off vectors (RAG plan Phase 2; seeds and query vectors read by Embeddings / Retrieval / Lib_selftest /
-# Search_index_benchmark; moved out of Notebooks/_scratch at the plan's close, 2026-10-08)
 Data/embeddings/bakeoff/
-
-# Local embedding models (RAG plan Phase 8): downloaded / exported weights, rebuilt by tools/export_onnx.py
+# local embedding model weights, rebuilt by dev/tools/export_onnx.py
 models/
-# Promotion requests of uploaded documents (persisted only on a manager's explicit request; reviewed offline)
+# uploaded documents waiting for a manager's promotion review
 Data/incoming/
-# LLM response cache + daily quota state (Agents plan Phase 0, §7a); the frozen tasks and results stay in git
+# model response cache + daily quota state, and the external tool cache (rebuilt by calling again)
 Data/processed/agents/eval/llm_cache/
-# External tool cache (Agents plan Phase 4, §5a P4-7): PortWatch / web search answers, rebuilt by calling again
 Data/processed/agents/tool_cache/
-# Weekly finance packs saved by the weekly_pack Publisher (Agents plan Phase 5, §5b): generated output
+# weekly packs, voyage-watch runs and API logs written at run time
 reports/
-# Power BI project (Agents plan Phase 3): local user settings and the local data cache stay out of git
-# (Microsoft's PBIP guidance); the .pbix the owner saved first is not the source (the PBIP is)
+
+# Power BI: local user settings and the local data cache (the PBIP is the source, not a .pbix)
 powerbi/**/.pbi/localSettings.json
 powerbi/**/.pbi/cache.abf
 powerbi/*.pbix
-# graphify knowledge graph (local tool output: cache, graph.json, report, html)
-graphify-out/
+
+# Deployment: store backups (dumps with password hashes) and one env file per environment (secrets);
+# only deploy/env.example is tracked (ADR-071)
+backups/
+deploy/env/

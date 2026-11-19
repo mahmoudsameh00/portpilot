@@ -1,0 +1,8 @@
+node_modules
+.next
+next-env.d.ts
+playwright-report
+test-results
+src/lib/bff/allowlist.generated.ts
+package-lock.json
+src/api/generated/

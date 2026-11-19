@@ -5,7 +5,7 @@ the ADR-006 filter inside both prefetches of a hybrid query. Works in a throwawa
 
 Raw REST through httpx (not qdrant-client) on purpose: the client could run BM25 locally (fastembed) and hide whether
 the SERVER can do it, which is exactly what D4 asks. The API key is read from .env and never printed.
-Output: printed and saved to db/qdrant/audit/<date>_probe.txt. Exit 1 if any check fails.
+Output: printed and saved to dev/db_audit/qdrant/<date>_probe.txt. Exit 1 if any check fails.
 """
 import datetime as dt
 import socket
@@ -145,7 +145,7 @@ with httpx.Client(base_url=URL, timeout=30) as c:
 
 out(f"RESULT: {'ALL PASS' if not failed else 'FAILED: ' + ', '.join(failed)} | server-side BM25: "
     f"{'yes' if server_bm25 else 'no → fastembed on the client (D4)'}")
-audit = ROOT / "db" / "qdrant" / "audit" / f"{dt.date.today().isoformat()}_probe.txt"
+audit = ROOT / "dev" / "db_audit" / "qdrant" / f"{dt.date.today().isoformat()}_probe.txt"
 audit.parent.mkdir(parents=True, exist_ok=True)
 audit.write_text("\n".join(lines) + "\n", encoding="utf-8")
 sys.exit(1 if failed else 0)

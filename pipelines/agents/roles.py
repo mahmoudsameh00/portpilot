@@ -21,7 +21,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from pydantic import BaseModel
 
-from pipelines.agents import llm
+from pipelines.agents import llm, model_config
 from pipelines.lib.common import load_env
 from pipelines.lib.embeddings import est_tokens
 
@@ -37,22 +37,50 @@ class Candidate:
         return f"{self.provider}/{self.model}"
 
 
-QWEN = Candidate("groq", "qwen/qwen3.8-27b", "function_calling")
-FLASH_LITE = Candidate("gemini", "gemini-3.5-flash-lite", "function_calling")
-GPT_OSS_20B = Candidate("groq", "openai/gpt-oss-20b", "json_schema")
-NEMOTRON = Candidate("openrouter", "nvidia/nemotron-3.5-super-vl:free", "function_calling")
+# ADR-045: the model per role, main first then the fallbacks — now set in pipelines/agents/models.toml `[roles]`
+# (Model flexibility plan, owner 2026-11-13, M1): Tools / routing = flash-lite + gpt-oss-20b (Groq); Writer / Insight =
+# flash-lite + OpenRouter nemotron-3.5-super-vl (amendments 1–2: the pack's prompts do not fit Groq's 8K TPM; the
+# retired nemotron-3-super replaced). A swap = editing that file after docs/model_swap.md, no code.
+def _build() -> dict[str, tuple[Candidate, ...]]:
+    c = model_config.current()
+    return {role: tuple(Candidate(c.models[n].provider, c.models[n].id, c.models[n].structured) for n in names)
+            for role, names in c.roles.items()}
 
-# ADR-045: Tools / routing = flash-lite + gpt-oss-20b (Groq). Writer / Insight was qwen (Groq) + flash-lite; the
-# weekly pack's real prompts (9.7K–17K tokens, Phase 5 S6) do not fit Groq's 8K tokens per minute, so the pack's
-# Insight / Writer run on flash-lite (250K TPM, tied with qwen in the bake-off) with OpenRouter nemotron (1M TPM,
-# 50 requests / day) as the fallback from another provider (owner 2026-10-19, ADR-045 amendment 1). Amendment 2
-# (2026-10-23, §5f F7): nemotron-3-super was retired upstream (404 on every request) → nemotron-3.5-super-vl, the
-# only candidate that published a forced-fallback pack (1 / 2; dots-3-note-preview 0 / 2).
-ROLES: dict[str, tuple[Candidate, ...]] = {
-    "insight": (FLASH_LITE, NEMOTRON),
-    "writer": (FLASH_LITE, NEMOTRON),
-    "tools": (FLASH_LITE, GPT_OSS_20B),
-}
+
+ROLES: dict[str, tuple[Candidate, ...]] = _build()
+
+
+def reload(path=None) -> dict[str, tuple[Candidate, ...]]:
+    """Switch this process to another models file (None = the tracked one) and rebuild ROLES and llm.PROVIDERS."""
+    model_config.use(path)
+    llm.reload_providers()
+    ROLES.clear()
+    ROLES.update(_build())
+    return ROLES
+
+
+def use_eval_models() -> str | None:
+    """Plan decision M4: an evaluation script may try candidate models from `EVAL_MODELS=<file>` without editing the
+    reviewed file; the API, the CLIs and the scheduler never call this. Returns the file used, if any."""
+    f = model_config.eval_file()
+    if f:
+        reload(f)
+    return f
+
+
+def fallback_share(usage: list[dict]) -> float | None:
+    """W10: of the calls a model answered, the share answered by a model other than its role's main (None = no
+    answered call). Fake models count as their role's own."""
+    answered = [u for u in usage if u.get("outcome") == "ok" and u.get("role") in ROLES]
+    if not answered:
+        return None
+    by_fallback = sum(1 for u in answered if u["model"] != ROLES[u["role"]][0].name
+                      and not str(u["model"]).startswith("fake/"))
+    return round(by_fallback / len(answered), 4)
+
+
+class NoModelKey(llm.Exhausted):
+    """A role has no candidate whose key is in .env: refused when the real roles are built, not mid-pack."""
 
 
 class StructuredError(RuntimeError):
@@ -82,7 +110,9 @@ def _input_tokens(messages: list[BaseMessage], tools=None, schema: type[BaseMode
 
 def _record(role: str, model: str, kind: str, reply: llm.Reply | None, est_in: int, outcome: str) -> dict:
     usage = (reply.usage if reply else None) or {}
-    return {"role": role, "model": model, "kind": kind, "outcome": outcome,
+    provider, _, model_id = model.partition("/")
+    cost = llm.cost_usd(provider, model_id, usage) if reply is not None and not reply.cached else 0.0
+    return {"role": role, "model": model, "kind": kind, "outcome": outcome, "cost_usd": cost,
             "cached": bool(reply and reply.cached), "est_input_tokens": est_in,
             "input_tokens": usage.get("input_tokens"), "output_tokens": usage.get("output_tokens"),
             "total_tokens": usage.get("total_tokens"),
@@ -163,6 +193,11 @@ class Roles:
 
     def __init__(self, cache_dir: Path = llm.CACHE_DIR, quota: llm.QuotaState | None = None):
         load_env()
+        keyless = {name: [c.name for c in cands] for name, cands in ROLES.items()
+                   if not any(llm.has_key(c.provider) for c in cands)}
+        if keyless:
+            raise NoModelKey(f"no key in .env for any model of {keyless} "
+                             f"({sorted({llm.PROVIDERS[c.provider]['key'] for cs in ROLES.values() for c in cs})})")
         self.quota = quota or llm.QuotaState(cache_dir)
         self._roles = {name: Role(name, cands, self.quota, cache_dir) for name, cands in ROLES.items()}
 

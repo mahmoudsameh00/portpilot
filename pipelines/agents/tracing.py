@@ -108,6 +108,9 @@ def trace(thread_id: str, *, entry: str, run_as: int | None, launched_by: str = 
         from langsmith.run_helpers import tracing_context
         tags, meta = labels(thread_id, entry, run_as, launched_by)
         tags += list(extra_tags)
+        from pipelines.lib import environment
+        if not environment.is_local():          # ADR-071: staging and production traces apart in one project
+            tags.append(f"env:{environment.name()}")
         stack.enter_context(tracing_context(enabled=True, project_name=PROJECT, tags=tags, metadata=meta))
         runs = stack.enter_context(collect_runs())   # the block's root runs, for `last_url`
         on = True

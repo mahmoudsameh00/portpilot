@@ -1,0 +1,88 @@
+# Deploy a green commit to staging or production (Staging readiness plan P10, ADR-071). Manual only.
+# Owner setup (docs/deploy/RUNBOOK.md §GitHub): environments `staging`, `production` and `<env>-migrations`, each
+# with the owner as required reviewer; repository variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+# (an app registration with a federated credential for this repository's environments — no client secret) and, per
+# environment, AZURE_RESOURCE_GROUP + AZURE_VM_NAME. The VM runs ops/deploy/deploy.sh; nothing is pushed to a registry.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [staging, production]
+        required: true
+      ref:
+        description: "A tag or commit SHA whose CI run is green"
+        required: true
+      apply_migrations:
+        description: "Apply pending db/migrations (a second approval)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      checks: read
+    env:
+      REF: ${{ inputs.ref }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: The ref is well formed
+        run: '[[ "$REF" =~ ^[A-Za-z0-9._/-]{1,100}$ ]] || { echo "bad ref"; exit 1; }'
+      - name: Every CI check of the ref passed
+        run: |
+          sha=$(gh api "repos/${{ github.repository }}/commits/$REF" --jq .sha)
+          bad=$(gh api "repos/${{ github.repository }}/commits/$sha/check-runs?per_page=100" \
+                --jq '[.check_runs[] | select(.app.slug == "github-actions") | select(.conclusion != "success")] | length')
+          total=$(gh api "repos/${{ github.repository }}/commits/$sha/check-runs?per_page=100" \
+                --jq '[.check_runs[] | select(.app.slug == "github-actions")] | length')
+          echo "ref $REF = $sha: $total check runs, $bad not successful"
+          [[ "$total" -gt 0 && "$bad" -eq 0 ]]
+
+  migrations-approval:
+    if: ${{ inputs.apply_migrations }}
+    needs: gate
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}-migrations
+    steps:
+      - run: echo "the owner approved applying pending migrations to ${{ inputs.environment }}"
+
+  deploy:
+    needs: [gate, migrations-approval]
+    if: ${{ always() && needs.gate.result == 'success' && (needs.migrations-approval.result == 'success' || needs.migrations-approval.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      REF: ${{ inputs.ref }}
+      TARGET: ${{ inputs.environment }}
+      FLAG: ${{ inputs.apply_migrations && '--apply-migrations' || '' }}
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Run deploy.sh on the VM
+        run: |
+          [[ "$REF" =~ ^[A-Za-z0-9._/-]{1,100}$ ]] || { echo "bad ref"; exit 1; }
+          out=$(az vm run-command invoke --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+                --name "${{ vars.AZURE_VM_NAME }}" --command-id RunShellScript \
+                --scripts "sudo -u portpilot bash /opt/portpilot/repo/ops/deploy/deploy.sh $TARGET $REF $FLAG; echo DEPLOY_EXIT=\$?" \
+                --query "value[0].message" --output tsv)
+          echo "$out"
+          echo "$out" | grep -q "DEPLOY_EXIT=0"

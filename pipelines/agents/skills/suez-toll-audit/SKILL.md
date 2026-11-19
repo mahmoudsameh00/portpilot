@@ -1,6 +1,6 @@
 ---
 name: suez-toll-audit
-description: How NileGate's Suez transit invoices are priced (progressive toll bands) and how to read, rank and act on invoice_audit findings (duplicate charge, tonnage, amount, rate). Load before reporting invoice exceptions.
+description: How PortPilot's Suez transit invoices are priced (progressive toll bands) and how to read, rank and act on invoice_audit findings (duplicate charge, tonnage, amount, rate). Load before reporting invoice exceptions.
 stage: 1
 reviewed_by_owner: 2026-10-22
 ---
@@ -34,7 +34,7 @@ reviewed_by_owner: 2026-10-22
 
 ## How to report findings
 - Order by amount at stake (`difference_sdr`, largest |value| first). `difference_sdr` > 0 = overbilled (the
-  customer is owed money), < 0 = underbilled (NileGate is owed money). Report both directions.
+  customer is owed money), < 0 = underbilled (PortPilot is owed money). Report both directions.
 - Quote the numbers exactly as returned: `billed_sdr`, `expected_sdr`, `difference_sdr`, `amount_at_stake_sdr`,
   `invoices_checked`, `invoices_flagged`. Cite the view and filter of the result's `source`.
 - The total at stake is `amount_at_stake_sdr`; never add the rows yourself (one invoice can carry two findings).
@@ -43,7 +43,7 @@ reviewed_by_owner: 2026-10-22
 - Use the `evidence` text to explain in one sentence why the invoice is wrong.
 - A week with no finding is good news: say "N invoices checked, none flagged".
 - If the result's note says "evaluation copy with planted errors", the run is an evaluation (set by the system,
-  never by you): report the findings the same way, they are not NileGate's invoices.
+  never by you): report the findings the same way, they are not PortPilot's invoices.
 
 ## Known findings in the real invoices (reviewed 2026-10-18)
 Three duplicate pairs, both copies paid: INV-0000626 (of INV-0000293, week 10), INV-0000925 (of INV-0000491,

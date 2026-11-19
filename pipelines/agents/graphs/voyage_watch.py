@@ -11,7 +11,10 @@ decision; the model only writes a short brief over the alerts, with number slots
 - **4 traffic:** PortWatch, the 28 days before the clock vs a year earlier (`route_advice.traffic`), and which
   vessels still have the canal ahead (F10).
 - **5 alerts:** the fixed rules of P11-4 → `watch.alerts` (rows keyed `vessel_id/kind`) + `watch.fleet`; the run
-  file is written here, before any model call, so a model failure never loses an alert.
+  file is written here, before any model call, so a model failure never loses an alert. JIT arrival plan D-J3: a
+  vessel at sea with an RTA known at the clock (`port_call_messages`, the latest message sent at or before it) gets
+  the arrival arithmetic of `tools/arrival.py` (no Cape, no model) in node 2 → `rta_late` (R misses the RTA; high
+  when ≥ 12 h late) and `jit` (moderate: it would wait ≥ 6 h at anchor and a slower speed ≥ the floor saves fuel).
 - **6 brief / 7 validator:** one structured call of the `writer` role (skill `voyage-watch-brief`) only when there
   are alerts; the Validator: slots bound to the cited alerts, no typed number (copied dates must be a cited alert's),
   every high alert cited; one patch, then the brief is dropped (`validation_failed`) — the alerts stand.
@@ -41,7 +44,7 @@ from pipelines.agents.deck import validator as v2
 from pipelines.agents.graphs import models as m
 from pipelines.agents.graphs import route_advice as ra
 from pipelines.agents.roles import StructuredError
-from pipelines.agents.tools import context, db, eta, vessels, voyages, weather
+from pipelines.agents.tools import arrival, context, db, eta, vessels, voyages, weather
 from pipelines.agents.tools.context import RunContext
 from pipelines.agents.tools.schemas import Source, ToolResult
 from pipelines.lib.common import project_root
@@ -52,6 +55,9 @@ WATCHED = ("In Transit", "Anchored")
 WAVE_MODERATE_M, WAVE_HIGH_M = 4.0, 6.0
 WIND_MODERATE_KN, WIND_HIGH_KN = 34.0, 48.0
 TRAFFIC_MODERATE_PCT, TRAFFIC_HIGH_PCT = -20.0, -40.0
+# JIT arrival plan D-J3, fixed before any measurement: a JIT alert when the vessel would wait this long at anchor; a
+# late arrival is high from this many hours after the RTA
+JIT_WAIT_H, RTA_LATE_HIGH_H = 6.0, 12.0
 SEVERITY = {"high": 2, "moderate": 1}
 CODE = "voyage_watch (code)"
 
@@ -87,23 +93,35 @@ def fleet(user, as_of: datetime, vessel_ids: list[int] | None = None) -> tuple[l
 
 # --- 2 eta ----------------------------------------------------------------------------------------------------------
 
+def _rta(user, s: dict) -> dict | None:
+    """The RTA row known at the clock for the vessel's current port call, or None (none, cancelled, not permitted)."""
+    r = arrival.rta_known(user, s["vessel_id"], s["destination"], s["voyage_no"], eta._ts(s["as_of"]).to_pydatetime())
+    return r.rows[0] if r.status == "ok" else None
+
+
 def etas(user, rows: list[dict]) -> list[dict]:
-    """One row per watched vessel: R for those at sea (+ their next-leg points), "at anchorage" for the others."""
+    """One row per watched vessel: R for those at sea (+ their next-leg points and, with an RTA known at the clock,
+    the arrival arithmetic, D-J3), "at anchorage" for the others (with their RTA, when one is known)."""
     out = []
     for s in rows:
         base = {"vessel_id": s["vessel_id"], "vessel_name": s["vessel_name"], "status": s["status_at_as_of"],
                 "destination": s["destination"], "next_port": s["next_port"],
                 "distance_left_nm": s["distance_left_nm"], "last_fix_ts": s["last_fix"]["ts"]}
+        rta = _rta(user, s)
+        base["rta_utc"] = rta["rta_utc"] if rta else None
         if s["status_at_as_of"] != "In Transit":
             out.append(base | {"eta_utc": None, "eta_in_h": None, "speed_kn": None, "points": [],
-                               "suez_ahead": False, "note": "at anchorage off its destination: berth time not in the "
-                                                            "data, no ETA"})
+                               "suez_ahead": False, "arrival": None,
+                               "note": "at anchorage off its destination: no ETA"
+                                       + (f"; berth requested for {rta['rta_utc']} ({rta['message_id']})" if rta
+                                          else "; no berth time known at the clock")})
             continue
-        planned = vessels.vessel_params(user, vessel_id=s["vessel_id"]).rows[0]["speed_kn"]
-        e = eta.eta_rule(s, planned)
+        params = vessels.vessel_params(user, vessel_id=s["vessel_id"]).rows[0]
+        e = eta.eta_rule(s, params["speed_kn"])
+        jit = arrival.options(s, params, params, rta) if rta else None
         out.append(base | {"eta_utc": e["eta_utc"], "eta_in_h": e["eta_in_h"], "speed_kn": e["speed_kn"],
                            "speed_source": e["speed_source"], "points": eta.next_leg_points(s["vessel_id"], s, e),
-                           "suez_ahead": eta.suez_ahead(s["vessel_id"], s["distance_covered_nm"])})
+                           "suez_ahead": eta.suez_ahead(s["vessel_id"], s["distance_covered_nm"]), "arrival": jit})
     return out
 
 
@@ -235,7 +253,41 @@ def alerts(eta_rows: list[dict], wx: dict, traffic_ev: dict) -> list[dict]:
                         "date": r["eta_utc"][:10],
                         "reason": f"Suez Canal ahead; transits {change} % vs a year earlier ≤ "
                                   f"{TRAFFIC_MODERATE_PCT} %"})
+        out += arrival_alerts(r, base)
     return sorted(out, key=lambda a: (-SEVERITY[a["severity"]], a["vessel_id"], a["kind"]))
+
+
+def arrival_alerts(r: dict, base: dict) -> list[dict]:
+    """D-J3: `rta_late` when R misses the RTA, `jit` when the vessel would wait ≥ JIT_WAIT_H and a slower speed saves
+    fuel (the rule's option of `tools/arrival.py`)."""
+    a = r.get("arrival")
+    if not a:
+        return []
+    s = a["summary"]
+    by = {o["option"]: o for o in a["options"]}
+    common = {**base, "rta_utc": s["rta_utc"], "date": s["rta_utc"][:10], "rta_location": s["location"]}
+    if s["situation"] == "late":
+        up = by.get("catch_up")
+        sev = "high" if s["keep_late_h"] >= RTA_LATE_HIGH_H else "moderate"
+        fix = (f"; {up['speed_kn']} kn would make the target" if up and up["arrives_by_rta"]
+               else "; no faster speed makes it")
+        row = {"alert_id": f"{r['vessel_id']}/rta_late", "kind": "rta_late", **common, "severity": sev,
+               "late_h": s["keep_late_h"], "reason": f"ETA {s['keep_late_h']} h after the requested time of arrival "
+                                                     f"{s['rta_utc']} (late ≥ {RTA_LATE_HIGH_H:g} h is high){fix}"}
+        if up:
+            row |= {"catch_up_speed_kn": up["speed_kn"], "catch_up_late_h": up["late_h"]}
+        return [row]
+    rule = by[s["rule_option"]]
+    if (s["situation"] == "early" and s["keep_wait_h"] >= JIT_WAIT_H and rule["option"] in ("jit", "floor")
+            and rule["change_fuel_t"] < 0):
+        return [{"alert_id": f"{r['vessel_id']}/jit", "kind": "jit", **common, "severity": "moderate",
+                 "wait_h": s["keep_wait_h"], "jit_option": rule["option"], "jit_speed_kn": rule["speed_kn"],
+                 "jit_wait_h": rule["wait_h"], "change_fuel_t": rule["change_fuel_t"],
+                 "change_fuel_sdr": rule["change_fuel_sdr"],
+                 "reason": f"would wait {s['keep_wait_h']} h at anchor (≥ {JIT_WAIT_H:g} h) for the requested time of "
+                           f"arrival {s['rta_utc']}; {rule['speed_kn']} kn ({rule['option']}) changes the fuel by "
+                           f"{rule['change_fuel_t']} t"}]
+    return []
 
 
 def fleet_row(as_of: datetime, counts: dict, eta_rows: list[dict], alert_rows: list[dict], wx_summary: dict,
@@ -249,6 +301,9 @@ def fleet_row(as_of: datetime, counts: dict, eta_rows: list[dict], alert_rows: l
             "alerts_moderate": sev.get("moderate", 0),
             "weather_alerts": sum(a["kind"] == "weather" for a in alert_rows),
             "suez_traffic_alerts": sum(a["kind"] == "suez_traffic" for a in alert_rows),
+            "rta_known_vessels": sum(r.get("rta_utc") is not None for r in eta_rows),
+            "jit_alerts": sum(a["kind"] == "jit" for a in alert_rows),
+            "rta_late_alerts": sum(a["kind"] == "rta_late" for a in alert_rows),
             "suez_ahead_vessels": sum(r["suez_ahead"] for r in eta_rows),
             "weather_points": wx_summary["weather_points"], "weather_unknown_points": wx_summary["weather_unknown_points"],
             "weather_failed_points": wx_summary["weather_failed_points"],
@@ -276,7 +331,7 @@ def deterministic(user, as_of: datetime, vessel_ids: list[int] | None = None) ->
 
 MAX_PATCHES = 1
 DIGEST_MODERATE = 20                    # the brief reads every high alert and at most this many moderate ones
-BRIEF_TASK = """You write the voyage watch brief for NileGate's Operations desk with the skill below. Return a WatchBrief
+BRIEF_TASK = """You write the voyage watch brief for PortPilot's Operations desk with the skill below. Return a WatchBrief
 (call the WatchBrief tool): a headline and up to six items. Every number is a slot over the evidence listed; each item
 lists in alert_ids the alerts it is about. Cite every high alert.
 
@@ -285,7 +340,9 @@ PATCH_TASK = """Code checked your WatchBrief and found these problems:
 {problems}
 Return the whole WatchBrief again with every problem fixed; keep what was right."""
 DIGEST_FIELDS = ("alert_id", "severity", "vessel_name", "destination", "next_port", "eta_utc", "eta_in_h", "date",
-                 "hours_ahead_h", "wave_height_max_m", "wind_speed_10m_max_kn", "change_transits_pct", "reason")
+                 "hours_ahead_h", "wave_height_max_m", "wind_speed_10m_max_kn", "change_transits_pct",
+                 # D-J3 (JIT arrival plan)
+                 "rta_utc", "late_h", "wait_h", "jit_speed_kn", "change_fuel_t", "change_fuel_sdr", "reason")
 
 
 def _rows(res: dict | None) -> list[dict]:
@@ -349,7 +406,7 @@ def validate(brief: dict, evidence: dict) -> list[str]:
                 if aid not in ids:
                     problems.append(f"{where}: {b.slot.raw} is about alert {aid}, not in its alert_ids")
         plain = slots.SLOT_RE.sub(" ", text)
-        allowed = {al[i][k].rstrip("Z") for i in ids if i in al for k in ("date", "eta_utc") if al[i].get(k)}
+        allowed = {al[i][k].rstrip("Z") for i in ids if i in al for k in ("date", "eta_utc", "rta_utc") if al[i].get(k)}
         allowed |= {d[:10] for d in allowed} | {clock_day}
         for d in DATE_TOKEN_RE.findall(plain):
             if d.rstrip("Z").replace(" ", "T") not in allowed:
@@ -357,6 +414,7 @@ def validate(brief: dict, evidence: dict) -> list[str]:
         typed = v2.number_tokens(plain, strings)
         if typed:
             problems.append(f"{where}: number(s) typed instead of a slot: {[t[0] for t in typed]}")
+        problems += arrival.sign_problems(where, text)            # JIT arrival plan D-J8: the jit alerts' change_*
     missing = sorted(i for i, a in al.items() if a["severity"] == "high" and i not in cited_all)
     if missing:
         problems.append(f"high alerts not cited by any item: {missing}")
@@ -395,6 +453,12 @@ def assumptions(evidence: dict) -> list[str]:
                    "this run's weather alerts are incomplete.")
     if f["change_transits_pct"] is None:
         out.append("Suez traffic context unavailable (IMF PortWatch did not answer): no traffic alert this run.")
+    if f.get("rta_known_vessels"):
+        out.append(f"Arrival alerts (JIT): {f['rta_known_vessels']} vessels have a requested time of arrival known at "
+                   "the clock (the latest port-call message sent at or before it); late = ETA after the RTA (high "
+                   f"≥ {RTA_LATE_HIGH_H:g} h); JIT = it would wait ≥ {JIT_WAIT_H:g} h at anchor and a slower speed (not "
+                   f"below max({arrival.FLOOR_MIN_KN} kn, 50 % of the IMO reference speed)) saves fuel, arriving "
+                   f"{arrival.MARGIN_H} h before the RTA; fuel by the cube law, no Cape, no port time.")
     return out
 
 
@@ -424,7 +488,8 @@ def write_run_file(folder: Path, thread_id: str, result: dict) -> str:
 
 def eta_table(eta_rows: list[dict]) -> list[dict]:
     return [{k: r.get(k) for k in ("vessel_id", "vessel_name", "status", "destination", "next_port", "eta_utc",
-                                   "eta_in_h", "distance_left_nm", "speed_kn", "suez_ahead", "last_fix_ts", "note")}
+                                   "eta_in_h", "distance_left_nm", "speed_kn", "suez_ahead", "rta_utc", "last_fix_ts",
+                                   "note")}
             for r in eta_rows]
 
 
@@ -440,7 +505,8 @@ def result_of(state: dict, as_of: datetime) -> dict:
                                                         "weather_errors": (state.get("weather_summary") or {})
                                                         .get("weather_errors") or {}},
             "etas": eta_table(state.get("etas") or []), "alerts": _rows(ev.get("watch.alerts")),
-            "brief_status": state.get("brief_status"), "assumptions": assumptions(ev)}
+            "brief_status": state.get("brief_status"), "assumptions": assumptions(ev),
+            "arrivals": state.get("arrivals") or {}}
     if state.get("brief_status") == "ok":
         fill = lambda t: slots.render_text(t, ev)[0]          # noqa: E731
         b = state["brief"]
@@ -468,7 +534,36 @@ class WatchState(TypedDict, total=False):
     normalized: list[str]
     llm_usage: Annotated[list[dict], operator.add]
     run_file: str
+    arrivals: dict
     result: dict
+
+
+ARRIVAL_KINDS = ("jit", "rta_late")
+
+
+def advise_arrivals(roles, ctx: RunContext, alerts_rows: list[dict]) -> tuple[dict, list[dict]]:
+    """Arrival advice web plan (owner, 2026-11-17: "the watch makes the advice"): each vessel with a `jit` / `rta_late`
+    alert gets its arrival advice in the same run. The `arrival_advice` graph runs at the same clock, as the same
+    identity, on the RTA known at the clock, with its own Validator. Its result summary (`arrival_advice.result_summary`,
+    number spans included) is keyed by vessel id. One failed advice is recorded with its reason and never stops the
+    watch. No checkpointer: the run file keeps the advice."""
+    from pipelines.agents.graphs import arrival_advice as aa      # arrival_advice imports this module
+    g = aa.build_graph(roles)
+    out: dict[str, dict] = {}
+    usage: list[dict] = []
+    for a in sorted((a for a in alerts_rows if a.get("kind") in ARRIVAL_KINDS), key=lambda a: a["vessel_id"]):
+        vid = a["vessel_id"]
+        if str(vid) in out:
+            continue
+        req = {"vessel_id": vid, "location": a.get("rta_location") or "berth"}
+        try:
+            st = g.invoke({"request": req}, context=ctx)
+            out[str(vid)] = {"alert_id": a["alert_id"], **aa.result_summary(st)}
+            usage += [{"node": f"arrival:{vid}", **c} for c in st.get("llm_usage") or []]
+        except Exception as exc:                                  # noqa: BLE001 — one advice never stops the watch
+            out[str(vid)] = {"alert_id": a["alert_id"], "status": "error",
+                             "problems": [f"{type(exc).__name__}: {str(exc)[:300]}"]}
+    return out, usage
 
 
 def _wx_out(wx: dict) -> dict:
@@ -513,6 +608,15 @@ def make_nodes(roles, reports_dir: Path) -> dict:
                               result_of({**state, "evidence": ev, "brief_status": brief_status}, as_of))
         return {"evidence": ev, "brief_status": brief_status, "run_file": path}
 
+    def node_arrival(state: WatchState, runtime: Runtime[RunContext], config) -> dict:
+        arrivals, usage = advise_arrivals(roles, runtime.context, _rows(state["evidence"].get("watch.alerts")))
+        if not arrivals:
+            return {}
+        # saved before the brief, like the alerts (P11-5): a brief that fails never loses an advice
+        path = write_run_file(reports_dir, _thread(config),
+                              result_of({**state, "arrivals": arrivals}, runtime.context.as_of))
+        return {"arrivals": arrivals, "llm_usage": usage, "run_file": path}
+
     def node_brief(state: WatchState) -> dict:
         skills = "\n\n".join(skill_loader.load(s) for s in ("voyage-watch-brief", "untrusted-content"))
         msgs = [SystemMessage(BRIEF_TASK.format(skills=skills)), HumanMessage(brief_digest(state["evidence"]))]
@@ -545,7 +649,8 @@ def make_nodes(roles, reports_dir: Path) -> dict:
         return {"result": res, "status": out["status"]}
 
     return {"fleet": node_fleet, "eta": node_eta, "weather": node_weather, "traffic": node_traffic,
-            "alerts": node_alerts, "brief": node_brief, "validator": node_validator, "render": node_render}
+            "alerts": node_alerts, "arrival": node_arrival, "brief": node_brief, "validator": node_validator,
+            "render": node_render}
 
 
 def _after_fleet(state):
@@ -556,6 +661,10 @@ def _after_alerts(state):
     return "render" if state.get("brief_status") == "no_alerts" else "brief"
 
 
+def _after_alerts_arrival(state):
+    return "render" if state.get("brief_status") == "no_alerts" else "arrival"
+
+
 def _after_brief(state):
     return "render" if state.get("brief_status") == "output_invalid" else "validator"
 
@@ -564,18 +673,28 @@ def _after_validator(state):
     return "render" if state.get("brief_status") in ("ok", "validation_failed") else "brief"
 
 
-def build_graph(roles, checkpointer=None, reports_dir: Path = REPORTS_DIR):
+def build_graph(roles, checkpointer=None, reports_dir: Path = REPORTS_DIR, arrival_advice: bool = False):
     """The compiled voyage watch graph; `roles` = `roles.Roles()` (real models) or `roles.FakeRoles(script)`. Invoke
-    with {"request": WatchRequest dump}, `context=RunContext(user, as_of=…)` and a thread id (`new_thread_id`)."""
+    with {"request": WatchRequest dump}, `context=RunContext(user, as_of=…)` and a thread id (`new_thread_id`).
+    `arrival_advice=True` (the CLI and the scheduler) adds the `arrival` node: every `jit` / `rta_late` alert gets its
+    arrival advice before the brief (Arrival advice web plan). Off by default, so a check that scripts only the brief
+    keeps its script."""
     g = StateGraph(WatchState, context_schema=RunContext)
-    for name, fn in make_nodes(roles, reports_dir).items():
+    nodes = make_nodes(roles, reports_dir)
+    if not arrival_advice:
+        nodes.pop("arrival")
+    for name, fn in nodes.items():
         g.add_node(name, fn)
     g.add_edge(START, "fleet")
     g.add_conditional_edges("fleet", _after_fleet, ["eta", "render"])
     g.add_edge("eta", "weather")
     g.add_edge("weather", "traffic")
     g.add_edge("traffic", "alerts")
-    g.add_conditional_edges("alerts", _after_alerts, ["brief", "render"])
+    if arrival_advice:
+        g.add_conditional_edges("alerts", _after_alerts_arrival, ["arrival", "render"])
+        g.add_edge("arrival", "brief")
+    else:
+        g.add_conditional_edges("alerts", _after_alerts, ["brief", "render"])
     g.add_conditional_edges("brief", _after_brief, ["validator", "render"])
     g.add_conditional_edges("validator", _after_validator, ["brief", "render"])
     g.add_edge("render", END)
@@ -605,3 +724,31 @@ def parse_thread(thread_id: str, prefix: str = THREAD_PREFIX) -> tuple[datetime,
     if not x:
         return None
     return datetime.strptime(x[1], "%Y%m%dT%H%MZ").replace(tzinfo=context.DATA_AS_OF.tzinfo), int(x[2])
+
+
+def result_summary(st: dict) -> dict:
+    """What a caller may see of a final state (the CLI `Voyage_watch.py` and the API; FastAPI plan P6)."""
+    r = st.get("result") or {}
+    usage = st.get("llm_usage") or []
+    f = r.get("fleet") or {}
+    return {"status": r.get("status"), "as_of": r.get("as_of"), "brief_status": r.get("brief_status"),
+            "fleet": {k: f.get(k) for k in ("vessels_watched", "in_transit", "anchored", "alerts_total", "alerts_high",
+                                            "alerts_moderate", "suez_ahead_vessels", "rta_known_vessels",
+                                            "jit_alerts", "rta_late_alerts", "weather_points",
+                                            "weather_unknown_points", "change_transits_pct")},
+            "headline": r.get("headline"), "items": [i["text"] for i in r.get("items") or []],
+            "alerts": [f"{a['alert_id']:<18} {a['severity']:<8} {a['vessel_name']} → {a['destination']} "
+                       f"ETA {a['eta_utc']}: {a['reason']}" for a in (r.get("alerts") or [])[:25]],
+            "assumptions": r.get("assumptions"), "problems": r.get("problems"), "run_file": r.get("run_file"),
+            "model_calls": len(usage), "cached": sum(bool(c.get("cached")) for c in usage),
+            "numbers": _numbers(st, r)}
+
+
+def _numbers(st: dict, r: dict) -> dict:
+    """D-FE-1: the number spans of the brief's headline and items (rendered again from the brief)."""
+    b, ev = st.get("brief") or {}, st.get("evidence") or {}
+    if not b or r.get("brief_status") != "ok":
+        return {"headline": [], "items": []}
+    return {"headline": slots.number_spans(b.get("headline") or "", ev, r.get("headline")),
+            "items": [slots.number_spans(t.get("text") or "", ev, got.get("text"))
+                      for t, got in zip(b.get("items") or [], r.get("items") or [])]}

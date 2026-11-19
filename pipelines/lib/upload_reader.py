@@ -359,4 +359,6 @@ def read(data: bytes, fmt: str) -> dict:
 
 if __name__ == "__main__":  # child-process entry: bytes on stdin, JSON on stdout
     raw = sys.stdin.buffer.read()
-    sys.stdout.write(json.dumps(read(raw, sys.argv[1]), ensure_ascii=False))
+    # UTF-8 bytes, whatever the console code page: the parent decodes UTF-8 (`uploads.read_isolated`). A text write
+    # used the locale (cp1252 on Windows without PYTHONIOENCODING), so a ligature or an Arabic letter ended the child.
+    sys.stdout.buffer.write(json.dumps(read(raw, sys.argv[1]), ensure_ascii=False).encode("utf-8"))

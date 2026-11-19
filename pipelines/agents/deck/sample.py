@@ -97,12 +97,25 @@ class _Draft:
                    f"{s('audit.ytd', 'difference_sdr', None, key)}, the year's largest finding so far", "audit.ytd")
         elif not aud["rows"]:
             add(8, "No invoice finding so far this year", "audit.week")
-        add(9, "External context unavailable for this week")
+        sz = ev.get("context.suez") or {}
+        if sz.get("status") == "ok" and sz.get("week_mean_transits") is not None:
+            # external-context plan Phase E (2026-11-09, W16): the context is fetched by code now, so a replaced
+            # slide-9 line states it from code's week summary (D-EC-4) instead of claiming it is unavailable
+            # V7: a day's figure comes from that day's row, the week's mean from the result (no date beside it)
+            prev = sz.get("prev4_mean_transits")
+            lo, hi = sz["week_min_date"], sz["week_max_date"]
+            add(9, f"Suez Canal transits averaged {s('context.suez', 'week_mean_transits')} a day in week {w}"
+                   + (f" (the four weeks before: {s('context.suez', 'prev4_mean_transits')})" if prev is not None
+                      else "")
+                   + f". The quietest day was {lo} with {s('context.suez', 'n_total', None, lo)}, the busiest "
+                     f"{hi} with {s('context.suez', 'n_total', None, hi)}", "context.suez")
+        else:
+            add(9, "External context unavailable for this week")
         titles = {1: f"Billing, receivables and invoice checks of week {w}", 2: "What changed this week",
                   3: f"Billed {s('kpi.weekly', 'billed_sdr', 'M')} in week {w}", 4: f"{c1} moved revenue most",
                   5: "Revenue mix by vessel category", 6: "Receivables and DSO", 7: "Customer concentration",
                   8: "Invoice exceptions", 9: "Context", 10: "Sources and data freshness"}
-        return {"title": f"NileGate Weekly Finance Pack — {lbl} — {LABEL}",
+        return {"title": f"PortPilot Weekly Finance Pack — {lbl} — {LABEL}",
                 "slide_titles": [{"slide": i, "title": t} for i, t in titles.items()], "bullets": b}
 
 

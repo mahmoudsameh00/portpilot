@@ -1,0 +1,21 @@
+PortPilot finance views — owner-run revalidation, 2026-11-12
+Command: uv run python tools/run.py pipelines/scripts/finance/Finance_views_check.py
+Owner reported: exit 0 in 11s; 8 validation lines.
+Owner reported: Data/processed and db/migrations changed 0, created 0, removed 0.
+Lines and final values below confirmed in Notebooks/_scratch/run_Finance_views_check.log.
+
+✅ Phase 1 validation passed: base tables and 13 finance views read
+✅ Phase 2 validation passed: reference computed from the base tables
+✅ Phase 3 validation passed: every KPI view equals the reference on all 52 weeks
+✅ Phase 4 validation passed: invariants hold, the ISO edge is outside the report weeks
+✅ Phase 5 validation passed: weeks 5, 16, 23, 49 equal the reviewed hand-check values
+✅ Phase 6 validation passed: non-Finance employees get nothing; finance_bi reads only schema finance
+✅ Phase 7 validation passed: the migration 021 columns equal the reference on all 52 weeks
+✅ Final Checkpoint passed: Phase 2 done-when met (KPIs = hand values on the chosen weeks; RBAC 0 leakage)
+
+Final Checkpoint: weeks 52; KPI views equal reference 4; hand weeks 5,16,23,49;
+RBAC leakage 0; finance_bi outside-finance access 0.
+Observed privilege check: finance_bi reads 18/18 finance views, writes 0,
+reads 0/21 public + finance_test tables; ports_readonly reads all 18 finance views.
+RBAC detail: 72 ordinary employees outside Finance denied; role managers and CEO follow their role ceiling.
+This is a database/reference check, not a model evaluation, Power BI UI check or web deployment.

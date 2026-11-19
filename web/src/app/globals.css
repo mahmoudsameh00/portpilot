@@ -1,0 +1,222 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* PortPilot — blue and white (owner 2026-11-06). Light only; the navy "night ops" band is the one dark surface.
+   shadcn/ui token names (background, primary, card, …) + our own (navy, lane, status). design/MASTER.md §2 */
+:root {
+  --radius: 0.75rem;
+
+  --background: #f6f8fb;
+  --foreground: #0b2545;
+  --card: #ffffff;
+  --card-foreground: #0b2545;
+  --popover: #ffffff;
+  --popover-foreground: #0b2545;
+  --primary: #1f66c9;
+  --primary-foreground: #ffffff;
+  --secondary: #eef4fd;
+  --secondary-foreground: #0b2545;
+  --muted: #eef2f7;
+  --muted-foreground: #5a6b82;
+  --accent: #eef4fd;
+  --accent-foreground: #0b2545;
+  --destructive: #c62f2f;
+  --border: #e3e9f2;
+  --input: #d5deea;
+  --ring: #1f66c9;
+
+  /* charts (dataviz validator: categorical blue / teal / amber / violet pass on white) */
+  --chart-1: #2a78d6; /* billed — the deck's series colour */
+  --chart-2: #a3a29c; /* budget — dashed grey */
+  --chart-3: #13a89e;
+  --chart-4: #eda100;
+  --chart-5: #8b5cf6;
+  --marker: #eb6834; /* the report week */
+  /* web dashboards amendment 1 (D-WD-5): emphasis = the item that matters in colour, the rest muted; the compare week
+     a light step of the same blue; receivables age = an ordinal one-hue ramp (validator: monotone, 2.11:1 light end),
+     90+ breaks it in the marker orange */
+  --chart-muted: #c5d1e0;
+  --chart-compare: #9ec5f4;
+  --ramp-1: #86b6ef;
+  --ramp-2: #5598e7;
+  --ramp-3: #2a78d6;
+  --ramp-4: #184f95;
+
+  /* the night-ops band */
+  --navy: #0b2545;
+  --navy-deep: #06162b;
+  --on-navy: #ffffff;
+  --on-navy-muted: #b8c7db;
+  --lane: #6fb1ff;
+  --lane-glow: #2a78d6;
+
+  /* status: always with an icon + text */
+  --waiting: #eda100;
+  --waiting-wash: #fff4d6;
+  --waiting-ink: #8a5a00;
+  --approved: #1baf7a;
+  --approved-wash: #ddf5ea;
+  --approved-ink: #0e7a52;
+  --alert: #eb6834;
+  --alert-wash: #fde9df;
+  --alert-ink: #b8461b;
+
+  --shadow-float: 0 18px 40px -18px rgb(11 37 69 / 0.35);
+  color-scheme: light;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist), var(--font-plex-arabic), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-heading: var(--font-geist), var(--font-plex-arabic), ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-marker: var(--marker);
+  --color-chart-muted: var(--chart-muted);
+  --color-chart-compare: var(--chart-compare);
+  --color-ramp-1: var(--ramp-1);
+  --color-ramp-2: var(--ramp-2);
+  --color-ramp-3: var(--ramp-3);
+  --color-ramp-4: var(--ramp-4);
+  --color-navy: var(--navy);
+  --color-navy-deep: var(--navy-deep);
+  --color-on-navy: var(--on-navy);
+  --color-on-navy-muted: var(--on-navy-muted);
+  --color-lane: var(--lane);
+  --color-waiting: var(--waiting);
+  --color-waiting-wash: var(--waiting-wash);
+  --color-waiting-ink: var(--waiting-ink);
+  --color-approved: var(--approved);
+  --color-approved-wash: var(--approved-wash);
+  --color-approved-ink: var(--approved-ink);
+  --color-alert: var(--alert);
+  --color-alert-wash: var(--alert-wash);
+  --color-alert-ink: var(--alert-ink);
+  --shadow-float: var(--shadow-float);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    @apply font-sans;
+  }
+  body {
+    min-height: 100dvh;
+    @apply bg-background text-foreground antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Model text in Arabic (an answer to an Arabic question) gets a looser line. */
+  [dir="rtl"] {
+    line-height: 1.75;
+  }
+}
+
+/* The receipt slip's perforated top edge (MASTER §5). */
+.slip-perforated {
+  --hole: 5px;
+  -webkit-mask:
+    radial-gradient(circle at 50% 0, transparent calc(var(--hole) - 0.5px), #000 var(--hole)) top /
+      calc(var(--hole) * 3) calc(var(--hole) * 2) repeat-x,
+    linear-gradient(#000, #000) 0 calc(var(--hole) * 2) / 100% 100% no-repeat;
+  mask:
+    radial-gradient(circle at 50% 0, transparent calc(var(--hole) - 0.5px), #000 var(--hole)) top /
+      calc(var(--hole) * 3) calc(var(--hole) * 2) repeat-x,
+    linear-gradient(#000, #000) 0 calc(var(--hole) * 2) / 100% 100% no-repeat;
+}
+
+/* The night-ops band: deep navy with a soft blue glow. */
+.night-ops {
+  background:
+    radial-gradient(1100px 420px at 72% 0%, rgb(42 120 214 / 0.38), transparent 62%),
+    linear-gradient(180deg, var(--navy-deep), var(--navy));
+}
+
+@keyframes lane-draw {
+  from {
+    stroke-dashoffset: var(--len, 1600);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.lane-draw {
+  stroke-dasharray: var(--len, 1600);
+  animation: lane-draw 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+@keyframes port-pulse {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+.port-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: port-pulse 2.4s ease-out infinite;
+}
+@keyframes radar-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.radar-sweep {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: radar-sweep 6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lane-draw,
+  .port-pulse,
+  .radar-sweep {
+    animation: none;
+    stroke-dasharray: none;
+  }
+}

@@ -171,8 +171,9 @@ SELECT count(*) FILTER (WHERE obj_description(c.oid, 'pg_class') IS NULL) AS tab
         WHERE t.relnamespace = 'public'::regnamespace AND t.relkind = 'r' AND t.relname <> 'spatial_ref_sys'
           AND a.attnum > 0 AND NOT a.attisdropped AND col_description(t.oid, a.attnum) IS NULL) AS columns_without_comment
 FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'r' AND c.relname <> 'spatial_ref_sys';
--- expected 0: planner statistics exist for every project table
-SELECT count(*) AS tables_never_analyzed FROM pg_stat_user_tables
+-- Activity timestamps can disappear after a cumulative-statistics reset. NULL does not prove that
+-- pg_statistic is empty. Investigate a nonzero count with db/verify_planner_stats.sql before maintenance.
+SELECT count(*) AS tables_without_analyze_timestamp FROM pg_stat_user_tables
 WHERE schemaname = 'public' AND relname <> 'spatial_ref_sys' AND last_analyze IS NULL AND last_autoanalyze IS NULL;
 
 \echo '### 16. RAG DOCUMENT REGISTRY (migrations 010-011, ADR-035)'
@@ -373,5 +374,116 @@ SELECT (SELECT count(*) FROM vessel_performance) AS performance_rows,
        has_table_privilege('ports_readonly', 'public.vessel_performance', 'SELECT')
          AND has_table_privilege('ports_readonly', 'public.bunker_prices', 'SELECT') AS readonly_select,
        has_table_privilege('finance_bi', 'public.vessel_performance', 'SELECT') AS finance_bi_select;
+
+\echo '### 25. API SCHEMA, api_writer AND THE SHARED LLM COUNTERS (migration 023, FastAPI plan P1)'
+-- expected: t | postgres | 5 | 0 | t | f | f | f | f
+-- schema api exists | its owner | tables | tables without a comment (or a column without one) | api_writer exists,
+-- cannot log in | ports_readonly / finance_bi can read api.logins | public has USAGE on api
+SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'api') AS api_schema,
+       (SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname = 'api') AS api_owner,
+       (SELECT count(*) FROM pg_tables WHERE schemaname = 'api') AS api_tables,
+       (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'api' AND c.relkind = 'r' AND (obj_description(c.oid, 'pg_class') IS NULL
+             OR EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+                          AND col_description(c.oid, a.attnum) IS NULL))) AS api_uncommented,
+       EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'api_writer') AS api_writer_exists,
+       (SELECT rolcanlogin FROM pg_roles WHERE rolname = 'api_writer') AS api_writer_login,
+       has_table_privilege('ports_readonly', 'api.logins', 'SELECT') AS readonly_reads_logins,
+       has_table_privilege('finance_bi', 'api.logins', 'SELECT') AS bi_reads_logins,
+       has_schema_privilege('public', 'api', 'USAGE') AS public_usage;
+-- expected: t | f | f | f | t | t | f | f | t | t | t | t | f | f
+-- api_writer: reads hashes | writes hashes | inserts / deletes logins | updates failure counters | inserts tokens |
+-- updates / deletes the audit log | inserts audit rows | agent_writer: DML on both LLM tables | ports_readonly /
+-- finance_bi read the daily counter
+SELECT has_table_privilege('api_writer', 'api.logins', 'SELECT') AS w_select_logins,
+       has_column_privilege('api_writer', 'api.logins', 'password_hash', 'UPDATE') AS w_update_hash,
+       has_table_privilege('api_writer', 'api.logins', 'INSERT') AS w_insert_logins,
+       has_table_privilege('api_writer', 'api.logins', 'DELETE') AS w_delete_logins,
+       has_column_privilege('api_writer', 'api.logins', 'failed_attempts', 'UPDATE') AS w_update_failures,
+       has_table_privilege('api_writer', 'api.tokens', 'INSERT') AS w_insert_tokens,
+       has_table_privilege('api_writer', 'api.audit_log', 'UPDATE') AS w_update_audit,
+       has_table_privilege('api_writer', 'api.audit_log', 'DELETE') AS w_delete_audit,
+       has_table_privilege('api_writer', 'api.audit_log', 'INSERT') AS w_insert_audit,
+       has_table_privilege('agent_writer', 'agent_state.llm_daily_usage', 'SELECT, INSERT, UPDATE, DELETE')
+         AS a_daily_dml,
+       has_table_privilege('agent_writer', 'agent_state.llm_minute_usage', 'SELECT, INSERT, UPDATE, DELETE')
+         AS a_minute_dml,
+       has_table_privilege('api_writer', 'api.conversation_turns', 'SELECT, INSERT, UPDATE, DELETE') AS w_turns_dml,
+       has_table_privilege('ports_readonly', 'agent_state.llm_daily_usage', 'SELECT') AS ro_reads_counter,
+       has_table_privilege('finance_bi', 'agent_state.llm_daily_usage', 'SELECT') AS bi_reads_counter;
+
+\echo '### 26. SUEZ TRANSITS FROM PORTWATCH (migration 025, traffic-billing link plan Phase 1)'
+-- expected: 371 | 2024-12-23 | 2025-12-28 | 0 | 14263 | 53 | 0 | t | f
+-- days | first | last | missing days | Σ n_total | weeks (0–52) of 7 days | uncommented columns |
+-- ports_readonly can read | ports_readonly can insert
+SELECT count(*) AS days, min(date) AS first_day, max(date) AS last_day,
+       (max(date) - min(date) + 1) - count(*) AS missing_days,
+       sum(n_total) AS sum_n_total,
+       (SELECT count(*) FROM (SELECT floor((date - DATE '2024-12-30') / 7.0) AS wk FROM external.suez_transits_daily
+                              GROUP BY 1 HAVING count(*) = 7) w) AS full_weeks,   -- floor: integer / truncates toward 0
+       (SELECT count(*) FROM pg_attribute a WHERE a.attrelid = 'external.suez_transits_daily'::regclass
+          AND a.attnum > 0 AND NOT a.attisdropped AND col_description(a.attrelid, a.attnum) IS NULL) AS uncommented,
+       has_table_privilege('ports_readonly', 'external.suez_transits_daily', 'SELECT') AS readonly_select,
+       has_table_privilege('ports_readonly', 'external.suez_transits_daily', 'INSERT') AS readonly_insert
+FROM external.suez_transits_daily;
+
+\echo '### 27. FINANCE SCENARIO (migration 026, traffic-billing link plan Phase 2; planted α = 1.6)'
+-- expected: 3 | 9 | 1000 | 994 | 1.6 | 0 | 0 | 0 | t | f | f   (9 views = 026's 8 twins + 027's kpi_traffic_link)
+-- tables | views | invoices | payments | alpha | invoices changed besides the date | payments whose delay changed |
+-- tables / views without a comment | ports_readonly reads | finance_bi reads | ports_readonly can insert
+SELECT (SELECT count(*) FROM pg_class WHERE relnamespace = 'finance_scenario'::regnamespace AND relkind = 'r') AS tables,
+       (SELECT count(*) FROM pg_class WHERE relnamespace = 'finance_scenario'::regnamespace AND relkind = 'v') AS views,
+       (SELECT count(*) FROM finance_scenario.invoices) AS invoices,
+       (SELECT count(*) FROM finance_scenario.payments) AS payments,
+       (SELECT alpha FROM finance_scenario.scenario_info) AS alpha,
+       (SELECT count(*) FROM finance_scenario.invoices s JOIN public.invoices i USING (invoice_number)
+          WHERE s.amount <> i.amount OR s.vessel_id <> i.vessel_id OR s.original_invoice_date <> i.invoice_date)
+         AS changed_besides_date,
+       (SELECT count(*) FROM finance_scenario.payments s JOIN public.payments p USING (invoice_number)
+          JOIN finance_scenario.invoices si USING (invoice_number) JOIN public.invoices pi USING (invoice_number)
+          WHERE (s.paid_date - si.invoice_date) <> (p.paid_date - pi.invoice_date)) AS delay_changed,
+       (SELECT count(*) FROM pg_class c WHERE c.relnamespace = 'finance_scenario'::regnamespace
+          AND c.relkind IN ('r', 'v') AND obj_description(c.oid, 'pg_class') IS NULL) AS uncommented,
+       has_table_privilege('ports_readonly', 'finance_scenario.kpi_weekly', 'SELECT') AS ro_select,
+       has_table_privilege('finance_bi', 'finance_scenario.kpi_weekly', 'SELECT') AS bi_select,
+       has_table_privilege('ports_readonly', 'finance_scenario.invoices', 'INSERT') AS ro_insert;
+
+\echo '### 28. M17 TRAFFIC LINK (migration 027, traffic-billing link plan Phase 3)'
+-- expected: 3 | 0 | 0 | 29 | 24 | 0.020 | 0.497 | 0 | t | f | f
+-- kpi_traffic_link views | live link weeks | test link weeks | scenario link weeks | scenario first link week |
+-- live r_lag0 at week 52 | scenario r_lag0 at week 52 | uncommented columns of the three | finance_bi reads live /
+-- scenario / test
+SELECT (SELECT count(*) FROM pg_views WHERE viewname = 'kpi_traffic_link'
+          AND schemaname IN ('finance', 'finance_test', 'finance_scenario')) AS views,
+       (SELECT count(*) FROM finance.kpi_traffic_link WHERE link = 'link') AS live_link,
+       (SELECT count(*) FROM finance_test.kpi_traffic_link WHERE link = 'link') AS test_link,
+       (SELECT count(*) FROM finance_scenario.kpi_traffic_link WHERE link = 'link') AS scenario_link,
+       (SELECT min(report_week) FROM finance_scenario.kpi_traffic_link WHERE link = 'link') AS scenario_first,
+       (SELECT r_lag0 FROM finance.kpi_traffic_link WHERE report_week = 52) AS live_r52,
+       (SELECT r_lag0 FROM finance_scenario.kpi_traffic_link WHERE report_week = 52) AS scenario_r52,
+       (SELECT count(*) FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid
+          WHERE c.relname = 'kpi_traffic_link' AND a.attnum > 0 AND NOT a.attisdropped
+            AND col_description(c.oid, a.attnum) IS NULL) AS uncommented,
+       has_table_privilege('finance_bi', 'finance.kpi_traffic_link', 'SELECT') AS bi_live,
+       has_table_privilege('finance_bi', 'finance_scenario.kpi_traffic_link', 'SELECT') AS bi_scenario,
+       has_table_privilege('finance_bi', 'finance_test.kpi_traffic_link', 'SELECT') AS bi_test;
+
+\echo '### 29. PORT-CALL MESSAGES (migration 030, JIT arrival plan D-J1)'
+-- expected: 680 | 500 | 25 | 155 | 0 | 0 | 0 | t | f | f
+-- messages | port calls | cancelled | calls with a revision | sent at or after the requested time | port call not the
+-- vessel's own destination | uncommented columns | ports_readonly reads / finance_bi reads / ports_readonly inserts
+SELECT (SELECT count(*) FROM public.port_call_messages) AS messages,
+       (SELECT count(DISTINCT (vessel_id, voyage_no, port_locode)) FROM public.port_call_messages) AS calls,
+       (SELECT count(*) FROM public.port_call_messages WHERE message_status = 'cancelled') AS cancelled,
+       (SELECT count(*) FROM (SELECT vessel_id FROM public.port_call_messages GROUP BY vessel_id, voyage_no, port_locode
+          HAVING count(*) = 2 AND bool_and(message_status = 'requested')) r) AS revised,
+       (SELECT count(*) FROM public.port_call_messages WHERE sent_at >= requested_time) AS bad_order,
+       (SELECT count(*) FROM public.port_call_messages m JOIN public.vessels v USING (vessel_id)
+          WHERE m.real_or_synthetic = 'synthetic' AND m.port_locode <> v.destination_locode) AS not_destination,
+       (SELECT count(*) FROM pg_attribute a WHERE a.attrelid = 'public.port_call_messages'::regclass AND a.attnum > 0
+          AND NOT a.attisdropped AND col_description(a.attrelid, a.attnum) IS NULL) AS uncommented,
+       has_table_privilege('ports_readonly', 'public.port_call_messages', 'SELECT') AS ro_select,
+       has_table_privilege('finance_bi', 'public.port_call_messages', 'SELECT') AS bi_select,
+       has_table_privilege('ports_readonly', 'public.port_call_messages', 'INSERT') AS ro_insert;
 
 \echo '### END'

@@ -1,7 +1,7 @@
 """Local embedding model on ONNX Runtime for uploads that may hold non-public data (RAG plan Phase 8 §d; ADR-037:
 never send non-public or personal data to Gemini's free tier). The text never leaves the machine.
 
-A model folder `models/onnx/<name>/` (git-ignored, built by `tools/export_onnx.py`) holds `model.onnx` /
+A model folder `models/onnx/<name>/` (git-ignored, built by `dev/tools/export_onnx.py`) holds `model.onnx` /
 `model_int8.onnx`, `tokenizer.json` and `manifest.json` (pooling is inside the graph: the output is the normalized
 sentence embedding). Runtime settings are measured by `Upload_eval.py` and fixed in DEFAULTS.
 """
@@ -35,7 +35,7 @@ class LocalEmbedder:
                  batch_size: int | None = None, providers: list | None = None):
         folder = MODELS_DIR / name
         if not (folder / "manifest.json").exists():
-            raise FileNotFoundError(f"local model {name} is not exported: run tools/export_onnx.py {name}")
+            raise FileNotFoundError(f"local model {name} is not exported: run dev/tools/export_onnx.py {name}")
         self.name = name
         self.manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
         self.precision = precision or DEFAULTS["precision"]

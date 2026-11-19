@@ -1,0 +1,40 @@
+# PortPilot's only public entry (Staging readiness plan P4, ADR-071). TLS: CADDY_TLS = an email address (Let's
+# Encrypt for a real domain) or `internal` (Caddy's own CA: the local rehearsal). The API is never reachable from
+# outside: the browser talks to the web, whose BFF calls the API on the internal network.
+{
+	admin off
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$PORTPILOT_SITE} {
+	tls {$CADDY_TLS}
+	encode zstd gzip
+
+	# the API's own limits are 16 KB JSON / 5 MB uploads; the proxy stops anything bigger before the web
+	request_body {
+		max_size 6MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+		-X-Powered-By
+	}
+
+	# never proxy the API's paths, even if someone guesses them (the BFF lives under /bff)
+	@api path /api/* /docs /docs/* /redoc /openapi.json
+	respond @api 404
+
+	# X-Forwarded-For: Caddy replaces a client's own header (no trusted proxies), so the web's sign-in limit reads
+	# the real client address (web/src/lib/bff/signin-limit.ts). SSE is flushed at once.
+	reverse_proxy web:3000 {
+		flush_interval -1
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
