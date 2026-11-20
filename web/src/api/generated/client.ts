@@ -1327,13 +1327,13 @@ export interface WatchRunRow {
 }
 
 export type BreakdownApiV1FinanceBreakdownGetParams = {
-/**
- * ISO week of 2025 (as of its Sunday 23:59)
- * @minimum 1
- * @maximum 52
- */
-week: number;
-dimension: BreakdownApiV1FinanceBreakdownGetDimension;
+  /**
+   * ISO week of 2025 (as of its Sunday 23:59)
+   * @minimum 1
+   * @maximum 52
+   */
+  week: number;
+  dimension: BreakdownApiV1FinanceBreakdownGetDimension;
 };
 
 export type BreakdownApiV1FinanceBreakdownGetDimension = typeof BreakdownApiV1FinanceBreakdownGetDimension[keyof typeof BreakdownApiV1FinanceBreakdownGetDimension];
@@ -1350,13 +1350,13 @@ export const BreakdownApiV1FinanceBreakdownGetDimension = {
 } as const;
 
 export type ExportApiV1FinanceExportGetParams = {
-/**
- * ISO week of 2025 (as of its Sunday 23:59)
- * @minimum 1
- * @maximum 52
- */
-week: number;
-page: ExportApiV1FinanceExportGetPage;
+  /**
+   * ISO week of 2025 (as of its Sunday 23:59)
+   * @minimum 1
+   * @maximum 52
+   */
+  week: number;
+  page: ExportApiV1FinanceExportGetPage;
 };
 
 export type ExportApiV1FinanceExportGetPage = typeof ExportApiV1FinanceExportGetPage[keyof typeof ExportApiV1FinanceExportGetPage];
@@ -1372,34 +1372,24 @@ export const ExportApiV1FinanceExportGetPage = {
 } as const;
 
 export type ExportFigureApiV1FinanceExportFigureGetParams = {
-/**
- * ISO week of 2025 (as of its Sunday 23:59)
- * @minimum 1
- * @maximum 52
- */
-week: number;
-figure: ExportFigureApiV1FinanceExportFigureGetFigure;
-format?: ExportFigureApiV1FinanceExportFigureGetFormat;
-/**
- * kpis: the page whose tiles are exported
- */
-page?: ExportFigureApiV1FinanceExportFigureGetPage;
-/**
- * breakdown: the dimension shown
- */
-dimension?: ExportFigureApiV1FinanceExportFigureGetDimension;
-/**
- * breakdown: the compare week
- */
-compare?: number | null;
-/**
- * audit_*: the year to date
- */
-ytd?: boolean;
-/**
- * ranked lists: the rows the card shows
- */
-limit?: number | null;
+  /**
+   * ISO week of 2025 (as of its Sunday 23:59)
+   * @minimum 1
+   * @maximum 52
+   */
+  week: number;
+  figure: ExportFigureApiV1FinanceExportFigureGetFigure;
+  format?: ExportFigureApiV1FinanceExportFigureGetFormat;
+  /** kpis: the page whose tiles are exported */
+  page?: ExportFigureApiV1FinanceExportFigureGetPage;
+  /** breakdown: the dimension shown */
+  dimension?: ExportFigureApiV1FinanceExportFigureGetDimension;
+  /** breakdown: the compare week */
+  compare?: number | null;
+  /** audit_*: the year to date */
+  ytd?: boolean;
+  /** ranked lists: the rows the card shows */
+  limit?: number | null;
 };
 
 export type ExportFigureApiV1FinanceExportFigureGetFigure = typeof ExportFigureApiV1FinanceExportFigureGetFigure[keyof typeof ExportFigureApiV1FinanceExportFigureGetFigure];
@@ -1450,45 +1440,63 @@ export const ExportFigureApiV1FinanceExportFigureGetDimension = {
 } as const;
 
 export type InvoiceAuditApiV1FinanceInvoiceAuditGetParams = {
-/**
- * ISO week of 2025 (as of its Sunday 23:59)
- * @minimum 1
- * @maximum 52
- */
-week: number;
-/**
- * weeks 1 … week (the year to date)
- */
-ytd?: boolean;
+  /**
+   * ISO week of 2025 (as of its Sunday 23:59)
+   * @minimum 1
+   * @maximum 52
+   */
+  week: number;
+  /** weeks 1 … week (the year to date) */
+  ytd?: boolean;
 };
 
 export type WeekPackApiV1FinancePackGetParams = {
-/**
- * @minimum 1
- * @maximum 52
- */
-week: number;
+  /**
+   * @minimum 1
+   * @maximum 52
+   */
+  week: number;
 };
 
 export type DatasetApiV1FinanceDatasetGetParams = {
-/**
- * ISO week of 2025 (as of its Sunday 23:59)
- * @minimum 1
- * @maximum 52
- */
-week: number;
-/**
- * rows of the ranked lists
- * @minimum 1
- * @maximum 50
- */
-limit?: number;
+  /**
+   * ISO week of 2025 (as of its Sunday 23:59)
+   * @minimum 1
+   * @maximum 52
+   */
+  week: number;
+  /**
+   * rows of the ranked lists
+   * @minimum 1
+   * @maximum 50
+   */
+  limit?: number;
 };
 
 export type WatchAlertsApiV1VoyageWatchAlertsGetParams = {
-thread?: string | null;
-vessel?: number | null;
-high?: boolean;
+  thread?: string | null;
+  vessel?: number | null;
+  high?: boolean;
+};
+
+const getHeaders = (...sources: (RequestInit['headers'] | Record<string, string | undefined>)[]) => {
+  const seen = new Set<string>();
+  const layers: [string, string | readonly string[]][][] = [];
+  for (const source of sources.reverse()) {
+    if (!source) continue;
+    const entries = source instanceof Headers
+      ? source.entries()
+      : Symbol.iterator in source
+        ? Array.from(source as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string])
+        : Object.entries<string | readonly string[] | undefined>(source);
+    const layer: [string, string | readonly string[]][] = [];
+    for (const [name, value] of entries) {
+      if (value !== undefined && !seen.has(name.toLowerCase())) layer.push([name, value]);
+    }
+    for (const [name] of layer) seen.add(name.toLowerCase());
+    layers.push(layer);
+  }
+  return Object.fromEntries(layers.reverse().flat()) as Extract<RequestInit['headers'], Record<string, unknown>>;
 };
 
 export const getListArrivalAdviceApiV1ArrivalAdviceGetUrl = () => {
@@ -1528,25 +1536,11 @@ export const getArrivalAdviceApiV1ArrivalAdvicePostUrl = () => {
  */
 export const arrivalAdviceApiV1ArrivalAdvicePost = async (arrivalIn: ArrivalIn, options?: Parameters<typeof apiFetch>[1]): Promise<RunAccepted> => {
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<RunAccepted>(getArrivalAdviceApiV1ArrivalAdvicePostUrl(),
+  return apiFetch<RunAccepted>(getArrivalAdviceApiV1ArrivalAdvicePostUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
     body: JSON.stringify(arrivalIn)
   }
 );}
@@ -1590,25 +1584,11 @@ export const getLoginApiV1AuthLoginPostUrl = () => {
  */
 export const loginApiV1AuthLoginPost = async (loginIn: LoginIn, options?: Parameters<typeof apiFetch>[1]): Promise<TokenOut> => {
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<TokenOut>(getLoginApiV1AuthLoginPostUrl(),
+  return apiFetch<TokenOut>(getLoginApiV1AuthLoginPostUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
     body: JSON.stringify(loginIn)
   }
 );}
@@ -1774,25 +1754,11 @@ export const getAskQuestionApiV1ConversationsConversationIdQuestionsPostUrl = (c
 export const askQuestionApiV1ConversationsConversationIdQuestionsPost = async (conversationId: string,
     questionIn: QuestionIn, options?: Parameters<typeof apiFetch>[1]): Promise<RunAccepted> => {
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<RunAccepted>(getAskQuestionApiV1ConversationsConversationIdQuestionsPostUrl(conversationId),
+  return apiFetch<RunAccepted>(getAskQuestionApiV1ConversationsConversationIdQuestionsPostUrl(conversationId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
     body: JSON.stringify(questionIn)
   }
 );}
@@ -1894,25 +1860,11 @@ export const promoteApiV1ConversationsConversationIdUploadsDocumentIdPromotionPo
     documentId: string,
     promotionIn: PromotionIn, options?: Parameters<typeof apiFetch>[1]): Promise<PromotionOut> => {
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<PromotionOut>(getPromoteApiV1ConversationsConversationIdUploadsDocumentIdPromotionPostUrl(conversationId,documentId),
+  return apiFetch<PromotionOut>(getPromoteApiV1ConversationsConversationIdUploadsDocumentIdPromotionPostUrl(conversationId,documentId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
     body: JSON.stringify(promotionIn)
   }
 );}
@@ -2322,25 +2274,11 @@ export const getDecideApiV1PacksThreadIdDecisionPostUrl = (threadId: string,) =>
 export const decideApiV1PacksThreadIdDecisionPost = async (threadId: string,
     directDecisionIn: DirectDecisionIn, options?: Parameters<typeof apiFetch>[1]): Promise<RunAccepted> => {
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<RunAccepted>(getDecideApiV1PacksThreadIdDecisionPostUrl(threadId),
+  return apiFetch<RunAccepted>(getDecideApiV1PacksThreadIdDecisionPostUrl(threadId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
     body: JSON.stringify(directDecisionIn)
   }
 );}
@@ -2411,25 +2349,11 @@ export const getReadRequestApiV1PacksThreadIdRequestPostUrl = (threadId: string,
 export const readRequestApiV1PacksThreadIdRequestPost = async (threadId: string,
     requestIn: RequestIn, options?: Parameters<typeof apiFetch>[1]): Promise<RunAccepted> => {
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<RunAccepted>(getReadRequestApiV1PacksThreadIdRequestPostUrl(threadId),
+  return apiFetch<RunAccepted>(getReadRequestApiV1PacksThreadIdRequestPostUrl(threadId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
     body: JSON.stringify(requestIn)
   }
 );}
@@ -2452,25 +2376,11 @@ export const getConfirmRequestApiV1PacksThreadIdRequestConfirmPostUrl = (threadI
 export const confirmRequestApiV1PacksThreadIdRequestConfirmPost = async (threadId: string,
     confirmIn: ConfirmIn, options?: Parameters<typeof apiFetch>[1]): Promise<RunAccepted> => {
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<RunAccepted>(getConfirmRequestApiV1PacksThreadIdRequestConfirmPostUrl(threadId),
+  return apiFetch<RunAccepted>(getConfirmRequestApiV1PacksThreadIdRequestConfirmPostUrl(threadId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
     body: JSON.stringify(confirmIn)
   }
 );}
@@ -2562,25 +2472,11 @@ export const getRouteAdviceApiV1RouteAdvicePostUrl = () => {
  */
 export const routeAdviceApiV1RouteAdvicePost = async (routeIn: RouteIn, options?: Parameters<typeof apiFetch>[1]): Promise<RunAccepted> => {
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<RunAccepted>(getRouteAdviceApiV1RouteAdvicePostUrl(),
+  return apiFetch<RunAccepted>(getRouteAdviceApiV1RouteAdvicePostUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
     body: JSON.stringify(routeIn)
   }
 );}
@@ -2672,25 +2568,11 @@ export const getViewApiV1ViewsPostUrl = () => {
  */
 export const viewApiV1ViewsPost = async (viewIn: ViewIn, options?: Parameters<typeof apiFetch>[1]): Promise<ViewSpec | RunAccepted> => {
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<ViewSpec | RunAccepted>(getViewApiV1ViewsPostUrl(),
+  return apiFetch<ViewSpec | RunAccepted>(getViewApiV1ViewsPostUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
     body: JSON.stringify(viewIn)
   }
 );}
