@@ -111,7 +111,8 @@ export function RunGraph({ trace, running }: { trace: string[]; running: boolean
           edges={edges}
           nodeTypes={NODE_TYPES}
           fitView
-          fitViewOptions={{ padding: 0.08 }}
+          // "3.7%" a side = the old unitless 0.08; @xyflow/react 13 reads a bare number as pixels
+          fitViewOptions={{ padding: "3.7%" }}
           minZoom={0.3}
           nodesDraggable={false}
           nodesConnectable={false}
