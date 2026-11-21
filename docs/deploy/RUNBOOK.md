@@ -6,6 +6,11 @@ plan that built it: `dev/history/archive/2026-11-18_Staging_readiness_plan.md`. 
 Windows machine (`PS>`) and bash on the Linux VM (`$`). Every secret goes through Key Vault or a prompt — never a
 command line you paste into chat, never git.
 
+**Today there is one public environment, `staging` (ADR-071 amendment 1); `production` is deferred.** §3–§8 are
+written for production. For staging, use `ENV=staging`, `Standard_B2ms`, a 64 GiB disk, the vault
+`portpilot-staging-kv`, the env file `staging.env` and the stack `portpilot-staging`. Before you share staging with
+testers, apply the "Public staging" gates of §15.
+
 ```text
 Internet ─443─▶ Caddy (TLS, HSTS, 6 MB) ─▶ web (Next.js BFF) ─▶ api (FastAPI, 1 process) ─┬─▶ postgres (PostGIS)
                  /api/*, /docs → 404                        scheduler (pack Mon 10:30,   ├─▶ mongo (AIS / EDI)
@@ -65,9 +70,13 @@ az keyvault create -g $RG -n $KV --enable-rbac-authorization true
 PRINCIPAL=$(az vm show -g $RG -n $VM --query identity.principalId -o tsv)
 az role assignment create --assignee $PRINCIPAL --role "Key Vault Secrets User" \
    --scope $(az keyvault show -n $KV --query id -o tsv)
+# You too need a data-plane role to write the secrets of §5 (an RBAC vault grants nothing to its creator)
+az role assignment create --assignee $(az ad signed-in-user show --query id -o tsv) --role "Key Vault Secrets Officer" \
+   --scope $(az keyvault show -n $KV --query id -o tsv)
 az storage account create -g $RG -n $SA --sku Standard_LRS --kind StorageV2 --access-tier Cool --min-tls-version TLS1_2 \
    --allow-blob-public-access false
-az storage container create --account-name $SA -n backups --auth-mode login
+# The management plane (your subscription role), not a blob data role: --auth-mode login would need one
+az storage container-rm create --storage-account $SA -g $RG -n backups
 az role assignment create --assignee $PRINCIPAL --role "Storage Blob Data Contributor" \
    --scope $(az storage account show -n $SA --query id -o tsv)
 ```
@@ -260,6 +269,10 @@ behind the proxy one address gets 10 failed sign-ins per 10 minutes; a session l
 SameSite=Strict cookie); sign-out revokes the token. `Api_admin.py reset / disable / enable / list`.
 
 ## 15. Production gates (S7) — all before the first production deploy
+
+**Public staging (testers), ADR-071 amendment 1:** before you share staging, check the first box, the second, the
+sixth and the last one below. Also give one login to each tester (§6, `Api_admin.py create`) and give staging its
+own new model keys, not `--copy-keys`.
 
 - [ ] the CI of the tag is green (the `Deploy` workflow refuses otherwise);
 - [ ] staging deployed from the same tag and `Deploy_smoke.py` passed there, with a real sign-in (`--email`, the

@@ -111,7 +111,7 @@ export function RunGraph({ trace, running }: { trace: string[]; running: boolean
           edges={edges}
           nodeTypes={NODE_TYPES}
           fitView
-          fitViewOptions={{ padding: 0.08 }}
+          fitViewOptions={{ padding: "3.7%" }}
           minZoom={0.3}
           nodesDraggable={false}
           nodesConnectable={false}

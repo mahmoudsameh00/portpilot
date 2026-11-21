@@ -7,6 +7,17 @@ Labels: `DONE`, `IN PROGRESS`, `PARTIAL`, `NEXT`, `PLANNED`, `PROPOSED`, `DEFERR
 
 ## Current phase
 
+**Update 2026-11-21 — one public environment (ADR-071 amendment 1); no plan is open.** The public link for testers
+is the `staging` VM on Azure, and `production` is deferred until there are real users or real data. The local
+Compose rehearsal is the step before each staging deploy. The checks on `master` after the first Dependabot merges
+are green: the CI checks 16 / 16, web static 6 / 6, Playwright 142 passed / 58 skipped, `Stage2_tools_check`
+(pymongo 4.20) and `Finance_views_check` (still pandas 3.0.5). Runbook §3 corrected: the owner's "Key Vault
+Secrets Officer" role and `az storage container-rm create`. The tester guide "Try PortPilot" is the owner's private
+artifact, shared from its Share menu.
+**NEXT (owner):** commit the voyage_watch fix, the #17 preparation and the runbook, then merge #8 / #15 / #6 / #14 one
+by one and re-run the full check (it proves pandas 3.1). Then the staging deployment O4–O10 (`docs/deploy/RUNBOOK.md`,
+staging names and sizes) and one login per tester.
+
 **Update 2026-11-19 — Repository layout CLOSED; no plan is open** (`dev/history/archive/2026-11-19_Repo_layout_and_hygiene_plan.md`,
 ADR-072; owner decisions D-RL-1…4 in one round). The runtime stays where it was (`pipelines/`, `db/`, `deploy/`,
 `ops/`, `web/`, `powerbi/`, `Data/`); every check, evaluation, data builder, the run tooling, the checkpoints, the
@@ -15,11 +26,15 @@ no longer carries a check or builder script. New CI step `dev/tools/path_refs_ch
 in a file exists, and no local tool name appears in a tracked file. The web's sample-data concept pages left the
 production build. `.gitignore` reviewed; local tool and editor files are untracked (listed in `.git/info/exclude`).
 Every check that ran before the move gives the same ✅ lines after it (the plan's §8 table).
-**NEXT (owner):** the steps of the plan's §9 in order — backups, untrack + one commit, SSH for GitHub, the history
-rewrite (D-RL-3, after the backups), the repository renamed to `portpilot` + description / topics, the PR
-`feat/agents` → `master`, the old merged branches deleted, `master` protected. Then the Azure deployment (O4–O10,
-`docs/deploy/RUNBOOK.md`). Commit ids written in this file before 2026-11-19 (e.g. `5e53e65`, `e789453`) refer to the
-history before the rewrite; the backup bundle keeps them.
+The plan's §9 owner steps are done (2026-11-19 / 20): backups (two bundles, a GitHub mirror, the local tool files),
+the layout commit, the history rewritten with `git filter-repo` (77 commits; no local tool file in any commit, no tool
+name in any message), the repository renamed `portpilot` with an SSH remote, description and topics, `feat/agents`
+merged into `master` as PR 9 after the CI fix D-RL-8, the two old merged branches deleted. `master` protection was
+refused by GitHub (a private repository on a free plan: 403) and is skipped. Commit ids written in this file before
+2026-11-19 (e.g. `5e53e65`, `e789453`) refer to the history before the rewrite; the owner's commit map (old → new)
+and the backup bundle keep them.
+**NEXT (owner):** the open Dependabot PRs (three major web updates among them) reviewed one by one; then the Azure
+deployment (O4–O10, `docs/deploy/RUNBOOK.md`).
 
 **Update 2026-11-18 — Staging readiness CLOSED; no plan is open** (`dev/history/archive/2026-11-18_Staging_readiness_plan.md`,
 ADR-071). The local staging rehearsal passed on a restore of today's stores, and every check is green on the merged tree.

@@ -1,7 +1,9 @@
 # Repository layout and hygiene plan — runtime vs development, local tool files, `.gitignore`, GitHub, SSH
 
 **Status: IMPLEMENTED (2026-11-19).** Approved 2026-11-19 by the owner with every recommended option (D-RL-1 … D-RL-4).
-ADR-072. The owner's git / GitHub steps (§9) remain.
+ADR-072. The owner's git / GitHub steps (§9) were done 2026-11-19 / 20 (history rewritten, renamed `portpilot`, PR 9
+merged, old branches deleted); step 10 (`master` protection) was refused by GitHub on a private free repository (403)
+and skipped.
 
 ## Implementation record
 

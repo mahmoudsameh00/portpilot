@@ -2340,6 +2340,20 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   one sticky instance; MongoDB time-series and Qdrant still need a VM); the owner's machine behind a tunnel (no
   separation, must stay on); a container registry (the VM builds the reviewed ref itself; a registry when a second
   host appears); Windows Task Scheduler on a Windows VM (a Linux host is cheaper and the CLIs already run there).
+- **Amendment 1 (2026-11-21, owner: one public environment).** The aim is for testers to try PortPilot from a public
+  link. The data is synthetic or public and the visitors are testers, not users, so one public environment is enough.
+  Two would pay twice for the same work. (1) **One public environment, `staging`, on Azure:** `Standard_B2ms` +
+  64 GiB (runbook §Costs), deallocated between test sessions. When the free trial ends, the owner either deallocates
+  it, deletes its resource group, or moves the same Compose stack to a cheaper Linux VM: decision (1) is not tied to
+  one provider. (2) **`production` deferred, nothing removed:** the `production` environment name, the workflow's
+  choice and the runbook lines stay ready. The trigger is real users or real data, the same as the paid-model
+  trigger in the ADR-045 note of 2026-11-17. (3) **The local Compose rehearsal (runbook §1) is the pre-release
+  step**: a tag goes to staging only after the rehearsal ran on it. (4) **Before staging is shared,** the runbook §15
+  gates that protect a public site apply: the tag's CI green; `Deploy_smoke.py` with a real sign-in; the local
+  credentials rotated and the history scan clean (O1 / O2, done 2026-11-18); in Sentry, the uptime monitor on
+  `/healthz` and "Prevent Storing of IP Addresses". Every tester also gets their own login (`Api_admin.py create`), and
+  staging gets its own new model keys instead of `--copy-keys`, so the testers' calls never spend the development
+  quota. The review of the skill `arrival-advice`, the real revise and the restore drill stay production gates.
 
 ## ADR-016 amendment 1 (2026-11-17) — migrations recorded in the database; applied by the deploy on approval
 `public.schema_migrations` (migration 031) records every applied file with the hash of its text (CRLF read as LF).

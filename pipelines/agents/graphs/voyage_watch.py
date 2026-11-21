@@ -74,7 +74,7 @@ def fleet(user, as_of: datetime, vessel_ids: list[int] | None = None) -> tuple[l
     if not context.permitted(user, context.AIS_TRACKS, context.PORTS, context.VESSELS, context.VESSEL_PARAMS):
         return [], {}, "not_permitted"
     voy = voyages.voyages()
-    ids = sorted(int(i) for i in voy.index[voy["departure_ts"] <= as_of])
+    ids = sorted(int(i) for i in voy.loc[voy["departure_ts"] <= as_of].index)
     if vessel_ids is not None:
         ids = [i for i in ids if i in set(vessel_ids)]
     names = {r["vessel_id"]: r["vessel_name"] for r in db.fetch("SELECT vessel_id, vessel_name FROM vessels")}
