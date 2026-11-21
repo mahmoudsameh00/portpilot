@@ -1,25 +1,47 @@
-# Engineering hygiene H2: weekly update PRs (the owner reviews each; pins stay `==`, ADR on any model / SDK change).
+# Engineering hygiene H2 (ADR-063, note of 2026-11-21): one batch a month per ecosystem, the owner reviews each PR;
+# pins stay `==`, an ADR on any model / SDK change. Security updates are separate: they come at once (they ignore the
+# schedule, the groups and the cooldown). Majors are ignored here and taken as a planned task.
+# cooldown 14 = the two-week package rule: a release is proposed only when it is at least 14 days old.
+# A 0.x package's "minor" (0.14 -> 0.15) can break: read its notes in the batch even though it is grouped.
 version: 2
 updates:
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 14
+    groups:
+      python-minor-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    cooldown:
+      default-days: 14
+    groups:
+      actions-minor-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   # Frontend plan §11.1: the web app's npm packages (exact pins; 0.x packages such as assistant-ui reviewed one by one).
   - package-ecosystem: "npm"
     directory: "/web"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
-    # The frontend-dev-loop two-week package rule: a new npm release is proposed only after 14 days.
     cooldown:
       default-days: 14
     groups:
       web-minor-patch:
         update-types: ["minor", "patch"]
         exclude-patterns: ["@assistant-ui/*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

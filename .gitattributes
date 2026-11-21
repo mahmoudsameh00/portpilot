@@ -8,6 +8,9 @@
 deploy/Caddyfile text eol=lf
 *.Dockerfile text eol=lf
 Dockerfile text eol=lf
+# The web app is checked byte for byte against LF (prettier `endOfLine: "lf"`, the regenerated Orval client in
+# `npm run check`): a CRLF checkout fails both on Windows only (2026-11-21)
+web/** text=auto eol=lf
 *.parquet binary
 *.npz     binary
 *.onnx    binary

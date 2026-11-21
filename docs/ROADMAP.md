@@ -14,9 +14,18 @@ are green: the CI checks 16 / 16, web static 6 / 6, Playwright 142 passed / 58 s
 (pymongo 4.20) and `Finance_views_check` (still pandas 3.0.5). Runbook §3 corrected: the owner's "Key Vault
 Secrets Officer" role and `az storage container-rm create`. The tester guide "Try PortPilot" is the owner's private
 artifact, shared from its Share menu.
-**NEXT (owner):** commit the voyage_watch fix, the #17 preparation and the runbook, then merge #8 / #15 / #6 / #14 one
-by one and re-run the full check (it proves pandas 3.1). Then the staging deployment O4–O10 (`docs/deploy/RUNBOOK.md`,
-staging names and sizes) and one login per tester.
+**Later the same day — the Dependabot batch done (ADR-063 note of 2026-11-21).** `d54f8fa` (the voyage_watch fix,
+the #17 preparation, ADR-071 amendment 1, runbook §3), then merged one by one with green checks: pandas 3.1.1 (#24,
+replacing #8), pyarrow 26.0.1 (#15), @assistant-ui/react 0.15.32 (#23), faker 40.54.0 (#25), @xyflow/react 12.12.1
+(#21); @types/node 25 (#22) closed with the major ignored. On `master` `6edb4a9`: CI green; locally the CI checks
+16 / 16, the web check 7 / 7 including Playwright, `Finance_views_check` on pandas 3.1.1 and `Stage2_tools_check` on
+pymongo 4.20 green on the full data. Dependabot is now monthly, grouped, with majors ignored and a 14-day cooldown;
+`.gitattributes` keeps `web/**` LF.
+**Open:** #19 onnxruntime 1.32.0 (14 days old on 2026-11-27; also the local upload check with bge-m3) and #20
+langsmith 0.15.0 (2026-12-01; also one real traced run in `nilegate-agents`). They may close and come back in the
+first monthly group. @xyflow/react 13: the padding is ready (`RunGraph.tsx`), the major waits for a planned task.
+**NEXT (owner):** the staging deployment O4–O10 (`docs/deploy/RUNBOOK.md`, staging names and sizes) and one login per
+tester.
 
 **Update 2026-11-19 — Repository layout CLOSED; no plan is open** (`dev/history/archive/2026-11-19_Repo_layout_and_hygiene_plan.md`,
 ADR-072; owner decisions D-RL-1…4 in one round). The runtime stays where it was (`pipelines/`, `db/`, `deploy/`,

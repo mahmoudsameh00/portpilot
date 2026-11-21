@@ -1880,6 +1880,21 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   including bootstrap/grants, ownership/replay, independent advisory-lock connections and publication rollback/
   retry. Saved validation log inspected; evidence `dev/db_audit/postgres/2026-11-12_api_integration_report.txt`. This closes
   the local isolated-database proof, not the pending full-data application acceptance or pushed CI run.
+- **Note (2026-11-21, owner: "أيوه اعملهم") — Dependabot once a month, majors as planned work.** One weekly push to
+  `dependabot.yml` opened seven PRs in two minutes, and one PR edited by hand (#8) stopped updating. Decision (4)
+  becomes: (a) **monthly** version updates for uv, GitHub Actions and npm, one minor + patch group per ecosystem
+  (`@assistant-ui/*` stays one by one, a 0.x package); (b) **majors ignored** in the file (`version-update:semver-major`),
+  taken as a planned task with its own checks, instead of per-PR `@dependabot ignore` comments; (c) **`cooldown:
+  default-days: 14` everywhere**, so Dependabot applies the two-week rule instead of the reviewer; (d) **security
+  updates unchanged:** they ignore the schedule, the groups and the cooldown, and come at once. Merge rule: one PR at a
+  time, read `gh pr diff --name-only`, wait for `gh pr checks --watch` (no branch protection on a private free plan:
+  `gh pr merge` does not wait for checks), never push to a Dependabot branch (put a fix on `master`, as for #8 →
+  #24); run the owner-run full-data checks only when the batch touches pandas, pymongo, psycopg, qdrant-client,
+  onnxruntime or LangChain / LangGraph / LangSmith. What testers use is pinned by the deployed tag, so no freeze is
+  needed. First use: 2026-11-21, pandas 3.1.1 / pyarrow 26.0.1 / faker 40.54.0 / @assistant-ui 0.15.32 /
+  @xyflow/react 12.12.1 merged. CI green; `Finance_views_check` (pandas 3.1.1) and `Stage2_tools_check` (pymongo 4.20)
+  green on the full data. `.gitattributes` keeps `web/**` LF (a CRLF checkout failed prettier and the Orval check on
+  Windows only).
 
 ## ADR-064 — The NileGate API: FastAPI, one process on the loopback, runs outside the request, shared LLM state in PostgreSQL
 - **Status:** **Accepted (2026-11-05, the FastAPI plan's done-when met;** plan archived as
