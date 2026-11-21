@@ -4,7 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "defusedxml==0.7.1",
-    "faker==40.38.0",
+    "faker==40.54.0",
     "fastapi==0.150.0",
     "filelock==4.2.1",
     "geopandas==1.1.4",
