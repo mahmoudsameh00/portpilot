@@ -265,7 +265,7 @@ class PackRow(ThreadRow):
 
 
 class WatchRunRow(ThreadRow):
-    run_as: int | None
+    """A saved watch run in the operational run history."""
 
 
 class PackAllowed(BaseModel):
@@ -358,6 +358,7 @@ class ArrivalOption(Open):
     option: Literal["keep", "jit", "floor", "catch_up", "cape"]
     speed_kn: float | None = None
     arrival_utc: str | None = None
+    arrives_by_rta: bool | None = None
     wait_h: float | None = None
     late_h: float | None = None
     fuel_t: float | None = None
@@ -391,11 +392,6 @@ class ArrivalAdviceDetail(ArrivalAdvice):
     thread_id: str
 
 
-class WatchNumbers(BaseModel):
-    headline: list[NumberSpan] = Field(default_factory=list)
-    items: list[list[NumberSpan]] = Field(default_factory=list)
-
-
 class WatchEta(Open):
     """One vessel of the run's ETA table (rule R, `tools/eta.py`): the rule's ETA at the run's clock — never the voyage
     file's `arrival_ts` (the answer key, ADR-055)."""
@@ -413,21 +409,13 @@ class WatchEta(Open):
     note: str | None = None
 
 
-class WatchRunDetail(Open):
+class WatchRunDetail(BaseModel):
     thread_id: str
     status: str | None
     as_of: str | None = None
-    brief_status: str | None = None
     fleet: dict[str, Any] = Field(default_factory=dict)
     headline: str | None = None
     items: list[str] = Field(default_factory=list)
-    alerts: list[str] = Field(default_factory=list, description="one line per alert (the CLI's view)")
-    assumptions: list[str] | None = None
-    problems: list[str] | None = None
-    run_file: str | None = None
-    model_calls: int = 0
-    cached: int = 0
-    numbers: WatchNumbers = Field(default_factory=WatchNumbers)
     etas: list[WatchEta] = Field(default_factory=list, description="the run's ETA table, one row per watched vessel "
                                                                     "(D-FE-10: the web's ETA board)")
 
@@ -452,7 +440,6 @@ class WatchAlerts(BaseModel):
     note: str | None = None
     thread_id: str | None = None
     as_of: str | None = None
-    brief_status: str | None = None
     headline: str | None = None
     alerts: list[WatchAlert] = Field(default_factory=list)
     of: int | None = Field(default=None, description="the run's alert count before the filters")

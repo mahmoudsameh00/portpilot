@@ -854,6 +854,8 @@ try:
     wruns = client.get(f"{B}/voyage-watch/runs", headers=bearer(tok_fin)).json()
     wrun = client.get(f"{B}/voyage-watch/runs/{wruns[-1]['thread_id']}", headers=bearer(tok_fin)).json()
     assert wruns and wrun["status"], wrun
+    assert not {"run_file", "assumptions", "problems", "model_calls", "cached", "numbers", "brief_status"} & wrun.keys()
+    assert all("run_as" not in row for row in wruns)
     assert all({"vessel_id", "eta_utc", "eta_in_h"} <= set(e) for e in wrun["etas"]), wrun["etas"][:1]
     assert is_problem(client.get(f"{B}/voyage-watch/runs/not-a-watch", headers=bearer(tok_fin)), 404)
     # Arrival advice web plan P1: vessel 5 is late at the clock with no faster speed that makes its RTA → a code

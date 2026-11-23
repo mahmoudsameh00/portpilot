@@ -9,6 +9,7 @@
 - The watch is never started here (owner A5: Task Scheduler runs it every 12 h); its saved alerts and runs are level
   1 / Operations data (P11-8), readable by every employee — `watch.read_alerts` still checks the identity.
 """
+import json
 from datetime import datetime, timezone
 from typing import Any
 
@@ -191,18 +192,27 @@ def _watch_reader(p, request: Request, resource_id: str = "runs") -> None:
 def watch_runs(p: Signed, request: Request) -> list[dict]:
     _watch_reader(p, request)
     g = vw.build_graph(None, checkpointer.saver(), vw.REPORTS_DIR)
-    return [{"thread_id": i.thread_id, "state": i.state, "status": i.status, "last_at": i.last_at,
-             "run_as": i.run_as} for i in scheduling.describe_voyage_watch(g, checkpointer.pool())]
+    return [{"thread_id": i.thread_id, "state": i.state, "status": i.status, "last_at": i.last_at}
+            for i in scheduling.describe_voyage_watch(g, checkpointer.pool())]
 
 
 @router.get("/voyage-watch/runs/{thread_id}", response_model=WatchRunDetail)
 def watch_run(thread_id: str, p: Signed, request: Request) -> dict:
     _watch_reader(p, request, thread_id)
-    if not thread_id.startswith(vw.THREAD_PREFIX):
+    if not thread_id.startswith(vw.THREAD_PREFIX) or not watch.RUN_FILE.fullmatch(thread_id.replace(":", "_")):
         raise ApiError(404, "no such watch run", slug="not_found")
     g = vw.build_graph(None, checkpointer.saver(), vw.REPORTS_DIR)
     st = g.get_state({"configurable": {"thread_id": thread_id}}).values
-    if not st:
-        raise ApiError(404, "no such watch run", slug="not_found")
-    etas = (st.get("result") or {}).get("etas") or []       # the run's ETA table (rule R), D-FE-10
-    return {"thread_id": thread_id, **vw.result_summary(st), "etas": etas}
+    result = st.get("result") or {}
+    if not result:
+        path = vw.run_file_path(vw.REPORTS_DIR, thread_id)
+        if path.exists():
+            result = json.loads(path.read_text(encoding="utf-8"))
+        elif not st:
+            raise ApiError(404, "no such watch run", slug="not_found")
+    fleet = result.get("fleet") or {}
+    return {"thread_id": thread_id, "status": result.get("status"), "as_of": result.get("as_of"),
+            "fleet": {k: fleet[k] for k in ("vessels_watched", "in_transit", "anchored", "alerts_high",
+                                            "alerts_moderate", "suez_ahead_vessels", "change_transits_pct") if k in fleet},
+            "headline": result.get("headline"), "items": [i["text"] for i in result.get("items") or []],
+            "etas": result.get("etas") or []}

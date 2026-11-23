@@ -712,6 +712,17 @@
       ],
       "title": "Arrival Utc"
      },
+     "arrives_by_rta": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Arrives By Rta"
+     },
      "change_fuel_t": {
       "anyOf": [
        {
@@ -4003,17 +4014,6 @@
       ],
       "title": "As Of"
      },
-     "brief_status": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Brief Status"
-     },
      "headline": {
       "anyOf": [
        {
@@ -4211,40 +4211,8 @@
     "title": "WatchEta",
     "type": "object"
    },
-   "WatchNumbers": {
-    "properties": {
-     "headline": {
-      "items": {
-       "$ref": "#/components/schemas/NumberSpan"
-      },
-      "title": "Headline",
-      "type": "array"
-     },
-     "items": {
-      "items": {
-       "items": {
-        "$ref": "#/components/schemas/NumberSpan"
-       },
-       "type": "array"
-      },
-      "title": "Items",
-      "type": "array"
-     }
-    },
-    "title": "WatchNumbers",
-    "type": "object"
-   },
    "WatchRunDetail": {
-    "additionalProperties": true,
     "properties": {
-     "alerts": {
-      "description": "one line per alert (the CLI's view)",
-      "items": {
-       "type": "string"
-      },
-      "title": "Alerts",
-      "type": "array"
-     },
      "as_of": {
       "anyOf": [
        {
@@ -4255,36 +4223,6 @@
        }
       ],
       "title": "As Of"
-     },
-     "assumptions": {
-      "anyOf": [
-       {
-        "items": {
-         "type": "string"
-        },
-        "type": "array"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Assumptions"
-     },
-     "brief_status": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Brief Status"
-     },
-     "cached": {
-      "default": 0,
-      "title": "Cached",
-      "type": "integer"
      },
      "etas": {
       "description": "the run's ETA table, one row per watched vessel (D-FE-10: the web's ETA board)",
@@ -4317,39 +4255,6 @@
       "title": "Items",
       "type": "array"
      },
-     "model_calls": {
-      "default": 0,
-      "title": "Model Calls",
-      "type": "integer"
-     },
-     "numbers": {
-      "$ref": "#/components/schemas/WatchNumbers"
-     },
-     "problems": {
-      "anyOf": [
-       {
-        "items": {
-         "type": "string"
-        },
-        "type": "array"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Problems"
-     },
-     "run_file": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Run File"
-     },
      "status": {
       "anyOf": [
        {
@@ -4374,22 +4279,12 @@
     "type": "object"
    },
    "WatchRunRow": {
+    "description": "A saved watch run in the operational run history.",
     "properties": {
      "last_at": {
       "format": "date-time",
       "title": "Last At",
       "type": "string"
-     },
-     "run_as": {
-      "anyOf": [
-       {
-        "type": "integer"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Run As"
      },
      "state": {
       "description": "ended | stalled | pending",
@@ -4416,8 +4311,7 @@
      "thread_id",
      "state",
      "status",
-     "last_at",
-     "run_as"
+     "last_at"
     ],
     "title": "WatchRunRow",
     "type": "object"

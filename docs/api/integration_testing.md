@@ -8,7 +8,7 @@ MongoDB or Qdrant. Runtime roles have separate random credentials and the real m
 The owner can run the same check from PowerShell at the project root:
 
 ```powershell
-powershell -NoProfile -File .\ops\tests\run_api_integration.ps1
+powershell -NoProfile -File .\dev\tests\run_api_integration.ps1
 ```
 
 The wrapper requires Docker Desktop and the existing locked Python environment. It refuses an existing
@@ -42,7 +42,7 @@ seven fixture employees instead of searching for employees without logins. It re
 clone at `127.0.0.1:55432/portpilot_api_test`, `PORTPILOT_API_TEST_DSN`, explicit matching `PGHOST`, `PGPORT`,
 `PGDATABASE`, and `PORTPILOT_FULL_STACK_ISOLATED=1`. All API/read/agent credentials must work on that clone; the
 full suite also needs its other store/model fixtures. The thin CI fixture is deliberately insufficient for it.
-Full-clone preparation is scripted (2026-11-15): `powershell -NoProfile -File .\ops\tests\run_api_full_clone.ps1`
+Full-clone preparation is scripted (2026-11-15): `powershell -NoProfile -File .\dev\tests\run_api_full_clone.ps1`
 starts a new container `portpilot-api-full` (the image of `ports-postgres`) on 127.0.0.1:55432, copies the logins
 (password hashes, without `postgres`) and the whole `ports_logistics` as `portpilot_api_test` (ports-postgres is only
 read), then runs `Api_check.py` with every runtime pool pointed at the clone; execution is the owner's. First full run 2026-11-15: 12 / 12 phases (`-Reuse` re-runs it on the same clone). Never point it
@@ -57,7 +57,7 @@ Frontend plan §10.4, 2026-11-16. `web/playwright.stack.config.ts` runs the Play
 full-data clone `portpilot-api-full`, and a production build of the web on port 3101. The owner runs it with:
 
 ```powershell
-powershell -NoProfile -File .\ops\tests\run_web_stack.ps1
+powershell -NoProfile -File .\dev\tests\run_web_stack.ps1
 ```
 
 The config refuses to start unless the clone's variables are set (the runner sets them from the container). Global

@@ -15,3 +15,9 @@ it runs in the CI `checks` job and on the owner's machine.
 Problems met while building it: `app.routes` lists included routers lazily (Phase 1 reads the app through a
 `TestClient` and `app.openapi()` instead); the dockerignore starts with comment lines (the rule list skips them);
 `new_env.py` printed a path relative to the project for a temporary file (it now prints any path).
+
+**2026-11-22, Phase 7.** The original deployment check read every Actions check on the release commit, including a
+deployment already in progress. The gate now reads the push CI run for the resolved SHA and sends that SHA to the
+VM after approval. The regression check ran the workflow's shell step with five simulated CI responses. A successful
+run for the release SHA produced the deployment output. A missing, in-progress, failed or different-commit result
+produced none. All seven phases passed locally. The read-only query also returned success for remote `4f3c600`.

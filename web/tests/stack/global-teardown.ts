@@ -2,7 +2,7 @@
 import { execFileSync } from "node:child_process";
 
 export default function globalTeardown() {
-  execFileSync("uv", ["run", "python", "../pipelines/scripts/api/Web_stack_fixture.py", "cleanup"], {
+  execFileSync("uv", ["run", "python", "../dev/checks/api/Web_stack_fixture.py", "cleanup"], {
     stdio: "inherit",
   });
 }

@@ -172,10 +172,10 @@ def run_arrival_advice(user, roles, as_of: datetime | None = None, saver=None, p
     note = ("numbers computed by code (voyage_status, vessel_params, the RTA message; cube-law fuel); rows keyed by "
             "option: keep / jit / floor / catch_up / cape, `summary` (rta_utc, target_utc, situation, keep_wait_h, "
             "rule_option) and `advice` — cite e.g. {<id>[jit]:speed_kn}, {<id>[summary]:keep_wait_h}; rta_utc is "
-            "the port's requested time; an option's arrival_utc is when the vessel arrives (jit arrives margin_h "
-            "before the RTA, at target_utc) — never call an arrival time the RTA; "
+            "the port's requested time; arrival_utc is the option's ETA. The planning target is RTA minus margin_h; "
+            "rounding the sailing speed can shift the ETA. "
             + ("the advice failed its Validator — cite the rows, give no recommendation" if failed
-               else "the advice passed the arrival Validator (the cheapest option at the berth by the RTA unless a "
+               else "the advice passed the arrival Validator (the cheapest option at the RTA location by the RTA unless a "
                     "cited risk)"))
     return ToolResult(tool="arrival_advice", status="ok", rows=rows, note=note,
                       source=Source(kind="library", name=f"arrival_advice graph (thread {tid})",

@@ -41,3 +41,40 @@ by the supervisor only for JIT questions. Design: plan §2a (owner answers J1–
 Regressions after the shared changes (2026-11-15): `Supervisor_check` ✅, `Supervisor_tools_check` ✅ (union 15),
 `Stage2_eval` Phases 1–3 ✅ (0 calls), `Stage2_tools_check` ✅, `Tools_check` ✅, `Scheduler_check` 6 / 6,
 `Voyage_watch_check` Phases 1–7 + 4s ✅ (D-J7), `Route_advice_check` ✅, lint ratchet 0.
+
+**2026-11-22 — the owner's review of the skill (Azure staging plan D-AZ-4; ADR-070 note 2026-11-22).** The skill's
+text was edited (the RTA's location, the tie order, "RTA" = `rta_utc` only, the risk directions; body 1,198 of 1,200
+tokens: the first draft was 1,284 and Phase 4s refused it) and the Validator gained the risk's direction. Phase 4
+gained six direction cases (cases 13, 19 and 1): the Suez drop justifies the Cape only, a storm an earlier arrival
+than the rule's and never the Cape. Phase 8 can now run a second time on its own reply cache (`EVAL_REPEAT=2`,
+ADR-052): run 1 7 / 8 (Gemini 503 → the fallback model; case 4 `output_invalid`), run 2 8 / 8; one patch per
+advice in both, mostly a date written as a slot (an old habit: 25 of 53 replies under the old text).
+
+The owner's fresh retry (`EVAL_REPEAT=3`) scored **6 / 8** in Phase 8 with 23 calls, zero cache hits and seven
+patches. Case 1 supplied `arrival.options[jit]` as an evidence ID and case 7 cited `arrival.traffic`, which was
+absent from its evidence. Both yielded no recommendation. The six accepted cases matched the rule, the supervisor
+answered in English and Arabic, and the watch brief passed. The eight-case assertion failed. The owner had chosen
+to accept the earlier results for staging if this retry fell short (Azure staging plan §7).
+
+**2026-11-23 — rounded JIT speed.** The web replay for vessel 38 exposed a two-minute difference between its
+ETA and the planning target. Phase 4 now exercises an ETA two minutes after, one minute before and exactly on
+the target, including English and Arabic target claims and a valid comparison with the port deadline. Phase 4s
+reads the revised 1,182-token skill and renders its 11 example slots. Each evaluation's arrival threads use a
+unique prefix so cleanup can run alongside a signed-in user and preserve their saved advice.
+The first browser retry withheld the recommendation because the writer put the ETA and RTA in numeric placeholders.
+Phase 4 now also checks exact UTC copying for a cited option and summary, plus rejection of an uncited source,
+an unknown row and an unknown field.
+The second browser result compared the JIT ETA correctly but called 55.1 hours of planned waiting the time
+before the deadline. The margin was two hours. Phase 4 checks that wording in English and Arabic and accepts
+the duration as planned waiting at anchor.
+
+**Watch decisions, 2026-11-23.** Phases 1–7 passed. The arithmetic checks cover full-precision late arrivals,
+including a missed deadline whose rounded delay is 0.0 hours. Phase 6w checks all 41 timing results, restored
+older snapshots, the no-RTA and stationary cases, and the calculated fallback. The signed-in replay displayed
+219 ETA rows and 41 results. Vessels 2, 351, 352 and 157 can recover 1, 4, 3 and 7 minutes respectively.
+Twelve late vessels had no faster option. The operational brief remained readable without exposing its receipts.
+
+Repeat 9 accepted six of eight real recommendations, all matching the computed choice, with 17 provider calls,
+zero cache hits and eight patches. Case 2 phrased a signed fuel change as a saving. Case 7 omitted its option
+evidence IDs. The validator withheld both. The Arabic supervisor answered and the watch brief passed. The English
+supervisor response failed validation. The eight-case gate remains 8/8.

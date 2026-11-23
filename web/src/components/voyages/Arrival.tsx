@@ -6,26 +6,18 @@
 // - `ArrivalRequest`: ask for an advice for any vessel at sea, with an optional requested time (else the one the
 //   port sent), then the earlier advice. POST /arrival-advice → the run's steps → the advice's page.
 // The browser never computes a number: the options, times and fuel come from the API; it only formats them.
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Anchor, ChevronDown, Clock, Loader2, Route as RouteIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronDown, Clock, Route as RouteIcon } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
-  arrivalAdviceApiV1ArrivalAdvicePost as postAdvice,
   listArrivalAdviceApiV1ArrivalAdviceGet as listAdvice,
   type ArrivalAdvice,
-  type ArrivalIn,
   type ArrivalOption,
-  type RunEventSchema,
 } from "@/api/generated/client";
 import { ReceiptText } from "@/components/receipt/ReceiptText";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  ARRIVAL_STEPS,
   arrivalThreadParts,
   formatHours,
   formatKn,
@@ -37,14 +29,13 @@ import {
   stamp,
   summaryOf,
 } from "@/lib/arrival-advice";
-import { BffError } from "@/lib/bff/client";
-import { RunObservationError, streamRun } from "@/lib/runs";
 import { cn } from "@/lib/utils";
 
-const WRITTEN = new Set(["ok"]);
+const WRITTEN = new Set(["ok", "computed"]);
 
 function waitOrLate(o: ArrivalOption): string {
   if (typeof o.late_h === "number" && o.late_h > 0) return `${formatHours(o.late_h)} late`;
+  if (o.arrives_by_rta === false) return "less than 0.1 h late";
   if (typeof o.wait_h === "number" && o.wait_h > 0) return `waits ${formatHours(o.wait_h)}`;
   return "on time";
 }
@@ -112,16 +103,21 @@ export function AdviceCard({ advice, compact = false }: { advice: ArrivalAdvice;
   const pick = options.find((o) => o.option === chosen) ?? null;
   const numbers = advice.numbers ?? { headline: [], reasons: [], risks: [] };
   const written = WRITTEN.has(advice.status ?? "");
-  const note = written ? null : (STATUS_NOTE[advice.status ?? ""] ?? null);
+  const note =
+    advice.status === "computed"
+      ? "Calculated from this watch run’s speed options. Check the vessel’s active weather and traffic alerts before changing speed."
+      : (STATUS_NOTE[advice.status ?? ""] ?? null);
   const differs = written && chosen && s.ruleOption && chosen !== s.ruleOption;
   const hasCape = options.some((o) => o.option === "cape");
   // the one line that matters (compact): the choice, its speed, when it arrives, the fuel it changes
+  const lateDecision = advice.status === "computed" && s.situation === "late";
+  let action = chosen ? OPTION_LABEL[chosen] : "Computed options only";
+  if (lateDecision && chosen === "keep") action = "Notify the port of the delay";
+  if (advice.status === "review") action = "Confirm the arrival window";
   const keyLine = (
     <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
       <Clock className="size-4 shrink-0 text-primary" aria-hidden />
-      <span className="font-semibold text-primary">
-        {pick ? OPTION_LABEL[pick.option] : chosen ? OPTION_LABEL[chosen] : "Computed options only"}
-      </span>
+      <span className="font-semibold text-primary">{action}</span>
       {pick?.speed_kn != null ? <span className="num font-medium">{formatKn(pick.speed_kn)}</span> : null}
       {pick ? (
         <span className="text-xs text-muted-foreground">
@@ -165,6 +161,11 @@ export function AdviceCard({ advice, compact = false }: { advice: ArrivalAdvice;
           </button>
         ) : null}
       </div>
+      {compact && !open && advice.status === "computed" && advice.headline ? (
+        <p className="text-sm" dir="auto">
+          {advice.headline}
+        </p>
+      ) : null}
       {open ? (
         <div className="flex flex-col gap-3">
           {pick ? (
@@ -248,132 +249,12 @@ export function AdviceCard({ advice, compact = false }: { advice: ArrivalAdvice;
 }
 
 /** "YYYY-MM-DDTHH:MM" typed in UTC → the API's ISO with Z; empty = the RTA the port sent. */
-function rtaOf(local: string): string | null {
-  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local) ? `${local}:00Z` : null;
-}
-
-export function ArrivalRequest() {
-  const router = useRouter();
-  const qc = useQueryClient();
-  const params = useSearchParams();
-  const [vessel, setVessel] = useState(params.get("advise") ?? "");
-  const [rta, setRta] = useState("");
-  const [location, setLocation] = useState<"berth" | "pilot_boarding_place">("berth");
-  const [busy, setBusy] = useState(false);
-  const [seen, setSeen] = useState<Set<string>>(new Set());
-  const [message, setMessage] = useState<string | null>(null);
+export function ArrivalHistory() {
   const earlier = useQuery({ queryKey: ["arrival-advice"], queryFn: () => listAdvice(), retry: false });
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const id = Number(vessel);
-    if (!Number.isInteger(id) || id < 1) {
-      setMessage("Give the id of one of our vessels at sea.");
-      return;
-    }
-    if (rta && !rtaOf(rta)) {
-      setMessage("Give the requested time as date and time (UTC), or leave it empty.");
-      return;
-    }
-    const body: ArrivalIn = { vessel_id: id, location, ...(rta ? { rta_utc: rtaOf(rta) } : {}) };
-    setBusy(true);
-    setSeen(new Set());
-    setMessage(null);
-    try {
-      const accepted = await postAdvice(body);
-      let failed: string | null = null;
-      await streamRun(accepted.run_id, {
-        onEvent: (ev: RunEventSchema) => {
-          if (ev.event === "node" && ev.data.phase === "start") setSeen((s) => new Set([...s, ev.data.name]));
-          if (ev.event === "failed") failed = ev.data.detail;
-        },
-      });
-      if (failed) {
-        setMessage(failed);
-        return;
-      }
-      await qc.invalidateQueries({ queryKey: ["arrival-advice"] });
-      if (accepted.thread_id) router.push(`/voyages/arrival/${encodeURIComponent(accepted.thread_id)}`);
-    } catch (error) {
-      setMessage(
-        error instanceof RunObservationError
-          ? error.message
-          : error instanceof BffError
-            ? error.status === 403
-              ? "Arrival advice is not part of your access."
-              : error.title
-            : "The advice could not be asked for. Try again.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const rows = [...(earlier.data ?? [])].sort((a, b) => b.thread_id.localeCompare(a.thread_id)).slice(0, 12);
+  const rows = [...(earlier.data ?? [])].sort((a, b) => b.last_at.localeCompare(a.last_at)).slice(0, 12);
   return (
-    <Card className="gap-3" id="arrival">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Anchor className="size-4 text-primary" aria-hidden /> Arrival advice
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <p className="text-xs text-muted-foreground">
-          Which speed makes the port&apos;s requested time: keep and wait, slow down, or speed up — priced by
-          code, then explained.
-        </p>
-        <form onSubmit={submit} className="flex flex-col gap-3" noValidate>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="arrival-vessel">Vessel id</Label>
-            <Input
-              id="arrival-vessel"
-              inputMode="numeric"
-              className="h-9 font-mono"
-              value={vessel}
-              onChange={(e) => setVessel(e.target.value.replace(/\D/g, ""))}
-              autoComplete="off"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="arrival-rta">Requested time (UTC, optional)</Label>
-            <Input
-              id="arrival-rta"
-              type="datetime-local"
-              className="h-9 font-mono"
-              value={rta}
-              onChange={(e) => setRta(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="arrival-location">Where it applies</Label>
-            <select
-              id="arrival-location"
-              className="h-9 rounded-md border bg-background px-2 text-sm"
-              value={location}
-              onChange={(e) => setLocation(e.target.value as typeof location)}
-            >
-              <option value="berth">Berth</option>
-              <option value="pilot_boarding_place">Pilot boarding place</option>
-            </select>
-          </div>
-          <Button type="submit" disabled={busy}>
-            {busy ? <Loader2 className="animate-spin" aria-hidden /> : null} Advise arrival
-          </Button>
-        </form>
-        {busy || seen.size ? (
-          <ol className="flex flex-col gap-1 text-xs" aria-label="What is being done">
-            {ARRIVAL_STEPS.filter((s) => seen.has(s.node)).map((s) => (
-              <li key={s.node} className="text-muted-foreground">
-                {s.label}
-              </li>
-            ))}
-          </ol>
-        ) : null}
-        {message ? (
-          <p role="alert" className="text-sm text-alert-ink">
-            {message}
-          </p>
-        ) : null}
+    <Card>
+      <CardContent>
         <div className="flex flex-col gap-1.5">
           <p className="text-xs font-medium">Earlier advice</p>
           <ul className="flex flex-col gap-1.5" aria-label="Earlier arrival advice">

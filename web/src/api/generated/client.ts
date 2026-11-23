@@ -198,6 +198,7 @@ export const ArrivalOptionOption = {
  */
 export interface ArrivalOption {
   arrival_utc?: string | null;
+  arrives_by_rta?: boolean | null;
   change_fuel_t?: number | null;
   change_total_sdr?: number | null;
   fuel_sdr?: number | null;
@@ -1260,7 +1261,6 @@ export const WatchAlertsStatus = {
 export interface WatchAlerts {
   alerts?: WatchAlert[];
   as_of?: string | null;
-  brief_status?: string | null;
   headline?: string | null;
   note?: string | null;
   /** the run's alert count before the filters */
@@ -1289,37 +1289,24 @@ export interface WatchEta {
   [key: string]: unknown;
  }
 
-export interface WatchNumbers {
-  headline?: NumberSpan[];
-  items?: NumberSpan[][];
-}
-
 export type WatchRunDetailFleet = { [key: string]: unknown };
 
 export interface WatchRunDetail {
-  /** one line per alert (the CLI's view) */
-  alerts?: string[];
   as_of?: string | null;
-  assumptions?: string[] | null;
-  brief_status?: string | null;
-  cached?: number;
   /** the run's ETA table, one row per watched vessel (D-FE-10: the web's ETA board) */
   etas?: WatchEta[];
   fleet?: WatchRunDetailFleet;
   headline?: string | null;
   items?: string[];
-  model_calls?: number;
-  numbers?: WatchNumbers;
-  problems?: string[] | null;
-  run_file?: string | null;
   status: string | null;
   thread_id: string;
-  [key: string]: unknown;
- }
+}
 
+/**
+ * A saved watch run in the operational run history.
+ */
 export interface WatchRunRow {
   last_at: string;
-  run_as: number | null;
   /** ended | stalled | pending */
   state: string;
   status: string | null;

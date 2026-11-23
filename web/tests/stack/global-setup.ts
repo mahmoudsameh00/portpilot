@@ -2,7 +2,7 @@
 import { execFileSync } from "node:child_process";
 
 export default function globalSetup() {
-  execFileSync("uv", ["run", "python", "../pipelines/scripts/api/Web_stack_fixture.py", "setup"], {
+  execFileSync("uv", ["run", "python", "../dev/checks/api/Web_stack_fixture.py", "setup"], {
     stdio: "inherit",
   });
 }

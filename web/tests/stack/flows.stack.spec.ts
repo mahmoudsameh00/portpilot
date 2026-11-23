@@ -4,6 +4,7 @@
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { ask, person, signIn } from "./people";
+import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "../../src/lib/bff/names";
 
 test.describe.configure({ mode: "serial" });
 
@@ -113,16 +114,27 @@ test("arrival advice on demand: its own page, the asker's list; another employee
 }) => {
   const asker = person("manager_operations");
   await signIn(page, asker, "/voyages");
-  await page.goto("/voyages?advise=5");
-  await expect(page.getByLabel("Vessel id")).toHaveValue("5");
-  await page.getByRole("button", { name: "Advise arrival", exact: true }).click();
-  await expect(page).toHaveURL(/\/voyages\/arrival\/arrival_advice%3A\d+%3A\d{4}-\d{2}-\d{2}%3A5%3A\d+$/, {
-    timeout: 60_000,
+  await expect(page.getByLabel("Vessel id")).toHaveCount(0);
+  // The existing API still owns personal saved links. Exercise it without the retired request form.
+  const csrf = (await page.context().cookies()).find((c) => c.name === CSRF_COOKIE_NAME);
+  expect(csrf).toBeDefined();
+  const accepted = await page.request.post("/bff/arrival-advice", {
+    data: { vessel_id: 5 },
+    headers: {
+      Origin: new URL(page.url()).origin,
+      [CSRF_HEADER_NAME]: csrf!.value,
+      "Sec-Fetch-Site": "same-origin",
+    },
   });
-  const advice = page.getByRole("group", { name: "Arrival advice" });
-  await expect(advice).toContainText("Keep speed");
-  await expect(advice).toContainText("no faster allowed speed");
-  const thread = decodeURIComponent(page.url().split("/").pop() ?? "");
+  expect(accepted.status()).toBe(202);
+  const { thread_id: thread, run_id } = await accepted.json();
+  await expect
+    .poll(async () => (await (await page.request.get(`/bff/runs/${run_id}`)).json()).state, {
+      timeout: 60000,
+    })
+    .toBe("done");
+  await page.goto(`/voyages/arrival/${encodeURIComponent(thread)}`);
+  await expect(page.getByRole("group", { name: "Arrival advice" })).toContainText("no faster allowed speed");
   expect(thread).toMatch(new RegExp(`^arrival_advice:${asker.employee_id}:`));
   const list = await (await page.request.get("/bff/arrival-advice")).json();
   expect(list.map((t: { thread_id: string }) => t.thread_id)).toContain(thread);

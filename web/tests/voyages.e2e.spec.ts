@@ -1,5 +1,5 @@
 // F6: the voyage watch (plan §6.7) against the mock API — the radar list (high / all in the URL), the run's brief
-// with receipts and fleet counts, the runs list, a run without a brief; refusals.
+// with fleet counts, contextual timing decisions, the runs list, and refusals.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import fixtures from "./fixtures/users.json" with { type: "json" };
@@ -9,7 +9,6 @@ const ops = user("ops.employee@portpilot.test");
 const finance = user("finance.manager@portpilot.test");
 
 test.describe.configure({ mode: "serial" });
-test.skip(({ isMobile }) => isMobile, "the watch flow runs once, on desktop");
 
 async function signedIn(page: Page, u: { email: string; password: string }, next = "/voyages") {
   await page.goto(`/login?next=${encodeURIComponent(next)}`);
@@ -19,12 +18,9 @@ async function signedIn(page: Page, u: { email: string; password: string }, next
   await page.waitForURL(
     (url) => decodeURIComponent(url.pathname) === decodeURIComponent(next.split("?")[0]!),
   );
-  await expect(page.getByRole("status").filter({ hasText: /API (ready|degraded|offline)/ })).toBeVisible();
 }
 
-test("the latest run's alerts as a radar list, filtered in the URL, with the brief's receipts", async ({
-  page,
-}) => {
+test("the latest run's alerts can be filtered, with the operational brief visible", async ({ page }) => {
   await signedIn(page, ops);
   await expect(page.getByRole("heading", { name: "Voyage watch" })).toBeVisible();
   const alerts = page.getByRole("list", { name: "Alerts by severity" });
@@ -45,27 +41,24 @@ test("the latest run's alerts as a radar list, filtered in the URL, with the bri
   await expect(page).toHaveURL(/\/voyages$/);
   await expect(alerts.getByRole("listitem")).toHaveCount(5);
 
-  // the brief: headline + items with receipts; fleet counts
+  // The operational brief shows the findings without internal evidence receipts.
   const brief = page.getByRole("list", { name: "The brief" });
   await expect(brief.getByRole("listitem")).toHaveCount(2);
-  await brief.getByRole("button", { name: /40\.2/ }).click();
-  const slip = page.getByRole("dialog");
-  await expect(slip).toContainText("wind_speed_10m_max_kn");
-  await expect(slip).toContainText("watch.alerts");
-  await expect(slip).toContainText("alert = 234/weather");
-  await page.keyboard.press("Escape");
+  await expect(brief).toContainText("40.2");
+  await expect(brief.getByRole("button")).toHaveCount(0);
+  await expect(page.getByText("How we know", { exact: true })).toHaveCount(0);
   const fleet = page.getByLabel("Fleet at the run's clock");
   await expect(fleet).toContainText("297");
   await expect(fleet).toContainText("+2.7%");
 
   // the ETA board (D-FE-10): the run's rule ETAs, the alerted vessels first, soonest first; the rest on demand
   const board = page.getByRole("table", { name: "ETA by rule for the vessels at sea" });
-  await expect(board.locator("tbody tr")).toHaveCount(12);
+  await expect(board.locator(":scope > tbody > tr")).toHaveCount(12);
   await expect(board.locator("tbody tr").first()).toContainText("Containerships Voyager 205");
   await expect(board.locator("tbody tr").first()).toContainText("alert");
   await expect(board.locator('[data-field="eta_in_h"]').first()).toHaveAttribute("data-value", "62.2");
   await page.getByRole("button", { name: "Show all 14 vessels at sea" }).click();
-  await expect(board.locator("tbody tr")).toHaveCount(14);
+  await expect(board.locator(":scope > tbody > tr")).toHaveCount(14);
   await expect(board).not.toContainText("Cruise Voyager 600");
 
   const axe = await new AxeBuilder({ page }).analyze();
@@ -81,7 +74,7 @@ test("an earlier run opens from the list; a run without a brief says so", async 
   await runs.getByRole("link", { name: /2026-09-12 12:00Z/ }).click();
   await expect(page).toHaveURL(/\/voyages\/runs\/voyage_watch%3A20260912T1200Z%3A1$/);
   await expect(page.getByRole("list", { name: "Alerts by severity" }).getByRole("listitem")).toHaveCount(2);
-  await expect(page.getByText(/No written brief for this run \(skipped no high\)/)).toBeVisible();
+  await expect(page.getByText(/No written brief is available for this run/)).toBeVisible();
   await expect(page.getByLabel("Fleet at the run's clock")).toContainText("295");
   await page.getByRole("link", { name: "Latest run" }).click();
   await expect(page).toHaveURL(/\/voyages$/);
@@ -131,35 +124,20 @@ test("a jit alert carries the watch's own arrival advice: the choice, its receip
   ).toEqual([]);
 });
 
-test("any vessel at sea can be advised on demand: prefilled from the ETA board, steps, then its own page", async ({
+test("only timing-alert vessels open a saved decision, including under the high-only filter", async ({
   page,
 }) => {
-  await signedIn(page, ops);
+  await signedIn(page, ops, "/voyages?high=1&advise=234");
+  await expect(page.getByLabel("Vessel id")).toHaveCount(0);
   const board = page.getByRole("region", { name: /ETA board/ });
-  const first = board.locator("tbody tr").first();
-  await first.getByRole("link", { name: /Advise arrival/ }).click();
-  await expect(page).toHaveURL(/\/voyages\?advise=\d+/);
-  const vessel = page.getByLabel("Vessel id");
-  await expect(vessel).not.toHaveValue("");
-  await page.getByLabel("Requested time (UTC, optional)").fill("2026-09-20T06:00");
-  await page.getByRole("button", { name: "Advise arrival", exact: true }).click();
-  await expect(page).toHaveURL(/\/voyages\/arrival\/arrival_advice%3A\d+%3A2026-09-13%3A\d+%3A1$/);
-  const advice = page.getByRole("group", { name: "Arrival advice" });
-  await expect(advice).toContainText("2026-09-20 06:00Z"); // the requested time given
-  await expect(advice.getByRole("table").locator("tbody tr")).toHaveCount(3);
-  await expect(page.getByRole("list", { name: "Earlier arrival advice" }).getByRole("link")).toHaveCount(1);
-  await page.reload();
-  await expect(page.getByRole("group", { name: "Arrival advice" })).toContainText("Slow down");
-});
-
-test("a bad vessel id is stopped in the form; an asker without the product sees no request card", async ({
-  page,
-}) => {
-  await signedIn(page, ops);
-  await page.getByRole("button", { name: "Advise arrival", exact: true }).click();
-  await expect(
-    page.getByRole("alert").filter({ hasText: "Give the id of one of our vessels" }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: /Show all .* vessels at sea/ }).click();
+  const weather = board.getByRole("row").filter({ hasText: "Cruise Voyager 234" });
+  await expect(weather).toBeVisible();
+  await expect(weather.getByText("View arrival advice", { exact: false })).toHaveCount(0);
+  const timing = board.getByRole("row").filter({ hasText: "Dry Bulk Voyager 118" }).first();
+  await timing.locator("summary").click();
+  await expect(timing.getByRole("group", { name: "Arrival advice" })).toContainText("11.2 kn");
+  await expect(page).toHaveURL(/high=1/);
 });
 
 test("only the top alerts show at first; the rest wait behind Show more", async ({ page }) => {

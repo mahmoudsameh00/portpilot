@@ -11,16 +11,6 @@ export const OPTION_LABEL: Record<ArrivalOption["option"], string> = {
   cape: "Via the Cape",
 };
 
-/** The graph's nodes in order (`ARRIVAL_NODES` of the API), for the live steps of a request. */
-export const ARRIVAL_STEPS: { node: string; label: string }[] = [
-  { node: "inputs", label: "Reading the vessel and the requested time" },
-  { node: "options", label: "Computing the speed options" },
-  { node: "context", label: "Reading weather and Suez traffic" },
-  { node: "advisor", label: "Writing the advice" },
-  { node: "validator", label: "Checking every number" },
-  { node: "render", label: "Done" },
-];
-
 /** Why there is no written recommendation, in plain words (the API's stop statuses). */
 export const STATUS_NOTE: Record<string, string> = {
   on_time: "On time at its current speed: nothing to change.",
@@ -42,7 +32,8 @@ const fmt = (digits: number, sign: "auto" | "exceptZero" = "auto") =>
     signDisplay: sign,
   });
 
-export const formatKn = (v: number) => `${fmt(1).format(v)} kn`;
+const speed = new Intl.NumberFormat("en", { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+export const formatKn = (v: number) => `${speed.format(v)} kn`;
 export const formatHours = (v: number) => `${fmt(1).format(v)} h`;
 export const formatTonnesChange = (v: number) => `${fmt(1, "exceptZero").format(v)} t`;
 export const formatSdrChange = (v: number) => `${fmt(0, "exceptZero").format(v)} SDR`;

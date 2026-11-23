@@ -75,15 +75,27 @@ def read_alerts(user, thread: str | None = None, vessel: int | None = None, high
     """The saved alerts of one run (the latest by default), filtered; refused when the identity may not read them."""
     if not can_read(user):
         return {"status": "not_permitted", "note": "not permitted for this user (ADR-006)"}
+    if thread and not RUN_FILE.fullmatch(thread.replace(":", "_")):
+        return {"status": "no_data", "note": "Unknown watch run."}
     files = [vw.run_file_path(runs_dir(folder), thread)] if thread else run_files(folder)[-1:]
     if not files or not files[0].exists():
         return {"status": "no_data", "note": "no saved watch run" + (f" for {thread}" if thread else "")}
     r = json.loads(files[0].read_text(encoding="utf-8"))
     arrivals = r.get("arrivals") or {}            # Arrival advice web plan: the watch's advice per jit / rta_late vessel
-    al = [a | ({"advice": arrivals[str(a["vessel_id"])]} if a.get("kind") in vw.ARRIVAL_KINDS
-               and str(a["vessel_id"]) in arrivals else {})
-          for a in r.get("alerts") or [] if (vessel is None or a["vessel_id"] == vessel)
-          and (not high or a["severity"] == "high")]
+    statuses = {e["vessel_id"]: e.get("status") for e in r.get("etas") or []}
+    timing_access = context.permitted(user, context.PORT_CALLS)
+    al = []
+    for a in r.get("alerts") or []:
+        vid = a["vessel_id"]
+        if (vessel is not None and vid != vessel) or (high and a["severity"] != "high"):
+            continue
+        if (a.get("kind") in vw.ARRIVAL_KINDS and a.get("rta_utc") and statuses.get(vid) in (None, "In Transit")
+                and timing_access):
+            advice = vw.timing_advice(a, arrivals.get(str(vid)) or {})
+            a = a | {"advice": advice}
+            if a["kind"] == "rta_late":
+                a["reason"] = f"At its current speed the vessel misses the requested time of {a['rta_utc']}."
+        al.append(a)
     return {"status": "ok", "thread_id": r["thread_id"], "as_of": r["as_of"], "brief_status": r.get("brief_status"),
             "headline": r.get("headline"), "alerts": al, "of": len(r.get("alerts") or [])}
 

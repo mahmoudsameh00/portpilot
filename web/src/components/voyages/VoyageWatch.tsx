@@ -1,37 +1,26 @@
 "use client";
 // The voyage watch (plan §6.0 (8), §6.7): the radar list of the latest (or one) run's alerts from
 // GET /voyage-watch/alerts (filter high / all, kept in the URL), the run's brief and fleet counts from
-// GET /voyage-watch/runs/{thread} (headline + items with their number receipts), and the runs list. Read only:
+// GET /voyage-watch/runs/{thread} (operational headline and items), and the runs list. Read only:
 // Task Scheduler starts the runs. The API decides who reads what (`not_permitted` is an answer, not an error).
-// A `jit` / `rta_late` alert carries the arrival advice the same run made (Arrival advice web plan); any vessel at sea
-// can be advised on demand (`ArrivalRequest`).
+// Timing alerts carry their own result at the saved run clock.
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import {
-  AlertTriangle,
-  ChevronDown,
-  Clock,
-  CloudLightning,
-  Cpu,
-  Loader2,
-  Radar as RadarIcon,
-  Ship,
-  Users,
-} from "lucide-react";
+import { AlertTriangle, Clock, CloudLightning, Loader2, Radar as RadarIcon, Ship, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   watchAlertsApiV1VoyageWatchAlertsGet as getAlerts,
   watchRunApiV1VoyageWatchRunsThreadIdGet as getRun,
   watchRunsApiV1VoyageWatchRunsGet as listRuns,
+  type ArrivalAdvice,
   type WatchAlert,
   type WatchEta,
   type WatchRunDetail,
 } from "@/api/generated/client";
-import { ReceiptText } from "@/components/receipt/ReceiptText";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Radar, type Blip } from "@/components/viz/charts";
-import { AdviceCard, ArrivalRequest } from "./Arrival";
+import { AdviceCard } from "./Arrival";
 import { BffError } from "@/lib/bff/client";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +47,6 @@ const FLEET: { key: string; label: string; format?: (v: number) => string }[] = 
   { key: "alerts_high", label: "High alerts" },
   { key: "alerts_moderate", label: "Moderate alerts" },
   { key: "suez_ahead_vessels", label: "Suez ahead" },
-  { key: "weather_points", label: "Weather points read" },
   {
     key: "change_transits_pct",
     label: "Suez transits vs a year ago",
@@ -87,7 +75,7 @@ function blipsOf(alerts: WatchAlert[]): Blip[] {
   });
 }
 
-function AlertRow({ a }: { a: WatchAlert }) {
+function AlertRow({ a, canAdvise }: { a: WatchAlert; canAdvise: boolean }) {
   const sev = SEVERITY[a.severity ?? ""] ?? LOW;
   const kind = KIND[a.kind] ?? { label: a.kind, icon: AlertTriangle };
   const Icon = kind.icon;
@@ -124,7 +112,7 @@ function AlertRow({ a }: { a: WatchAlert }) {
         ) : null}
         ETA <bdi className="font-mono">{stamp(a.eta_utc)}</bdi>
       </p>
-      {a.advice ? (
+      {canAdvise && a.advice && (a.kind === "jit" || a.kind === "rta_late") ? (
         <div className="sm:col-span-3">
           <AdviceCard advice={a.advice} compact />
         </div>
@@ -134,18 +122,16 @@ function AlertRow({ a }: { a: WatchAlert }) {
 }
 
 function RunBrief({ run }: { run: WatchRunDetail }) {
-  const numbers = run.numbers ?? { headline: [], items: [] };
   const fleet = run.fleet ?? {};
   return (
     <div className="flex flex-col gap-4">
       {run.headline ? (
         <p dir="auto" className="text-lg leading-relaxed font-medium">
-          <ReceiptText text={run.headline} numbers={numbers.headline ?? []} />
+          {run.headline}
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">
-          No written brief for this run ({(run.brief_status ?? "none").replaceAll("_", " ")}); the alerts
-          below are the code&apos;s own.
+          No written brief is available for this run. The alerts are available above.
         </p>
       )}
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Fleet at the run's clock">
@@ -169,53 +155,11 @@ function RunBrief({ run }: { run: WatchRunDetail }) {
         <ul className="flex flex-col gap-2" aria-label="The brief">
           {run.items.map((t, i) => (
             <li key={i} dir="auto" className="rounded-lg border bg-card px-4 py-3 text-sm leading-relaxed">
-              <ReceiptText text={t} numbers={numbers.items?.[i] ?? []} />
+              {t}
             </li>
           ))}
         </ul>
       ) : null}
-      <details className="group border-t pt-3">
-        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium">
-          <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden /> How we
-          know
-          <span className="ms-auto flex items-center gap-1 text-xs font-normal text-muted-foreground">
-            <Cpu className="size-3.5" aria-hidden /> {run.model_calls ?? 0} model calls
-          </span>
-        </summary>
-        <div className="mt-3 grid gap-4 text-sm md:grid-cols-2">
-          {run.assumptions?.length ? (
-            <div>
-              <h4 className="mb-1 text-xs font-semibold text-muted-foreground">Assumptions</h4>
-              <ul className="flex list-disc flex-col gap-1 ps-5">
-                {run.assumptions.map((a, i) => (
-                  <li key={i} dir="auto">
-                    {a}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          <div>
-            <h4 className="mb-1 text-xs font-semibold text-muted-foreground">Run</h4>
-            <p className="font-mono text-xs break-words">{run.thread_id}</p>
-            {run.run_file ? <p className="mt-1 font-mono text-xs break-words">{run.run_file}</p> : null}
-          </div>
-          {run.problems?.length ? (
-            <div className="md:col-span-2">
-              <h4 className="mb-1 text-xs font-semibold text-muted-foreground">
-                Problems found by the checks
-              </h4>
-              <ul className="flex list-disc flex-col gap-1 ps-5">
-                {run.problems.map((p, i) => (
-                  <li key={i} dir="auto">
-                    {p}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      </details>
     </div>
   );
 }
@@ -223,16 +167,28 @@ function RunBrief({ run }: { run: WatchRunDetail }) {
 const nf = (digits: number) =>
   new Intl.NumberFormat("en", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
+function VesselAdvice({ vessel, advice }: { vessel: string | number; advice: ArrivalAdvice }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="mt-2" onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary className="cursor-pointer text-xs font-medium text-primary">
+        View arrival advice<span className="sr-only"> for {vessel}</span>
+      </summary>
+      {open ? <AdviceCard advice={advice} /> : null}
+    </details>
+  );
+}
+
 /** The run's ETA table (rule R at the run's clock; never the schedule's arrival — ADR-055): vessels at sea, soonest
  * first, the vessels with alerts marked. The bar is a visual scale of the API's `eta_in_h`; the numbers are shown. */
 function EtaBoard({
   etas,
   alerted,
-  canAdvise,
+  timing,
 }: {
   etas: WatchEta[];
   alerted: Set<number>;
-  canAdvise: boolean;
+  timing: Map<number, ArrivalAdvice>;
 }) {
   const [all, setAll] = useState(false);
   const atSea = etas
@@ -276,61 +232,56 @@ function EtaBoard({
             </tr>
           </thead>
           <tbody>
-            {rows.map((e) => (
-              <tr key={e.vessel_id} className="border-t">
-                <td className="py-2 pe-3">
-                  <span className="font-medium">{e.vessel_name ?? `Vessel ${e.vessel_id}`}</span>
-                  {alerted.has(e.vessel_id) ? (
-                    <span className="ms-2 rounded-full bg-alert-wash px-1.5 py-0.5 text-[11px] font-semibold text-alert-ink">
-                      alert
-                    </span>
-                  ) : null}
-                  {e.suez_ahead ? (
-                    <span className="ms-1.5 rounded-full bg-accent px-1.5 py-0.5 text-[11px]">
-                      Suez ahead
-                    </span>
-                  ) : null}
-                  {canAdvise ? (
-                    <Link
-                      href={`/voyages?advise=${e.vessel_id}#arrival`}
-                      className="ms-2 text-[11px] font-medium text-primary hover:underline"
-                    >
-                      Advise arrival
-                      <span className="sr-only"> for {e.vessel_name ?? `vessel ${e.vessel_id}`}</span>
-                    </Link>
-                  ) : null}
-                </td>
-                <td className="py-2 pe-3 font-mono text-xs">
-                  <bdi>{e.next_port ?? "—"}</bdi> →{" "}
-                  <bdi className="font-semibold">{e.destination ?? "—"}</bdi>
-                </td>
-                <td className="py-2 pe-3 font-mono text-xs">{stamp(e.eta_utc)}</td>
-                <td className="py-2 pe-3">
-                  <span className="flex items-center gap-2">
-                    <span className="h-1.5 flex-1 rounded-full bg-muted" aria-hidden>
+            {rows.map((e) => {
+              const advice = timing.get(e.vessel_id);
+              return (
+                <tr key={e.vessel_id} className="border-t">
+                  <td className="py-2 pe-3">
+                    <span className="font-medium">{e.vessel_name ?? `Vessel ${e.vessel_id}`}</span>
+                    {alerted.has(e.vessel_id) ? (
+                      <span className="ms-2 rounded-full bg-alert-wash px-1.5 py-0.5 text-[11px] font-semibold text-alert-ink">
+                        alert
+                      </span>
+                    ) : null}
+                    {e.suez_ahead ? (
+                      <span className="ms-1.5 rounded-full bg-accent px-1.5 py-0.5 text-[11px]">
+                        Suez ahead
+                      </span>
+                    ) : null}
+                    {advice ? <VesselAdvice vessel={e.vessel_name ?? e.vessel_id} advice={advice} /> : null}
+                  </td>
+                  <td className="py-2 pe-3 font-mono text-xs">
+                    <bdi>{e.next_port ?? "—"}</bdi> →{" "}
+                    <bdi className="font-semibold">{e.destination ?? "—"}</bdi>
+                  </td>
+                  <td className="py-2 pe-3 font-mono text-xs">{stamp(e.eta_utc)}</td>
+                  <td className="py-2 pe-3">
+                    <span className="flex items-center gap-2">
+                      <span className="h-1.5 flex-1 rounded-full bg-muted" aria-hidden>
+                        <span
+                          className={cn(
+                            "block h-1.5 rounded-full",
+                            alerted.has(e.vessel_id) ? "bg-alert" : "bg-chart-1",
+                          )}
+                          style={{ width: `${((e.eta_in_h ?? 0) / longest) * 100}%` }}
+                        />
+                      </span>
                       <span
-                        className={cn(
-                          "block h-1.5 rounded-full",
-                          alerted.has(e.vessel_id) ? "bg-alert" : "bg-chart-1",
-                        )}
-                        style={{ width: `${((e.eta_in_h ?? 0) / longest) * 100}%` }}
-                      />
+                        className="num w-14 text-end text-xs"
+                        data-field="eta_in_h"
+                        data-value={e.eta_in_h ?? ""}
+                      >
+                        {nf(1).format(e.eta_in_h ?? 0)} h
+                      </span>
                     </span>
-                    <span
-                      className="num w-14 text-end text-xs"
-                      data-field="eta_in_h"
-                      data-value={e.eta_in_h ?? ""}
-                    >
-                      {nf(1).format(e.eta_in_h ?? 0)} h
-                    </span>
-                  </span>
-                </td>
-                <td className="num py-2 text-end text-xs text-muted-foreground">
-                  {e.distance_left_nm != null ? `${nf(0).format(e.distance_left_nm)} nm` : "—"} ·{" "}
-                  {e.speed_kn != null ? `${nf(1).format(e.speed_kn)} kn` : "—"}
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="num py-2 text-end text-xs text-muted-foreground">
+                    {e.distance_left_nm != null ? `${nf(0).format(e.distance_left_nm)} nm` : "—"} ·{" "}
+                    {e.speed_kn != null ? `${nf(1).format(e.speed_kn)} kn` : "—"}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -384,7 +335,9 @@ function Runs({ current }: { current: string | null }) {
               >
                 <span className="font-mono font-semibold">{runParts(r.thread_id)}</span>
                 <span className="ms-auto text-muted-foreground">
-                  {(r.status ?? r.state).replaceAll("_", " ")}
+                  {r.state === "stalled"
+                    ? "Incomplete watch run"
+                    : (r.status ?? r.state).replaceAll("_", " ")}
                 </span>
               </Link>
             </li>
@@ -404,8 +357,8 @@ export function VoyageWatch({ thread, canAdvise = false }: { thread?: string; ca
   const params = useSearchParams();
   const high = params.get("high") === "1";
   const alerts = useQuery({
-    queryKey: ["watch-alerts", thread ?? null, high],
-    queryFn: () => getAlerts({ ...(thread ? { thread } : {}), ...(high ? { high: true } : {}) }),
+    queryKey: ["watch-alerts", thread ?? null],
+    queryFn: () => getAlerts(thread ? { thread } : {}),
     retry: false,
   });
   const runThread = thread ?? (alerts.data?.status === "ok" ? (alerts.data.thread_id ?? null) : null);
@@ -422,7 +375,19 @@ export function VoyageWatch({ thread, canAdvise = false }: { thread?: string; ca
     router.replace(`${pathname}${q.size ? `?${q}` : ""}`, { scroll: false });
   };
   const a = alerts.data;
-  const list = a?.status === "ok" ? (a.alerts ?? []) : [];
+  const allAlerts = a?.status === "ok" ? (a.alerts ?? []) : [];
+  const list = high ? allAlerts.filter((alert) => alert.severity === "high") : allAlerts;
+  const timing = new Map<number, ArrivalAdvice>();
+  for (const alert of allAlerts) {
+    if (
+      canAdvise &&
+      alert.vessel_id != null &&
+      alert.advice &&
+      (alert.kind === "jit" || alert.kind === "rta_late")
+    ) {
+      timing.set(alert.vessel_id, alert.advice);
+    }
+  }
   // owner 2026-11-17: the top alerts only (the API sends the high ones first); the rest behind "Show more"
   const [more, setMore] = useState(false);
   const shown = more ? list : list.slice(0, TOP_ALERTS);
@@ -436,8 +401,7 @@ export function VoyageWatch({ thread, canAdvise = false }: { thread?: string; ca
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {thread ? <>Run {runParts(thread)}. </> : null}
-            Every vessel at sea checked by fixed rules every 12 hours (10:30 and 22:30); the brief is written
-            from the alerts.
+            Watch updates at 10:30 and 22:30 Cairo time.
           </p>
         </div>
         {thread ? (
@@ -505,7 +469,7 @@ export function VoyageWatch({ thread, canAdvise = false }: { thread?: string; ca
                     </p>
                     <ul className="flex flex-col gap-2" aria-label="Alerts by severity">
                       {shown.map((x) => (
-                        <AlertRow key={x.alert_id} a={x} />
+                        <AlertRow key={x.alert_id} a={x} canAdvise={canAdvise} />
                       ))}
                       {list.length === 0 ? (
                         <li className="text-sm text-muted-foreground">
@@ -554,10 +518,12 @@ export function VoyageWatch({ thread, canAdvise = false }: { thread?: string; ca
               </CardHeader>
               <CardContent>
                 <EtaBoard
-                  canAdvise={canAdvise}
+                  timing={timing}
                   etas={run.data.etas}
                   alerted={
-                    new Set(list.map((x) => x.vessel_id).filter((v): v is number => typeof v === "number"))
+                    new Set(
+                      allAlerts.map((x) => x.vessel_id).filter((v): v is number => typeof v === "number"),
+                    )
                   }
                 />
               </CardContent>
@@ -565,7 +531,6 @@ export function VoyageWatch({ thread, canAdvise = false }: { thread?: string; ca
           ) : null}
         </div>
         <div className="flex min-w-0 flex-col gap-6">
-          {canAdvise ? <ArrivalRequest key={params.get("advise") ?? ""} /> : null}
           <Runs current={runThread} />
         </div>
       </div>

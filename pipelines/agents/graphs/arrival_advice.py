@@ -17,9 +17,9 @@ the answer is computed in `tools/arrival.py` from tool results, so it is reprodu
   either may be unavailable — the advice goes on.
 - **4 advisor / 5 validator:** `ArrivalAdvice` with slots; the Validator: no typed number (dates and times copied
   from the evidence only; vessel names and LOCODEs blanked), every slot bound to a cited numeric field, cited ids
-  exist, the recommendation is a computed option and = `rule_option` unless the first reason cites a risk
-  (`arrival.weather` with a weather row, or `arrival.traffic` at −20 % or lower); one patch, then
-  `validation_failed`.
+  exist, the recommendation is a computed option and = `rule_option` unless the first reason cites a risk in its
+  direction (`arrival.weather` with a weather row → an option arriving earlier than the rule's, not the Cape;
+  `arrival.traffic` at −20 % or lower → the Cape only; owner 2026-11-22); one patch, then `validation_failed`.
 - **6 render:** `ArrivalAdviceResult`, the assumptions written by code.
 Evidence ids `arrival.<name>`; one PostgresSaver thread per question `arrival_advice:<employee>:<as_of date>:<vessel>:<n>`.
 """
@@ -160,7 +160,8 @@ def single_option(evidence: dict) -> str | None:
 
 ADVISOR_TASK = """You advise one PortPilot Just-in-Time arrival question with the skill below. Return an ArrivalAdvice (call the
 ArrivalAdvice tool): recommendation, headline, reasons, risks. Every number is a slot over the evidence listed; dates
-and times are copied from the evidence. Cite in each reason's evidence_ids the ids its slots and claims use.
+and times are copied verbatim as UTC text. Cite the sources of both the ETA and the deadline when comparing them
+(arrival.options and arrival.summary). Use listed evidence IDs; put row selectors such as [jit] inside slots only.
 
 {skills}"""
 PATCH_TASK = """Code checked your ArrivalAdvice and found these problems:
@@ -181,7 +182,6 @@ def advisor_digest(evidence: dict) -> str:
                 "arrival.vessel", "arrival.status"):
         res = evidence.get(eid)
         if res is None:
-            lines.append(f"- {eid}: not computed")
             continue
         keys = slots.row_keys(res) if len(_rows(res)) > 1 else ()
         lines.append(f"- {eid}: {res['tool']}, status {res['status']}"
@@ -218,8 +218,25 @@ def make_advisor(roles):
 
 
 def normalize_advice(advice: dict, evidence: dict) -> tuple[dict, list[str]]:
-    """The slot-form fixes of Stage 1 (a unit written twice, a disallowed format, …); numbers are never touched."""
-    return ra.normalize_advice(advice, evidence)
+    """Apply the shared slot fixes, then copy explicitly cited UTC fields if the writer used slot syntax."""
+    advice, fixes = ra.normalize_advice(advice, evidence)
+    summary = _rows(evidence["arrival.summary"])[0]
+    times = {slots.binding("arrival.summary", field): summary[field]
+             for field in ("rta_utc", "target_utc", "keep_arrival_utc")}
+    for row in _rows(evidence["arrival.options"]):
+        times[slots.binding("arrival.options", "arrival_utc", row=row["option"])] = row["arrival_utc"]
+
+    def copy_times(text: str, cited: set[str]) -> str:
+        for slot in slots.find_slots(text):
+            if slot.eid in cited and slot.raw in times:
+                text = text.replace(slot.raw, times[slot.raw])
+                fixes.append(f"{slot.raw} copied from cited UTC evidence")
+        return text
+
+    advice["headline"] = copy_times(advice["headline"], {e for r in advice["reasons"] for e in r["evidence_ids"]})
+    for row in advice["reasons"] + (advice.get("risks") or []):
+        row["text"] = copy_times(row["text"], set(row["evidence_ids"]))
+    return advice, fixes
 
 
 # --- 5 validator (code) ---------------------------------------------------------------------------------------------
@@ -257,12 +274,18 @@ def _dates(evidence: dict) -> set[str]:
     return out
 
 
-def _justified(evidence: dict, ids: list[str]) -> bool:
+def _justified(evidence: dict, ids: list[str], option: str, rule: str) -> bool:
+    """A cited risk justifies `option` instead of the rule's only in its own direction (owner, 2026-11-22):
+    a storm on the next legs → an option that arrives earlier than the rule's, never the Cape (pass ahead of the
+    weather, fewer hours at sea); a Suez traffic drop of −20 % or lower → the Cape only (ships avoiding the canal)."""
+    by = {r["option"]: r for r in _rows(evidence.get("arrival.options"))}
     w = evidence.get("arrival.weather")
-    if "arrival.weather" in ids and w and w["status"] == "ok" and _rows(w):
+    if ("arrival.weather" in ids and w and w["status"] == "ok" and _rows(w) and option != "cape"
+            and arrival.ts(by[option]["arrival_utc"]) < arrival.ts(by[rule]["arrival_utc"])):
         return True
     t = _rows(evidence.get("arrival.traffic"))
-    return "arrival.traffic" in ids and bool(t) and t[0]["change_transits_pct"] <= TRAFFIC_DROP_PCT
+    return (option == "cape" and "arrival.traffic" in ids and bool(t)
+            and t[0]["change_transits_pct"] <= TRAFFIC_DROP_PCT)
 
 
 def _texts(advice: dict) -> list[tuple[str, str, list[str]]]:
@@ -272,10 +295,27 @@ def _texts(advice: dict) -> list[tuple[str, str, list[str]]]:
     return out
 
 
+def _jit_target_minutes(evidence: dict) -> int:
+    """Compare the published UTC timestamps, both at minute precision."""
+    for row in _rows(evidence.get("arrival.options")):
+        if row["option"] == "jit":
+            target = _rows(evidence["arrival.summary"])[0]["target_utc"]
+            return int((arrival.ts(row["arrival_utc"]) - arrival.ts(target)).total_seconds() / 60)
+    return 0
+
+
+PLANNING_TARGET = re.compile(r"\btarget\b(?!\s+speed)|الهدف|(?:الوقت|الموعد|التوقيت) المستهدف", re.I)
+WAIT_AS_DEADLINE_LEAD = re.compile(
+    r"\s*(?:(?:early\s+for|ahead\s+of|before)\s+(?:(?:the|its|port['’]s)\s+)*(?:RTA\b|requested\s+time|deadline)|"
+    r"قبل\s+(?:الموعد المطلوب|موعد الوصول المطلوب|الوقت المطلوب))", re.I)
+
+
 def validate(advice: dict, evidence: dict) -> list[str]:
     """The problems of an ArrivalAdvice (empty = it passes)."""
     problems = []
     strings, dates = _strings(evidence), _dates(evidence)
+    summary = _rows(evidence["arrival.summary"])[0]
+    rounded_jit = advice["recommendation"] == "jit" and _jit_target_minutes(evidence) != 0
     for where, text, ids in _texts(advice):
         missing = [e for e in ids if e not in evidence]
         if missing:
@@ -294,18 +334,27 @@ def validate(advice: dict, evidence: dict) -> list[str]:
         if uncited and where != "headline":
             problems.append(f"{where}: its slots use {uncited}, not in its evidence_ids")
         problems += arrival.sign_problems(where, text)
-        problems += arrival.rta_label_problems(where, text, (_rows(evidence.get("arrival.summary")) or [{}])[0]
-                                               .get("rta_utc"))
+        problems += arrival.rta_label_problems(where, text, summary["rta_utc"])
+        if summary["margin_h"] and any(s.field in ("keep_wait_h", "wait_h") and WAIT_AS_DEADLINE_LEAD.match(text, s.end)
+                                       for s in slots.find_slots(text)):
+            problems.append(f"{where}: wait_h measures planned anchor time up to the planning target. Write "
+                            "'hours of planned waiting' using the slot's own unit, and compare the ETA and RTA as UTC times.")
+        if rounded_jit and (PLANNING_TARGET.search(plain) or
+                            (summary["target_utc"] != summary["rta_utc"] and summary["target_utc"] in plain)):
+            problems.append(f"{where}: compare the option's arrival_utc with the port's RTA {summary['rta_utc']}. "
+                            "Code reports the difference from the planning target in the assumptions.")
     names = [r["option"] for r in _rows(evidence.get("arrival.options"))]
     if advice["recommendation"] not in names:
         problems.append(f"recommendation {advice['recommendation']} is not a computed option ({', '.join(names)})")
-    rule = _rows(evidence.get("arrival.summary"))[0]["rule_option"]
+    rule = summary["rule_option"]
     if advice["recommendation"] != rule and advice["recommendation"] in names:
         first = advice["reasons"][0]["evidence_ids"] if advice["reasons"] else []
-        if not _justified(evidence, first):
+        if not _justified(evidence, first, advice["recommendation"], rule):
             problems.append(f"recommendation {advice['recommendation']} is not the rule's option ({rule}: the "
-                            "cheapest at the berth by the RTA) and the first reason cites no risk that justifies it "
-                            "(arrival.weather with a weather row, or arrival.traffic at −20 % or lower)")
+                            "cheapest at the RTA's location by the RTA) and the first reason cites no risk that "
+                            "justifies it in its direction (arrival.weather with a weather row → an option that "
+                            "arrives earlier than the rule's, not the cape; arrival.traffic at −20 % or lower → the "
+                            "cape only)")
     return problems
 
 
@@ -330,6 +379,11 @@ def assumptions(evidence: dict) -> list[str]:
            f"{v['rate_date']} = {v['price_sdr_per_t']} SDR/t.",
            "Port dues, anchorage fees, charter-party terms (who pays for waiting or slow steaming) and emissions are not "
            "modelled; intermediate ports are passed without a stop (synthetic voyages)."]
+    offset = _jit_target_minutes(evidence)
+    if offset:
+        minutes = "minute" if abs(offset) == 1 else "minutes"
+        direction = "before" if offset < 0 else "after"
+        out.insert(1, f"At the rounded sailing speed, the JIT ETA is {abs(offset)} {minutes} {direction} the planning target.")
     if s["cape_compared"]:
         out.append("The Cape option: the remaining voyage from the last position with the Suez Canal closed (searoute); "
                    "the Suez options carry the dues of one transit in the vessel's condition.")
@@ -498,7 +552,7 @@ def result_summary(st: dict) -> dict:
     return {"status": r.get("status"), "recommendation": r.get("recommendation"), "headline": r.get("headline"),
             "numbers": _numbers(st, r),
             "summary": {k: (r.get("summary") or {}).get(k) for k in SUMMARY_FIELDS},
-            "options": [{k: o.get(k) for k in ("option", "speed_kn", "arrival_utc", "wait_h", "late_h", "fuel_t",
+            "options": [{k: o.get(k) for k in ("option", "speed_kn", "arrival_utc", "arrives_by_rta", "wait_h", "late_h", "fuel_t",
                                                "fuel_sdr", "total_sdr", "change_fuel_t", "change_total_sdr")}
                         for o in r.get("options") or []],
             "reasons": r.get("reasons"), "risks": r.get("risks"), "assumptions": r.get("assumptions"),

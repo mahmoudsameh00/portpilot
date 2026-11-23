@@ -4,7 +4,7 @@
 # - ports-postgres is only READ (pg_dumpall --roles-only, pg_dump); nothing is written to it.
 # - Refuses an existing container name or a busy port 55432; leaves the clone running for inspection afterwards.
 # - MongoDB and Qdrant are the normal local containers (read); models are fake (Api_check uses FakeRoles).
-# Again on the same clone:  powershell -NoProfile -File .\ops\tests\run_api_full_clone.ps1 -Reuse
+# Again on the same clone:  powershell -NoProfile -File .\dev\tests\run_api_full_clone.ps1 -Reuse
 # Remove the clone later with:  docker rm -f portpilot-api-full
 # 'Continue', not 'Stop': Windows PowerShell 5.1 turns any stderr line of a native program (docker's harmless initdb
 # warning, psql notices) into a terminating error under 'Stop' (2026-11-15). Every native step checks $LASTEXITCODE

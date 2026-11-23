@@ -159,7 +159,9 @@ Never re-enable the test identities of the web stack E2E / CI fixtures; they exi
 3. Repository variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`; environment variables on
    `staging` / `production`: `AZURE_RESOURCE_GROUP`, `AZURE_VM_NAME`.
 4. Deploy: Actions → Deploy → Run workflow → environment, ref (a tag whose CI is green), `apply_migrations` only when
-   `Migrate.py status` lists pending files. You approve the job (and the migrations job) in the run page.
+   `Migrate.py status` lists pending files. The gate resolves the ref to a commit, requires its latest push run of
+   `ci.yml` to have completed successfully and passes that SHA to the VM. You approve the deployment and, when
+   requested, the migration on the run page.
 
 Rollback of the application: run the workflow with the previous tag (images rebuild from that ref). `deploy.sh`
 already puts the previous images back by itself when the smoke fails. The **database** is never rolled back
@@ -270,17 +272,21 @@ SameSite=Strict cookie); sign-out revokes the token. `Api_admin.py reset / disab
 
 ## 15. Production gates (S7) — all before the first production deploy
 
-**Public staging (testers), ADR-071 amendment 1:** before you share staging, check the first box, the second, the
-sixth and the last one below. Also give one login to each tester (§6, `Api_admin.py create`) and give staging its
-own new model keys, not `--copy-keys`.
+**Public staging (testers), ADR-071 amendment 1.** Before sharing, verify the tag's CI and the signed-in smoke on
+that tag. The owner completed local credential rotation and the history scan on 2026-11-18 and reviewed the
+arrival-advice skill on 2026-11-22. Verify Sentry uptime, the `staging` API alert filter and IP storage disabled (§12).
+Give each tester a login (§6) and use new staging model keys. During staging, testers report browser errors through
+the tester guide. Frontend Sentry is a production gate (owner decision, 2026-11-22).
 
 - [ ] the CI of the tag is green (the `Deploy` workflow refuses otherwise);
 - [ ] staging deployed from the same tag and `Deploy_smoke.py` passed there, with a real sign-in (`--email`, the
       password in `SMOKE_PASSWORD`);
-- [ ] **your review of the skill `arrival-advice`** (`pipelines/agents/skills/arrival-advice/SKILL.md`, then
-      `reviewed_by_owner: yes`);
+- [x] **your review of the skill `arrival-advice`** (`pipelines/agents/skills/arrival-advice/SKILL.md`): done
+      2026-11-22 (`reviewed_by_owner: 2026-11-22`, with the edits you asked for and the risk-direction rule in the
+      Validator, ADR-070 note 2026-11-22; Azure staging plan D-AZ-4);
 - [ ] **one real revise on a staging pack** (the targeted-revise plan's open "uncertain" point): Reports → the
       waiting pack → Request "revise …" → confirm → the re-drafted slides shown → approve or reject;
 - [ ] a restore drill on staging (§9) since the last migration;
-- [ ] the local credentials rotated (§10) and the history scan (§11) clean or its values rotated;
+- [x] the local credentials rotated (§10) and the history scan (§11) clean (2026-11-18);
 - [ ] the Sentry uptime monitor and the production alert filter set (§12).
+- [ ] frontend error reporting to Sentry enabled before production (F10).

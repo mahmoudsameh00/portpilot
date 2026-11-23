@@ -2307,6 +2307,45 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
     re-asked answer reads "change … by −2,385.0 t". The frozen run has no such rows.
   - **Known limit.** A broad "which vessels" answer may give the count and not every name: the 4 most urgent rows are
     shown, and the other ids are in the totals row for a follow-up call.
+- **Note (2026-11-22, the owner's review of the skill `arrival-advice`; Azure staging plan D-AZ-4) — reviewed, with
+  edits and a risk direction.** The owner read the skill section by section and chose "edits + the risk's direction".
+  (1) **Skill text:** the rule is the cheapest allowed-speed option at the RTA's `location` (berth or pilot boarding
+  place, not "the berth" only) by the RTA, else the least late, then the cheapest; "RTA" names `rta_utc` only, the
+  `jit` arrival is `target_utc` (D-J8 in words); `reviewed_by_owner: 2026-11-22` (body 1,198 of 1,200 tokens).
+  (2) **The Validator (code, `arrival_advice._justified`):** a cited risk overrules the rule's option only in its
+  direction — a `weather` row → an option whose computed `arrival_utc` is earlier than the rule's (pass ahead of the
+  storm, fewer hours at sea), never `cape`; a Suez drop of −20 % or lower (ships avoiding the canal) → `cape` only.
+  Before, any weather row or Suez drop justified any other option. `Arrival_advice_check.py` Phase 4 gained six
+  direction cases (traffic → the Cape passes, → keep refused, −10 % refused; storm → an earlier keep passes, → the
+  Cape refused, → a later keep than `catch_up` refused); Phases 1–7 ✅ with 0 model calls. (3) **ADR-052, two real
+  runs** (Phase 8; the second on its own reply cache, `EVAL_REPEAT=2` → `llm_cache/arrival_r2/`): run 1 **7 / 8**
+  (34 calls; Gemini answered 503 "high demand", flash-lite stopped for the run after its retry and the fallback
+  `nemotron` wrote most advices; case 4 `output_invalid` = two nemotron replies citing `arrival_summary` instead of
+  `arrival.summary`); run 2 **8 / 8** (27 calls); in both runs every passing advice = the rule's option; both
+  supervisor questions (EN + AR) answered through `arrival_advice`, the watch brief ok. The baseline (2026-11-15):
+  8 / 8. Every advice took one patch; the main first-draft problem is a date written as a slot
+  (`{arrival.summary:rta_utc}`) — 25 of 53 flash-lite replies under the old text, 4 of 8 under the new one — a habit that
+  was already there, not a regression. Reading: no regression on the model that answers when the provider is up; the
+  one failure belongs to the fallback model on an overloaded day (owner's decision in the Azure staging plan §7).
+  (4) **Owner's additional retry (2026-11-22).** A fresh cache (`EVAL_REPEAT=3`) yielded 6 / 8 with 23 calls and
+  zero cache hits. Gemini supplied a malformed evidence ID in case 1. Case 7 cited evidence absent from the case
+  after a patch. Both yielded no recommendation. The six accepted recommendations matched the rule, and the
+  bilingual supervisor and watch checks passed. The owner chose to accept the earlier results for staging if the
+  retry fell short. The three scores are 7 / 8, 8 / 8 and 6 / 8 against the same 8 / 8 threshold.
+- **Correction (2026-11-23, live web test).** A JIT speed rounded to hundredths of a knot can put its ETA
+  either side of the planning target. The writer compares the option's computed ETA with the port's requested time.
+  When the displayed minutes differ, code states the offset in the assumptions and the arrival validator reserves
+  that comparison for code in a JIT recommendation. If the writer puts a UTC timestamp in a numeric placeholder,
+  the normalizer copies the exact value from the cited summary field or option row. Uncited or unknown references
+  still fail validation. An option's `wait_h` measures waiting until the planning target. With a nonzero margin
+  the arrival validator rejects describing that duration as the lead time before the RTA.
+- **Watch decisions and brief visibility (2026-11-23, owner approved).** Only a vessel in transit with a requested
+  time and a `jit` or `rta_late` alert receives arrival advice on the watch. A severity filter controls the alert
+  list. Eligibility on the ETA board uses the full run. Among options that all miss the request, compare exact
+  arrival times first and use cost to break an arrival-time tie. Report recoverable minutes and ask the port for
+  a revised time if the earliest available arrival still misses the request. Save calculated decisions before
+  writing the run brief. A validated JIT narrative can enrich the saved result. Read older runs using their own
+  observations. The web serves the operational brief and its clock, without internal receipts, identity or diagnostics.
 
 ## ADR-071 — Deployment: one Linux VM per environment running one Compose stack, Caddy TLS, the schedules in a container
 - **Status:** Accepted (2026-11-17, owner decisions S1–S8 in one round of clickable answers: "production هيبقى على
@@ -2369,6 +2408,9 @@ Never delete an entry; supersede it with a new one. Sources for older entries ar
   `/healthz` and "Prevent Storing of IP Addresses". Every tester also gets their own login (`Api_admin.py create`), and
   staging gets its own new model keys instead of `--copy-keys`, so the testers' calls never spend the development
   quota. The review of the skill `arrival-advice`, the real revise and the restore drill stay production gates.
+- **Staging note (2026-11-22).** The owner completed the arrival-advice review before staging (D-AZ-4) and
+  deferred frontend Sentry (F10) until before production. During staging, testers report browser errors through
+  the tester guide. The API alerts, uptime monitor and Sentry IP-storage setting still apply.
 
 ## ADR-016 amendment 1 (2026-11-17) — migrations recorded in the database; applied by the deploy on approval
 `public.schema_migrations` (migration 031) records every applied file with the hash of its text (CRLF read as LF).

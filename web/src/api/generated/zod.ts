@@ -92,6 +92,7 @@ export const GetArrivalAdviceApiV1ArrivalAdviceThreadIdGetResponse = zod.looseOb
 }).optional(),
   "options": zod.array(zod.looseObject({
   "arrival_utc": zod.union([zod.string(),zod.null()]).optional(),
+  "arrives_by_rta": zod.union([zod.boolean(),zod.null()]).optional(),
   "change_fuel_t": zod.union([zod.number(),zod.null()]).optional(),
   "change_total_sdr": zod.union([zod.number(),zod.null()]).optional(),
   "fuel_sdr": zod.union([zod.number(),zod.null()]).optional(),
@@ -1399,6 +1400,7 @@ export const WatchAlertsApiV1VoyageWatchAlertsGetResponse = zod.object({
 }).optional(),
   "options": zod.array(zod.looseObject({
   "arrival_utc": zod.union([zod.string(),zod.null()]).optional(),
+  "arrives_by_rta": zod.union([zod.boolean(),zod.null()]).optional(),
   "change_fuel_t": zod.union([zod.number(),zod.null()]).optional(),
   "change_total_sdr": zod.union([zod.number(),zod.null()]).optional(),
   "fuel_sdr": zod.union([zod.number(),zod.null()]).optional(),
@@ -1428,7 +1430,6 @@ export const WatchAlertsApiV1VoyageWatchAlertsGetResponse = zod.object({
   "vessel_name": zod.union([zod.string(),zod.null()]).optional()
 })).optional(),
   "as_of": zod.union([zod.string(),zod.null()]).optional(),
-  "brief_status": zod.union([zod.string(),zod.null()]).optional(),
   "headline": zod.union([zod.string(),zod.null()]).optional(),
   "note": zod.union([zod.string(),zod.null()]).optional(),
   "of": zod.union([zod.int(),zod.null()]).optional().describe('the run\'s alert count before the filters'),
@@ -1442,11 +1443,10 @@ export const WatchAlertsApiV1VoyageWatchAlertsGetResponse = zod.object({
  */
 export const WatchRunsApiV1VoyageWatchRunsGetResponseItem = zod.object({
   "last_at": zod.iso.datetime({"offset":true}),
-  "run_as": zod.union([zod.int(),zod.null()]),
   "state": zod.string().describe('ended | stalled | pending'),
   "status": zod.union([zod.string(),zod.null()]),
   "thread_id": zod.string()
-})
+}).describe('A saved watch run in the operational run history.')
 export const WatchRunsApiV1VoyageWatchRunsGetResponse = zod.array(WatchRunsApiV1VoyageWatchRunsGetResponseItem)
 
 
@@ -1457,15 +1457,8 @@ export const WatchRunApiV1VoyageWatchRunsThreadIdGetParams = zod.object({
   "thread_id": zod.string()
 })
 
-export const watchRunApiV1VoyageWatchRunsThreadIdGetResponseCachedDefault = 0;
-export const watchRunApiV1VoyageWatchRunsThreadIdGetResponseModelCallsDefault = 0;
-
-export const WatchRunApiV1VoyageWatchRunsThreadIdGetResponse = zod.looseObject({
-  "alerts": zod.array(zod.string()).optional().describe('one line per alert (the CLI\'s view)'),
+export const WatchRunApiV1VoyageWatchRunsThreadIdGetResponse = zod.object({
   "as_of": zod.union([zod.string(),zod.null()]).optional(),
-  "assumptions": zod.union([zod.array(zod.string()),zod.null()]).optional(),
-  "brief_status": zod.union([zod.string(),zod.null()]).optional(),
-  "cached": zod.int().default(watchRunApiV1VoyageWatchRunsThreadIdGetResponseCachedDefault),
   "etas": zod.array(zod.looseObject({
   "destination": zod.union([zod.string(),zod.null()]).optional(),
   "distance_left_nm": zod.union([zod.number(),zod.null()]).optional(),
@@ -1483,31 +1476,6 @@ export const WatchRunApiV1VoyageWatchRunsThreadIdGetResponse = zod.looseObject({
   "fleet": zod.record(zod.string(), zod.unknown()).optional(),
   "headline": zod.union([zod.string(),zod.null()]).optional(),
   "items": zod.array(zod.string()).optional(),
-  "model_calls": zod.int().default(watchRunApiV1VoyageWatchRunsThreadIdGetResponseModelCallsDefault),
-  "numbers": zod.object({
-  "headline": zod.array(zod.object({
-  "end": zod.int(),
-  "evidence_id": zod.string(),
-  "field": zod.string(),
-  "filter": zod.union([zod.string(),zod.null()]).describe('the filter that selected the row, e.g. report_week = 23'),
-  "row": zod.union([zod.int(),zod.null()]).describe('the row index in the evidence; None = a result-level field'),
-  "source": zod.union([zod.string(),zod.null()]).describe('the view / tool the value was read from, e.g. finance.kpi_weekly'),
-  "start": zod.int(),
-  "text": zod.string()
-}).describe('Where one bound number sits in a rendered text (Frontend plan D-FE-1): offsets in UTF-16 code units.')).optional(),
-  "items": zod.array(zod.array(zod.object({
-  "end": zod.int(),
-  "evidence_id": zod.string(),
-  "field": zod.string(),
-  "filter": zod.union([zod.string(),zod.null()]).describe('the filter that selected the row, e.g. report_week = 23'),
-  "row": zod.union([zod.int(),zod.null()]).describe('the row index in the evidence; None = a result-level field'),
-  "source": zod.union([zod.string(),zod.null()]).describe('the view / tool the value was read from, e.g. finance.kpi_weekly'),
-  "start": zod.int(),
-  "text": zod.string()
-}).describe('Where one bound number sits in a rendered text (Frontend plan D-FE-1): offsets in UTF-16 code units.'))).optional()
-}).optional(),
-  "problems": zod.union([zod.array(zod.string()),zod.null()]).optional(),
-  "run_file": zod.union([zod.string(),zod.null()]).optional(),
   "status": zod.union([zod.string(),zod.null()]),
   "thread_id": zod.string()
 })

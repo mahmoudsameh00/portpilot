@@ -10,6 +10,7 @@ import hashlib
 import importlib.util
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -262,5 +263,53 @@ with tempfile.TemporaryDirectory() as tmp:
 print("✅ Phase 6 validation passed: env files read the same everywhere (inline comments, quotes); retention keeps 7 "
       "daily + 4 weekly; a new environment gets 9 fresh secrets, all different and none from the owner's .env")
 
+# %% Phase 7 — The deployment uses the commit approved by CI
+jobs = yaml.safe_load((ROOT / ".github/workflows/deploy.yml").read_text(encoding="utf-8"))["jobs"]
+gate = jobs["gate"]
+assert gate["permissions"] == {"contents": "read", "actions": "read"}
+assert gate["outputs"]["sha"] == "${{ steps.ci.outputs.sha }}"
+assert jobs["deploy"]["env"]["RELEASE_SHA"] == "${{ needs.gate.outputs.sha }}"
+assert "deploy.sh $TARGET $RELEASE_SHA " in jobs["deploy"]["steps"][-1]["run"]
+ci_step = next(step["run"] for step in gate["steps"] if step.get("id") == "ci")
+
+# Run the workflow's own shell step. The stub returns the fields selected by gh for the two expected API requests.
+sha = "a" * 40
+other_sha = "b" * 40
+gh_stub = """
+gh() {
+  case "$1 $2" in
+    "api repos/sample/portpilot/commits/v-staging") echo "$TEST_SHA" ;;
+    "api repos/sample/portpilot/actions/workflows/ci.yml/runs?event=push&head_sha=$TEST_SHA&per_page=1")
+      printf '%s\\n' "$TEST_CI" ;;
+    *) echo "Unexpected API request: $1 $2" >&2; return 2 ;;
+  esac
+}
+"""
+bash = shutil.which("bash")
+if os.name == "nt" and (git := shutil.which("git")):
+    git_bash = Path(git).resolve().parents[1] / "bin" / "bash.exe"
+    if git_bash.is_file():
+        bash = str(git_bash)
+assert bash, "Phase 7 runs the deployment shell step and needs Bash (Git Bash on Windows)"
+cases = {
+    "approved": f"{sha} completed success",
+    "missing": "",
+    "pending": f"{sha} in_progress pending",
+    "failed": f"{sha} completed failure",
+    "wrong_commit": f"{other_sha} completed success",
+}
+with tempfile.TemporaryDirectory() as tmp:
+    for case, ci_row in cases.items():
+        output = Path(tmp) / case
+        result = subprocess.run([bash, "-ec", gh_stub + ci_step], cwd=tmp, capture_output=True, text=True,
+                                env={**os.environ, "REF": "v-staging", "GITHUB_REPOSITORY": "sample/portpilot",
+                                     "GITHUB_OUTPUT": case, "TEST_SHA": sha, "TEST_CI": ci_row})
+        if case == "approved":
+            assert result.returncode == 0, result.stderr or result.stdout
+            assert output.read_text().strip() == f"sha={sha}"
+        else:
+            assert result.returncode != 0 and not output.exists(), case
+print("✅ Phase 7 validation passed: only successful CI on the release commit authorizes deployment (5 cases)")
+
 # %% Final Checkpoint
-print("✅ Final Checkpoint: Deploy_check Phases 1–6 passed (no database, no network, no Docker)")
+print("✅ Final Checkpoint: Deploy_check Phases 1–7 passed (no database, no network, no Docker)")

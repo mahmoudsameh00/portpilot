@@ -25,6 +25,7 @@ Evidence ids `watch.<name>`; results kept as plain data (the checkpoint, P11-5).
 # (the state is total=False: a node runs only after the node that sets the keys it reads; LangGraph's config
 #  always carries `configurable` — ADR-063 amendment 2)
 import json
+import logging
 import operator
 import os
 import re
@@ -269,8 +270,8 @@ def arrival_alerts(r: dict, base: dict) -> list[dict]:
     if s["situation"] == "late":
         up = by.get("catch_up")
         sev = "high" if s["keep_late_h"] >= RTA_LATE_HIGH_H else "moderate"
-        fix = (f"; {up['speed_kn']} kn would make the target" if up and up["arrives_by_rta"]
-               else "; no faster speed makes it")
+        fix = (f"; at {up['speed_kn']} kn the ETA is {up['arrival_utc']}" if up
+               else "; no faster allowed speed is available")
         row = {"alert_id": f"{r['vessel_id']}/rta_late", "kind": "rta_late", **common, "severity": sev,
                "late_h": s["keep_late_h"], "reason": f"ETA {s['keep_late_h']} h after the requested time of arrival "
                                                      f"{s['rta_utc']} (late ≥ {RTA_LATE_HIGH_H:g} h is high){fix}"}
@@ -541,28 +542,86 @@ class WatchState(TypedDict, total=False):
 ARRIVAL_KINDS = ("jit", "rta_late")
 
 
-def advise_arrivals(roles, ctx: RunContext, alerts_rows: list[dict]) -> tuple[dict, list[dict]]:
-    """Arrival advice web plan (owner, 2026-11-17: "the watch makes the advice"): each vessel with a `jit` / `rta_late`
-    alert gets its arrival advice in the same run. The `arrival_advice` graph runs at the same clock, as the same
-    identity, on the RTA known at the clock, with its own Validator. Its result summary (`arrival_advice.result_summary`,
-    number spans included) is keyed by vessel id. One failed advice is recorded with its reason and never stops the
-    watch. No checkpointer: the run file keeps the advice."""
+def timing_advice(alert: dict, saved: dict) -> dict:
+    """Operational result from this run only, including stored runs with the old rounded-delay rule."""
+    summary = dict(saved.get("summary") or {})
+    deadline = alert["rta_utc"]
+    summary.update(vessel_id=alert["vessel_id"], destination=alert.get("destination"), rta_utc=deadline,
+                   location=alert.get("rta_location") or summary.get("location"))
+    rows = saved.get("options") or []
+    by = {row["option"]: row for row in rows if row.get("speed_allowed", True) and row.get("arrival_utc")}
+    if saved.get("status") == "computed" or (
+        alert["kind"] == "jit" and saved.get("status") == "ok" and saved.get("recommendation") in by
+    ):
+        return saved | {"alert_id": alert["alert_id"]}
+    result = {"alert_id": alert["alert_id"], "status": "computed", "summary": summary, "options": rows}
+    if not by:
+        if alert["kind"] == "jit" and alert.get("jit_speed_kn") is not None:
+            message = (f"The saved timing alert identified {alert['jit_speed_kn']:.2f} kn. "
+                       "Confirm the arrival window with the port before changing speed.")
+        elif alert["kind"] == "rta_late":
+            message = f"Notify the port that the vessel will miss {deadline} and agree a revised time."
+        else:
+            message = "Confirm the current ETA and requested time with the port."
+        return result | {"status": "review", "headline": message, "recommendation": None}
+    if alert["kind"] == "rta_late":
+        # New runs have the exact calculation's rule. Historical summaries may tie on rounded hours;
+        # recover the earliest recorded ETA, using cost only at equal arrival times.
+        on_time = [r for r in by.values() if r.get("arrives_by_rta", arrival.ts(r["arrival_utc"]) <= arrival.ts(deadline))]
+        if all("arrives_by_rta" in r for r in by.values()) and summary.get("rule_option") in by:
+            best = by[summary["rule_option"]]  # today's full computation ranked the unrounded times
+        else:
+            best = (min(on_time, key=lambda r: r["total_sdr"]) if on_time else
+                    min(by.values(), key=lambda r: (r["arrival_utc"], r["total_sdr"])))
+        chosen = best["option"]
+        keep = by.get("keep")
+        gain = int((arrival.ts(keep["arrival_utc"]) - arrival.ts(best["arrival_utc"])).total_seconds() / 60) if keep else 0
+        if on_time:
+            message = f"At {best['speed_kn']:.2f} kn the vessel can meet the requested time. ETA {best['arrival_utc']}."
+        elif gain > 0:
+            message = (f"At {best['speed_kn']:.2f} kn the vessel recovers {gain} minute{'s' if gain != 1 else ''}. "
+                       f"The earliest ETA is {best['arrival_utc']}. Notify the port and agree a revised time.")
+        else:
+            message = (f"The earliest reported ETA is {best['arrival_utc']}. A speed change cannot recover the "
+                       "requested time. Notify the port and agree a revised time.")
+    else:
+        chosen = summary.get("rule_option") or alert.get("jit_option")
+        if chosen not in by:
+            return result | {"status": "review", "headline": "Confirm the arrival window with the port before changing speed."}
+        best = by[chosen]
+        message = f"At {best['speed_kn']:.2f} kn the vessel reaches the requested location at {best['arrival_utc']}."
+    summary.update(rule_option=chosen, rule_change_fuel_t=best.get("change_fuel_t"),
+                   rule_change_total_sdr=best.get("change_total_sdr"))
+    return result | {"recommendation": chosen, "headline": message}
+
+
+def advise_arrivals(roles, ctx: RunContext, alerts_rows: list[dict], etas: list[dict]) -> tuple[dict, list[dict]]:
+    """Compute late decisions and enrich JIT opportunities at the same clock as their watch alert.
+
+    A checked option table remains available if the writer fails. Each vessel gets at most one decision.
+    """
     from pipelines.agents.graphs import arrival_advice as aa      # arrival_advice imports this module
     g = aa.build_graph(roles)
     out: dict[str, dict] = {}
     usage: list[dict] = []
+    computed = {r["vessel_id"]: r["arrival"] for r in etas if r.get("arrival") and r["status"] == "In Transit"}
     for a in sorted((a for a in alerts_rows if a.get("kind") in ARRIVAL_KINDS), key=lambda a: a["vessel_id"]):
         vid = a["vessel_id"]
-        if str(vid) in out:
+        if str(vid) in out or vid not in computed or not a.get("rta_utc"):
+            continue
+        base = computed[vid]
+        if a["kind"] == "rta_late":
+            out[str(vid)] = timing_advice(a, base)
             continue
         req = {"vessel_id": vid, "location": a.get("rta_location") or "berth"}
         try:
             st = g.invoke({"request": req}, context=ctx)
-            out[str(vid)] = {"alert_id": a["alert_id"], **aa.result_summary(st)}
+            checked = aa.result_summary(st)
+            out[str(vid)] = timing_advice(a, checked if checked["options"] else base)
             usage += [{"node": f"arrival:{vid}", **c} for c in st.get("llm_usage") or []]
         except Exception as exc:                                  # noqa: BLE001 — one advice never stops the watch
-            out[str(vid)] = {"alert_id": a["alert_id"], "status": "error",
-                             "problems": [f"{type(exc).__name__}: {str(exc)[:300]}"]}
+            logging.getLogger(__name__).warning("Arrival writer unavailable for vessel %s (%s)", vid, type(exc).__name__)
+            out[str(vid)] = timing_advice(a, base)
     return out, usage
 
 
@@ -578,7 +637,7 @@ def _thread(config) -> str:
     return config["configurable"]["thread_id"]
 
 
-def make_nodes(roles, reports_dir: Path) -> dict:
+def make_nodes(roles, reports_dir: Path, *, arrival_advice: bool = False) -> dict:
     def node_fleet(state: WatchState, runtime: Runtime[RunContext]) -> dict:
         req = m.WatchRequest.model_validate(state.get("request") or {})
         rows, counts, stop = fleet(runtime.context.user, runtime.context.as_of, req.vessel_ids)
@@ -604,12 +663,17 @@ def make_nodes(roles, reports_dir: Path) -> dict:
                                            "the watched fleet at the clock")}
         brief_status = None if al else "no_alerts"
         # saved before any model call (P11-5): a brief that fails, or a crash in it, never loses an alert
-        path = write_run_file(reports_dir, _thread(config),
-                              result_of({**state, "evidence": ev, "brief_status": brief_status}, as_of))
-        return {"evidence": ev, "brief_status": brief_status, "run_file": path}
+        initial = {}
+        if arrival_advice:
+            computed = {r["vessel_id"]: r["arrival"] for r in state["etas"] if r.get("arrival")}
+            initial = {str(a["vessel_id"]): timing_advice(a, computed[a["vessel_id"]]) for a in al
+                       if a["kind"] in ARRIVAL_KINDS and a["vessel_id"] in computed}
+        update = {"evidence": ev, "brief_status": brief_status, "arrivals": initial}
+        path = write_run_file(reports_dir, _thread(config), result_of({**state, **update}, as_of))
+        return {**update, "run_file": path}
 
     def node_arrival(state: WatchState, runtime: Runtime[RunContext], config) -> dict:
-        arrivals, usage = advise_arrivals(roles, runtime.context, _rows(state["evidence"].get("watch.alerts")))
+        arrivals, usage = advise_arrivals(roles, runtime.context, _rows(state["evidence"].get("watch.alerts")), state["etas"])
         if not arrivals:
             return {}
         # saved before the brief, like the alerts (P11-5): a brief that fails never loses an advice
@@ -680,7 +744,7 @@ def build_graph(roles, checkpointer=None, reports_dir: Path = REPORTS_DIR, arriv
     arrival advice before the brief (Arrival advice web plan). Off by default, so a check that scripts only the brief
     keeps its script."""
     g = StateGraph(WatchState, context_schema=RunContext)
-    nodes = make_nodes(roles, reports_dir)
+    nodes = make_nodes(roles, reports_dir, arrival_advice=arrival_advice)
     if not arrival_advice:
         nodes.pop("arrival")
     for name, fn in nodes.items():

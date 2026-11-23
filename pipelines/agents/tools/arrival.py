@@ -10,9 +10,9 @@ real messages. A question may give its own RTA instead (J1); it is marked `rta_s
 - the open-sea part = the distance left minus the port approach (`eta.APPROACH_NM` at `eta.harbour_kn()`, rule R);
 - the target = RTA − the margin (J3, 2 h) at the RTA's location: at the berth the approach hours come after the
   sea part; at the pilot boarding place the sea part ends there;
-- **keep** = the current sea speed (R's), then wait at anchor until the target; **jit** = the speed that reaches the
-  target exactly; when that speed is below the floor (J2: max(8 kn, 50 % of the band's IMO reference speed), never
-  above the current speed) → **floor** = the floor, then wait the rest; when the vessel would miss the RTA →
+- **keep** = the current sea speed (R's), then wait at anchor until the target; **jit** aims for the target.
+  Its ETA uses the rounded sailing speed; when that speed is below the floor (J2: max(8 kn, 50 % of the band's IMO
+  reference speed), never above the current speed) → **floor** = the floor, then wait the rest; when the vessel would miss the RTA →
   **catch_up** = the speed that makes the target, capped at the service speed (late when even that is not enough);
   **cape** (J4, only when the delay cannot be absorbed at the floor and the canal is ahead) = the remaining voyage
   from the vessel's position round the Cape at the speed that fits, the Suez dues saved.
@@ -160,9 +160,9 @@ def _option(name: str, v: Decimal, leg: _Leg, dues: Decimal, distance_nm: Decima
     fuel_wait = _q(wait_h / 24 * _d(leg.params["aux_t_per_day"]), 1)
     fuel_t = fuel_sea + fuel_wait
     fuel_sdr = _q(fuel_t * leg.sdr_t, 2)
-    return {"option": name, "speed_kn": float(v), "distance_nm": float(distance_nm), "sea_h": _f(sea_h, 1),
+    return {"option": name, "_ready": ready, "speed_kn": float(v), "distance_nm": float(distance_nm), "sea_h": _f(sea_h, 1),
             "arrival_utc": iso(ready), "wait_h": _f(wait_h, 1), "late_h": _f(late_h, 1),
-            "arrives_by_rta": late_h == 0,
+            "arrives_by_rta": ready <= leg.rta,
             "speed_allowed": leg.floor - Decimal("0.005") <= v <= leg.cap + Decimal("0.005"),
             "fuel_t_per_day": float(pd_t), "fuel_sea_t": float(fuel_sea), "fuel_wait_t": float(fuel_wait),
             "fuel_t": float(fuel_t), "fuel_sdr": float(fuel_sdr), "suez_dues_sdr": float(dues),
@@ -210,7 +210,7 @@ def options(status: dict, params: dict, service: dict, rta_row: dict, *, margin_
                 c_sea = _d(cape_nm) - approach
                 v_c = min(max(c_sea / avail_h, floor), cap)
                 rows.append(_option("cape", v_c, replace(leg, sea_nm=c_sea), Decimal(0), _d(cape_nm)))
-    elif keep["late_h"] > 0:
+    elif not keep["arrives_by_rta"]:
         situation = "late"
         if sea_nm > 0 and cap > v_now:
             v_need = sea_nm / avail_h if avail_h > 0 else cap
@@ -223,7 +223,7 @@ def options(status: dict, params: dict, service: dict, rta_row: dict, *, margin_
               "change_total_sdr": float(_d(r["total_sdr"]) - k_total)}
     on_time = [r for r in rows if r["arrives_by_rta"] and r["speed_allowed"]]
     pool = on_time or [r for r in rows if r["speed_allowed"]] or rows
-    rule = min(pool, key=lambda r: ((0, _d(r["total_sdr"])) if on_time else (_d(r["late_h"]), _d(r["total_sdr"])))
+    rule = min(pool, key=lambda r: ((0, _d(r["total_sdr"])) if on_time else (r["_ready"], _d(r["total_sdr"])))
                + (OPTIONS.index(r["option"]),))
     cheapest = min(rows, key=lambda r: (_d(r["total_sdr"]), OPTIONS.index(r["option"])))
     summary = {"vessel_id": status["vessel_id"], "destination": status["destination"], "rta_utc": rta_row["rta_utc"],
@@ -238,6 +238,8 @@ def options(status: dict, params: dict, service: dict, rta_row: dict, *, margin_
                "cheapest_option": cheapest["option"], "rule_option": rule["option"],
                "rule_change_fuel_t": rule["change_fuel_t"], "rule_change_fuel_sdr": rule["change_fuel_sdr"],
                "rule_change_total_sdr": rule["change_total_sdr"]}
+    for row in rows:
+        del row["_ready"]
     return {"summary": summary, "options": rows}
 
 
@@ -266,7 +268,7 @@ def rta_label_problems(where: str, text: str, rta_utc: str | None) -> list[str]:
         return []
     want = rta_utc.rstrip("Z")
     return [f"{where}: {m_.group(0)} — the requested time of arrival is {rta_utc}; an option's arrival time "
-            "(e.g. the jit arrival, RTA − the margin) is never the RTA" for m_ in RTA_LABEL_RE.finditer(text)
+            "is its ETA; use the port's requested time for the RTA" for m_ in RTA_LABEL_RE.finditer(text)
             if m_.group(4) != want]
 
 

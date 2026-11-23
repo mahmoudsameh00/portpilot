@@ -5,7 +5,7 @@
 # - The suite creates eight test identities on the clone and removes them, with all they made, at the end
 #   (`dev/checks/api/Web_stack_fixture.py`); MongoDB / Qdrant are only read; uploads stay in API memory.
 # - Ports: API 8011, web 3101 (apart from the real API on 8000 and the web container on 3000).
-#   powershell -NoProfile -File .\ops\tests\run_web_stack.ps1
+#   powershell -NoProfile -File .\dev\tests\run_web_stack.ps1
 $ErrorActionPreference = 'Continue'
 $projectRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $name = 'portpilot-api-full'
@@ -17,7 +17,7 @@ Push-Location -LiteralPath $projectRoot
 try {
     $containers = @(docker container ls --all --format '{{.Names}}')
     if ($LASTEXITCODE -ne 0) { throw 'Docker Desktop must be running.' }
-    if ($containers -notcontains $name) { throw "$name is not there: make it first with .\ops\tests\run_api_full_clone.ps1" }
+    if ($containers -notcontains $name) { throw "$name is not there: make it first with .\dev\tests\run_api_full_clone.ps1" }
     $password = ((docker inspect $name --format '{{range .Config.Env}}{{println .}}{{end}}') | Where-Object { $_ -like 'POSTGRES_PASSWORD=*' }) -replace '^POSTGRES_PASSWORD=', ''
     if (-not $password) { throw "$name has no POSTGRES_PASSWORD: it was not made by run_api_full_clone.ps1." }
     docker start $name | Out-Null

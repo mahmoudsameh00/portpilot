@@ -3,13 +3,14 @@
 Plan:    dev/history/archive/2026-11-15_JIT_arrival_plan.md (approved and closed 2026-11-15; §2a D-J1…D-J3, §7 D-J8).
 Run:     uv run python dev/tools/run.py dev/checks/agents/Arrival_advice_check.py              (Phases 1–7: 0 model calls)
          $env:EVAL_REAL_MODELS = '1'; uv run python dev/tools/run.py dev/checks/agents/Arrival_advice_check.py   (+ Phase 8)
+         $env:EVAL_REPEAT = '2' (ADR-052's second run: Phase 8 on its own reply cache, llm_cache/arrival_r2/)
 
 Reads:   PostgreSQL read-only (vessels, port_call_messages, the migration 020 tables through the tools), MongoDB AIS
          (read-only user), the reference CSVs (vessel_performance, bunker_prices), the generator's CSV + manifest, the
          voyage file, the NOAA harbour profile, searoute locally. Open-Meteo / PortWatch: a mock transport in Phases 5–7,
          the real (cached) services in Phase 8.
 Writes:  Data/processed/agents/eval/arrival_cases.json on its first run only (frozen; later runs assert it); check
-         threads `arrival_advice:…` in agent_state, deleted at the end.
+         threads in a per-run check namespace in agent_state, deleted at the end.
 Re-run:  safe.
 
 Phases
@@ -18,9 +19,10 @@ Phases
    true arrival; a probe user refused.
 2. The arithmetic on 20 frozen cases = an independent computation (floats from the reference CSVs); 20 planted errors
    in the code results, all caught by the comparison.
-3. Properties on a grid (live vessels × RTA offsets): JIT fuel ≤ keep fuel, JIT arrival = the target, the floor, the
+3. Properties on a grid (live vessels × RTA offsets): JIT fuel ≤ keep fuel, JIT within rounding tolerance of the target, the floor, the
    rule's choice, wait and late never both, waiting grows with a later RTA, the Cape only when the floor waits.
-4. The Validator: planted errors in model text all caught, the good advices pass, the justified overrides.
+4. The Validator: planted errors in model text all caught, the good advices pass, the justified overrides and their
+   direction (a storm → an earlier arrival, not the Cape; a Suez drop → the Cape only).
 4s. The skill arrival-advice: budgets, the examples render.
 5. The graph on FakeRoles + the PostgreSQL checkpointer: ok, patch, validation_failed, output_invalid, on_time / late
    with no model call, not_at_sea, not_destination, no_rta, not_permitted, the Cape, weather down, a storm override,
@@ -41,13 +43,14 @@ import sys
 import tempfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
 import pandas as pd
 
 ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / "pyproject.toml").exists() and (p / "Data").is_dir())
 sys.path.insert(0, str(ROOT))
-from pipelines.agents import checkpointer, roles, skill_loader  # noqa: E402
+from pipelines.agents import checkpointer, llm, roles, skill_loader  # noqa: E402
 from pipelines.agents.deck import slots  # noqa: E402
 from pipelines.agents.graphs import arrival_advice as aa  # noqa: E402
 from pipelines.agents.graphs import models as m  # noqa: E402
@@ -59,6 +62,9 @@ from pipelines.lib.common import load_env  # noqa: E402
 from pipelines.lib.retrieval import User  # noqa: E402
 
 load_env(ROOT)
+# Product tools opened by the supervisor share this module. Scope their threads and cleanup to this check process.
+CHECK_ID = uuid4().hex
+aa.THREAD_PREFIX = f"arrival-check:{CHECK_ID}:"
 REAL = os.environ.get("EVAL_REAL_MODELS") == "1"
 CASES_FILE = ROOT / "Data" / "processed" / "agents" / "eval" / "arrival_cases.json"
 CSV = ROOT / "Data" / "processed" / "synthetic" / "port_calls" / "port_call_messages.csv"
@@ -267,7 +273,7 @@ def independent(c: dict, ev: dict) -> dict:
     order = arrival.OPTIONS.index
     good = [r for r in rows if r["ok"]]
     pool = good or [r for r in rows if r["allowed"]] or rows
-    rule = min(pool, key=lambda r: ((0, round(r["total_sdr"], 2)) if good else (round(r["late_h"], 1),
+    rule = min(pool, key=lambda r: ((0, round(r["total_sdr"], 2)) if good else (r["arrival"],
                                                                                round(r["total_sdr"], 2)))
                + (order(r["option"]),))
     return {"situation": situation, "rule": rule["option"], "options": rows, "floor": floor}
@@ -325,10 +331,8 @@ for i, k in enumerate(sorted(EV)):
     caught += bool(compare(bad, IND[k]))
 actual_2 = {"cases": len(CASES), "options": sum(len(EV[k]["arrival.options"]["rows"]) for k in EV),
             "rules": dict(sorted(__import__("collections").Counter(rules.values()).items())), "planted_caught": caught}
-# reviewed 2026-11-15: 38 options; the rule picks jit 10, keep 5 (on time / late with no faster speed, or late with a
-# catch-up that saves nothing), floor 3, cape 1 (case 13 or 14: round the Cape at a speed that fits beats the floor
-# + waiting), catch_up 1
-REVIEWED_2 = {"cases": 20, "options": 38, "rules": {"cape": 1, "catch_up": 1, "floor": 3, "jit": 10, "keep": 5},
+# 2026-11-23: both late catch-up cases improve the ETA before display rounding, also in the independent reference.
+REVIEWED_2 = {"cases": 20, "options": 38, "rules": {"cape": 1, "catch_up": 2, "floor": 3, "jit": 10, "keep": 4},
               "planted_caught": 20}
 assert actual_2 == REVIEWED_2, actual_2
 print(f"Phase 2: {actual_2}; kinds {kinds}")
@@ -382,7 +386,7 @@ for vid in grid_vessels:
         viol.append((vid, None, "keep wait falls with a later RTA"))
 assert not viol, viol[:10]
 print(f"Phase 3: {n_cases} grid cases on {len(grid_vessels)} vessels, {n_opts} options, 0 property violations")
-print("✅ Phase 3 validation passed: JIT fuel ≤ keep, JIT at the target, the floor, the rule's choice, wait / late "
+print("✅ Phase 3 validation passed: JIT fuel ≤ keep, JIT within rounding tolerance of the target, the floor, the rule's choice, wait / late "
       "exclusive, waiting monotone in the RTA, the Cape only with the floor")
 
 # %% Phase 4 — The Validator: planted errors in model text
@@ -438,6 +442,39 @@ assert not false_alarms, {k: aa.validate(good_advice(EV[k]), EV[k]) for k in fal
 planted = [(k, i, aa.validate(a, EV[k])) for k in p4_cases for i, a in enumerate(plants(EV[k]))]
 missed = [(k, i) for k, i, p in planted if not p]
 assert not missed, missed
+# Pilot boarding replay from the web: a rounded JIT speed can arrive either side of the planning target.
+rounded = json.loads(json.dumps(EV[1]))
+rounded_summary = rounded["arrival.summary"]["rows"][0]
+rounded_summary.update(target_utc="2026-09-18T07:45Z", rta_utc="2026-09-18T09:45Z")
+jit_row = next(row for row in rounded["arrival.options"]["rows"] if row["option"] == "jit")
+for minute, difference in (("47", "2 minutes after"), ("44", "1 minute before"), ("45", "")):
+    jit_row["arrival_utc"] = f"2026-09-18T07:{minute}Z"
+    explanation = [line for line in aa.assumptions(rounded) if "rounded sailing speed" in line]
+    assert explanation == ([f"At the rounded sailing speed, the JIT ETA is {difference} the planning target."]
+                           if difference else [])
+    sample = good_advice(rounded)
+    for claim in ("meeting the target of 2026-09-18T07:45Z without delay", "يصل في الموعد المستهدف"):
+        sample["reasons"][0]["text"] = claim
+        assert bool(aa.validate(sample, rounded)) == bool(difference), (minute, claim)
+    sample["reasons"][0]["text"] = f"The ETA is {jit_row['arrival_utc']}, before the port's RTA of 2026-09-18T09:45Z."
+    assert not aa.validate(sample, rounded), aa.validate(sample, rounded)
+time_draft = good_advice(rounded)
+time_reason = time_draft["reasons"][0]
+time_reason.update(text="ETA {arrival.options[jit]:arrival_utc}, RTA {arrival.summary:rta_utc}.",
+                   evidence_ids=["arrival.options", "arrival.summary"])
+copied, _ = aa.normalize_advice(time_draft, rounded)
+assert copied["reasons"][0]["text"] == "ETA 2026-09-18T07:45Z, RTA 2026-09-18T09:45Z."
+assert not aa.validate(copied, rounded)
+time_reason["evidence_ids"] = ["arrival.options"]
+for invalid in ("{arrival.summary:rta_utc}", "{arrival.options[absent]:arrival_utc}", "{arrival.options[jit]:eta_utc}"):
+    time_reason["text"] = invalid
+    unresolved, _ = aa.normalize_advice(time_draft, rounded)
+    assert aa.validate(unresolved, rounded), invalid
+for waiting_claim, valid in (("{arrival.options[keep]:wait_h} before the RTA.", False),
+                             ("{arrival.options[keep]:wait_h} قبل الموعد المطلوب.", False),
+                             ("{arrival.options[keep]:wait_h} of planned waiting at anchor.", True)):
+    time_reason["text"] = waiting_claim
+    assert (not aa.validate(time_draft, rounded)) == valid, waiting_claim
 # a justified override: keep instead of jit when the first reason cites a storm on the next legs / a Suez drop
 ev1 = json.loads(json.dumps(EV[1]))
 ov = good_advice(ev1) | {"recommendation": "keep"}
@@ -449,14 +486,37 @@ ev1["arrival.weather"] = arrival.result("arrival_risks", [{"kind": "weather", "s
 over_ok = not aa.validate(ov, ev1)
 ev1["arrival.weather"]["rows"] = []
 over_no_row = bool(aa.validate(ov, ev1))
-ov_t = json.loads(json.dumps(ov))
-ov_t["reasons"][0]["evidence_ids"] = ["arrival.traffic"]
-for pct, want_ok in ((-25.0, True), (-10.0, False)):
-    ev1["arrival.traffic"] = arrival.result("route_costs", [{"route": "traffic", "change_transits_pct": pct}], "planted")
-    assert (not aa.validate(ov_t, ev1)) == want_ok, (pct, aa.validate(ov_t, ev1))
 assert over_ok and over_no_row
+# the risk's direction (owner, 2026-11-22): a storm → an earlier arrival than the rule's, never the Cape; a Suez drop
+# of −20 % or lower → the Cape only
+STORM = [{"kind": "weather", "severity": "high", "date": "2026-09-14", "wave_height_max_m": 7.0,
+          "wind_speed_10m_max_kn": 50.0}]
+
+
+def override(ev: dict, option: str, eid: str, *, storm: bool = False, pct: float | None = None) -> list[str]:
+    e = json.loads(json.dumps(ev))
+    e["arrival.weather"] = arrival.result("arrival_risks", STORM if storm else [], "planted")
+    if pct is not None:
+        e["arrival.traffic"] = arrival.result("route_costs", [{"route": "traffic", "change_transits_pct": pct}],
+                                              "planted")
+    a = good_advice(e) | {"recommendation": option}
+    a["reasons"] = [{"text": "The risk on the way decides the speed.", "evidence_ids": [eid]}] + a["reasons"]
+    return aa.validate(a, e)
+
+
+k_cape = next(k for k in (13, 14) if rules[k] == "floor")         # the Cape computed, the rule's choice the floor
+k_cu = next(k for k in EV if rules[k] == "catch_up")              # late: the rule sails faster
+directions = {"traffic -25 → cape": not override(EV[k_cape], "cape", "arrival.traffic", pct=-25.0),
+              "traffic -10 → cape refused": bool(override(EV[k_cape], "cape", "arrival.traffic", pct=-10.0)),
+              "traffic -25 → keep refused": bool(override(EV[1], "keep", "arrival.traffic", pct=-25.0)),
+              "storm → keep (earlier than floor)": not override(EV[k_cape], "keep", "arrival.weather", storm=True),
+              "storm → cape refused": bool(override(EV[k_cape], "cape", "arrival.weather", storm=True)),
+              "storm → keep (later than catch_up) refused": bool(override(EV[k_cu], "keep", "arrival.weather",
+                                                                          storm=True))}
+assert all(directions.values()), directions
 print(f"Phase 4: {len(planted)} planted errors caught ({len(p4_cases)} cases × {len(planted) // len(p4_cases)}), 0 false alarms on 20 good "
-      "advices; overrides: a storm row / Suez −25 % pass, no row / −10 % refused")
+      f"advices; overrides: a storm row passes, no row refused; directions {len(directions)} / {len(directions)} "
+      f"(cases {k_cape}, {k_cu}, 1)")
 print("✅ Phase 4 validation passed.")
 
 # %% Phase 4s — The skill arrival-advice
@@ -695,13 +755,13 @@ try:
     external.TODAY = date(2026, 11, 15)
     fresh_caches("watch_arrivals")
     ctx6 = context.RunContext(OPS, as_of=ASOF)
-    arrivals6, usage6 = vw.advise_arrivals(silent, ctx6, al)
+    arrivals6, usage6 = vw.advise_arrivals(silent, ctx6, al, det["etas"])
 
     class _Boom:                                         # a model that breaks: one advice fails, the watch goes on
         def get(self, role):
             raise RuntimeError("provider down")
     two = sorted(mine.values(), key=lambda a: a["vessel_id"])[:2]
-    broken, _ = vw.advise_arrivals(_Boom(), ctx6, two)
+    broken, _ = vw.advise_arrivals(_Boom(), ctx6, two, det["etas"])
 finally:
     external.HTTP, external.TODAY = real_http, real_today
     for name in ("marine_weather", "suez_transits"):
@@ -723,12 +783,23 @@ for a in mine.values():
         if a.get("catch_up_speed_kn") is not None:
             assert by_opt["catch_up"]["speed_kn"] == a["catch_up_speed_kn"], a["alert_id"]
     assert s["rta_utc"] == a["rta_utc"], (a["alert_id"], s["rta_utc"], a["rta_utc"])
-    assert adv["status"] in ("late", "on_time", "output_invalid"), (a["alert_id"], adv["status"])
+    assert adv["status"] == "computed" and adv["recommendation"] in by_opt, (a["alert_id"], adv)
     agree += 1
-written = sum(adv["status"] == "output_invalid" for adv in arrivals6.values())
-assert len(broken) == len(two) and all(
-    (b["status"] == "error" and "provider down" in b["problems"][0]) or b["status"] in ("late", "on_time")
-    for b in broken.values()), broken
+assert len(broken) == len(two) and all(b["status"] == "computed" and b["recommendation"] for b in broken.values()), broken
+# Recorded examples where rounded lateness tied. Check the full option set, the RTA and the operational action.
+for vid in (2, 351, 352):
+    decision = arrivals6[str(vid)]
+    assert decision["recommendation"] == "catch_up" and "Notify the port" in decision["headline"], decision
+    keep, up = decision["options"]
+    assert up["arrival_utc"] < keep["arrival_utc"] and up["late_h"] == keep["late_h"]
+assert arrivals6["5"]["recommendation"] == "keep" and "Notify the port" in arrivals6["5"]["headline"]
+assert arrivals6["157"]["recommendation"] == "catch_up"
+keep_eta = arrival.ts(arrivals6["5"]["options"][0]["arrival_utc"])
+near_req = ArrivalRequest(vessel_id=5, rta_utc=(keep_eta - pd.Timedelta(minutes=1)).to_pydatetime())
+near = aa.deterministic(OPS, near_req, ASOF, with_context=False)["evidence"]
+near_keep = near["arrival.options"]["rows"][0]
+assert near_keep["late_h"] == 0.0 and not near_keep["arrives_by_rta"]
+assert near["arrival.summary"]["rows"][0]["situation"] == "late"
 # the run file keeps the advice; the alert reader hands it out with its own alert only
 tmp6 = Path(tempfile.mkdtemp(prefix="watch_arrivals_"))
 tid6 = "voyage_watch:20260913T0000Z:7"
@@ -738,9 +809,18 @@ read6 = watch.read_alerts(OPS, folder=tmp6)
 with_adv = [x for x in read6["alerts"] if "advice" in x]
 assert {x["alert_id"] for x in with_adv} == set(mine) and all(x["kind"] in vw.ARRIVAL_KINDS for x in with_adv)
 assert all(x["advice"]["alert_id"] == x["alert_id"] for x in with_adv)
+old_alert = mine["5/rta_late"]
+missing_deadline_alert = old_alert | {"vessel_id": 91, "rta_utc": None}
+anchored_alert = old_alert | {"vessel_id": 92}
+tid_old = "voyage_watch:20260912T0000Z:1"
+vw.write_run_file(tmp6, tid_old, {"alerts": [old_alert, missing_deadline_alert, anchored_alert], "as_of": ASOF.isoformat(),
+                                 "etas": [{"vessel_id": 92, "status": "Anchored"}]})
+older_rows = watch.read_alerts(OPS, thread=tid_old, folder=tmp6)["alerts"]
+assert older_rows[0]["advice"]["status"] == "review" and "Notify the port" in older_rows[0]["advice"]["headline"]
+assert all("advice" not in row for row in older_rows[1:])
 print(f"Phase 6w: the watch advised {len(arrivals6)} vessels = its {len(mine)} jit / rta_late alerts; the advice's own "
-      f"computation = the alert's option, speed, fuel change, lateness and RTA on all {agree}; {written} wait for the "
-      f"writer (stopped calmly on the silent fake), the rest decided by code; a breaking model fails its advice only; "
+      f"computation = the alert's option, speed, fuel change, lateness and RTA on all {agree}; a silent or unavailable "
+      f"writer leaves a computed decision; "
       f"the run file keeps them and the alert reader attaches each to its own alert")
 print("✅ Phase 6w validation passed.")
 
@@ -808,7 +888,12 @@ if not REAL:
 # PortWatch through the tools' cache. Every thread is a check thread, deleted at the end.
 from pipelines.agents.graphs.models import WatchRequest  # noqa: E402
 
-real_roles = roles.Roles()
+# ADR-052 "two runs": EVAL_REPEAT=k (k ≥ 2) reads and writes its own reply cache (llm_cache/arrival_r<k>/), so the
+# repeat is a fresh set of calls, not cache hits; the daily quota state stays shared (2026-11-22, skill review)
+REPEAT = int(os.environ.get("EVAL_REPEAT", "1"))
+real_roles = (roles.Roles() if REPEAT == 1 else
+              roles.Roles(cache_dir=llm.CACHE_DIR / f"arrival_r{REPEAT}", quota=llm.QuotaState(llm.CACHE_DIR)))
+print(f"Phase 8: repeat {REPEAT}")
 g8 = aa.build_graph(real_roles, saver)
 threads8: list[str] = []
 real_cases = [c for c in CASES if c["case"] not in single][:8]
@@ -833,7 +918,7 @@ try:
     sup8 = {}
     for q, tag in ((f"Vessel {CASES[0]['vessel_id']} has a berth at its destination: should it slow down for its RTA?",
                     "en"), (f"المركب {CASES[1]['vessel_id']} يهدي السرعة عشان ميعاد الرصيف ولا يكمل بسرعته؟", "ar")):
-        tid = f"ask:{OPS.employee_id}:arrival_check:{tag}"
+        tid = f"ask:{OPS.employee_id}:arrival_check:{CHECK_ID}:{tag}"
         threads8.append(tid)
         st = sv.ask(sg, q, OPS, as_of=ASOF, thread=tid)
         u = st.get("llm_usage") or []

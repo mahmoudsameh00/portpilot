@@ -1,13 +1,13 @@
 "use client";
 // One arrival advice (Arrival advice web plan): GET /arrival-advice/{thread} — the asker's own (the CEO's: any); the
-// API decides. The advice in full, then the request card to ask again.
+// API decides. The advice in full, then links to earlier saved results.
 import { useQuery } from "@tanstack/react-query";
 import { Anchor, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { getArrivalAdviceApiV1ArrivalAdviceThreadIdGet as getAdvice } from "@/api/generated/client";
 import { BffError } from "@/lib/bff/client";
 import { arrivalThreadParts } from "@/lib/arrival-advice";
-import { AdviceCard, ArrivalRequest } from "./Arrival";
+import { AdviceCard, ArrivalHistory } from "./Arrival";
 
 export function ArrivalDetail({ thread }: { thread: string }) {
   const { data, isPending, error } = useQuery({
@@ -43,7 +43,7 @@ export function ArrivalDetail({ thread }: { thread: string }) {
           ) : null}
           {data ? <AdviceCard advice={data} /> : null}
         </div>
-        <ArrivalRequest />
+        <ArrivalHistory />
       </div>
     </div>
   );
