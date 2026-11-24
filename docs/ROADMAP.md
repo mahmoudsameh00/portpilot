@@ -22,8 +22,7 @@ The English supervisor response failed validation. The owner accepted the earlie
 "edits + the risk's direction": the skill's text fixed and a direction rule in the arrival Validator (a storm → an
 earlier arrival, never the Cape; a Suez drop → the Cape only), `reviewed_by_owner: 2026-11-22`, ADR-070 note;
 `Arrival_advice_check.py` Phases 1–7 ✅, two real runs 7 / 8 (Gemini overloaded, the fallback model) and 8 / 8. The
-whole check table and every open point, classified, are in `docs/plans/Azure_staging_plan.md` §7 "Readiness audit
-2026-11-22": the CI checks 16 / 16, web 7 / 7, the full-data checks green, and the local staging rehearsal on a restore of today's stores (smoke 15 / 15). Stale labels fixed in
+readiness audit recorded 16 / 16 CI checks, 7 / 7 web checks, passing full-data checks and a local staging rehearsal on a restore of today's stores (smoke 15 / 15). Stale labels fixed in
 ARCHITECTURE, this file, THREAT_MODEL and RUNBOOK §15. The owner's fresh retry scored 6 / 8 (two evidence failures).
 The owner accepted the earlier results for staging if this retry fell short. The revised release order is a live
 web test, then the staging candidate on remote `master` for CI. The release tag remains at A6. Frontend Sentry is
@@ -49,8 +48,7 @@ pymongo 4.20 green on the full data. Dependabot is now monthly, grouped, with ma
 langsmith 0.15.0 (2026-12-01; also one real traced run in `nilegate-agents`). They may close and come back in the
 first monthly group. @xyflow/react 13: the padding is ready (`RunGraph.tsx`), the major waits for a planned task.
 **NEXT (owner):** the staging deployment O4–O10 (`docs/deploy/RUNBOOK.md`, staging names and sizes) and one login per
-tester. **Active plan (APPROVED 2026-11-22):** `docs/plans/Azure_staging_plan.md` (Phases A0–A11, decisions D-AZ-1 …
-D-AZ-6 as recommended; D-AZ-4 brings the review of the skill `arrival-advice` before staging is shared).
+tester. The owner approved the staging plan on 2026-11-22 and keeps the working copy locally.
 
 **Update 2026-11-19 — Repository layout CLOSED; no plan is open** (`dev/history/archive/2026-11-19_Repo_layout_and_hygiene_plan.md`,
 ADR-072; owner decisions D-RL-1…4 in one round). The runtime stays where it was (`pipelines/`, `db/`, `deploy/`,

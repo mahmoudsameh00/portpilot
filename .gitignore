@@ -20,6 +20,9 @@ __pycache__/
 *.log
 dev/_scratch/
 
+# Active plans and their working notes stay on the owner's machine.
+/docs/plans/
+
 # Raw downloads: never modified, never committed
 Data/raw/
 
